@@ -59,8 +59,9 @@ class Divide(Node):
 
 # 逻辑控制所用结点
 class Loop(Node):
-    def __init__(self,**kwargs):
+    def __init__(self,times,**kwargs):
         super().__init__(9,**kwargs)
+        self.times = times
 
 class Loop_End(Node):
     def __init__(self,**kwargs):
@@ -74,18 +75,25 @@ class If(Node):
     def __init__(self,**kwargs):
         super().__init__(12,**kwargs)
 
+class Assignment(Node):
+    def __init__(self,**kwargs):
+        super().__init__(13,**kwargs)
+
 # 通过globals方法，以类名选择类进行实例化
 def InstantiationClass(nodeId,nodeType,**otherField):
-    if(nodeType == 'Val'):
+    if nodeType == 'Val':
         value = otherField['value']
         node = globals()[nodeType](value,id=nodeId)
-    elif(nodeType == 'CreatTensor'):
+    elif nodeType == 'CreatTensor':
         data_shape = otherField['data_shape']
         node = globals()[nodeType](data_shape,id=nodeId)
-    elif(nodeType == 'Random'):
+    elif nodeType == 'Random':
         uLimit = otherField['uLimit']
         lLimit = otherField['lLimit']
         node = globals()[nodeType](uLimit,lLimit,id=nodeId)
+    elif nodeType == 'Loop':
+        times = otherField['times']
+        node = globals()[nodeType](times,id=nodeId)
     else:
         node = globals()[nodeType](id=nodeId)
     return node
