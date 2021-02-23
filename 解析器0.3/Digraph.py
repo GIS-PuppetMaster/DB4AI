@@ -2,7 +2,7 @@ import Nodes as nd
 import GraphVisualization as gv
 from queue import Queue as qu
 class Edge:
-    def __init__(self,start,end):
+    def __init__(self,start,end,condition):
         self.data_shape = None
         self.data_type = None
         self.data_physic_type = None
@@ -10,6 +10,7 @@ class Edge:
         # 例如2^3，end节点为pow，则2对应的边的parameter_index=1，3对应的边的parameter_index=2
         # 例如3^2，end节点为pow，则3对应的边的parameter_index=1，2对应的边的parameter_index=2
         self.parameter_index = None
+        self.condition = condition
         self.start = start
         self.end = end
 
@@ -29,12 +30,12 @@ class Graph:
         self.edges = []
         self.connect_info = dict()
     # 有关边的方法
-    def InsertEdge(self,start,end):
+    def InsertEdge(self,start,end,condition = 'no'):
         # if(len(self.edges)):
         #     for edge in self.edges:
         #         if(start==edge.GetStart() and end==edge.GetEnd()):
         #             return False
-        edge = Edge(start,end)
+        edge = Edge(start,end,condition)
         self.edges.append(edge)
         return True
 

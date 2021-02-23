@@ -16,7 +16,7 @@ class Parser:
         self.loop_use = list()
 
     def __call__(self, *args, **kwargs):
-        # print(self.queries)
+        print(self.queries)
         if self.root_id == 0:
             root = Nd.InstantiationClass(self.node_id, 'Root')
             self.graph.InsertNode(root)

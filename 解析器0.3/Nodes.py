@@ -14,7 +14,7 @@ class Root(Node):
         super().__init__(0, **kwargs)
 
 # 创建张量所用结点
-class CreatTensor(Node):
+class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
         super().__init__(1, **kwargs)
         data_shape = data_shape.replace('(', ',').replace(')', ',')
@@ -31,8 +31,9 @@ class Val(Node):
         self.value = value
 
 class Sql(Node):
-    def __init__(self,**kwargs):
+    def __init__(self,t_name,**kwargs):
         super().__init__(3,**kwargs)
+        self.t_name = t_name
 
 class Random(Node):
     def __init__(self,uLimit,lLimit,**kwargs):
@@ -67,26 +68,33 @@ class Loop_End(Node):
     def __init__(self,**kwargs):
         super().__init__(10,**kwargs)
 
-class G_Relsult(Node):
+class If(Node):
     def __init__(self,**kwargs):
         super().__init__(11,**kwargs)
 
-class If(Node):
+class If_Branch(Node):
     def __init__(self,**kwargs):
         super().__init__(12,**kwargs)
 
-class Assignment(Node):
+class If_End(Node):
     def __init__(self,**kwargs):
         super().__init__(13,**kwargs)
+
+class Assignment(Node):
+    def __init__(self,**kwargs):
+        super().__init__(14,**kwargs)
 
 # 通过globals方法，以类名选择类进行实例化
 def InstantiationClass(nodeId,nodeType,**otherField):
     if nodeType == 'Val':
         value = otherField['value']
         node = globals()[nodeType](value,id=nodeId)
-    elif nodeType == 'CreatTensor':
+    elif nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
         node = globals()[nodeType](data_shape,id=nodeId)
+    elif nodeType == 'Sql':
+        t_name = otherField['t_name']
+        node = globals()[nodeType](t_name, id=nodeId)
     elif nodeType == 'Random':
         uLimit = otherField['uLimit']
         lLimit = otherField['lLimit']
