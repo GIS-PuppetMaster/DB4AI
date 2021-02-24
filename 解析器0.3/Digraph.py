@@ -39,30 +39,30 @@ class Graph:
         self.edges.append(edge)
         return True
 
-    def DeleEdge(self,start,end):
-        if (len(self.edges)):
-            for edge in self.edges:
-                if (start == edge.GetStart() and end == edge.GetEnd()):
-                   self.edges.remove(edge)
-                   return True
-            else:
-                return False
-        else:
-            return False
+    # def DeleEdge(self,start,end):
+    #     if (len(self.edges)):
+    #         for edge in self.edges:
+    #             if (start == edge.GetStart() and end == edge.GetEnd()):
+    #                self.edges.remove(edge)
+    #                return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
 
-    def SetEdge(self,start,end):
-        if (len(self.edges)):
-            for edge in self.edges:
-                if (start == edge.GetStart() and end == edge.GetEnd()):
-                   self.edges.remove(edge)
-                   break
-            else:
-                return False
-            edge = Edge(start, end)
-            self.edges.append(edge)
-            return True
-        else:
-            return False
+    # def SetEdge(self,start,end):
+    #     if (len(self.edges)):
+    #         for edge in self.edges:
+    #             if (start == edge.GetStart() and end == edge.GetEnd()):
+    #                self.edges.remove(edge)
+    #                break
+    #         else:
+    #             return False
+    #         edge = Edge(start, end)
+    #         self.edges.append(edge)
+    #         return True
+    #     else:
+    #         return False
 
     def GetEdge(self,start,end):
         if (len(self.edges)):
@@ -81,19 +81,19 @@ class Graph:
         self.nodes.append(node)
         return True
 
-    def DeleNode(self,id):
-        if(len(self.nodes)):
-            for node in self.nodes:
-                if(id == node.GetId()):
-                    self.nodes.remove(node)
-                    for edge in self.edges:
-                        if(edge.GetStart() == id or edge.GetEnd == id):
-                            self.edges.remove(edge)
-                    return True
-            else:
-                return False
-        else:
-            return False
+    # def DeleNode(self,id):
+    #     if(len(self.nodes)):
+    #         for node in self.nodes:
+    #             if(id == node.GetId()):
+    #                 self.nodes.remove(node)
+    #                 for edge in self.edges:
+    #                     if(edge.GetStart() == id or edge.GetEnd == id):
+    #                         self.edges.remove(edge)
+    #                 return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
 
     def GetNode(self,id):
         if (len(self.nodes)):
