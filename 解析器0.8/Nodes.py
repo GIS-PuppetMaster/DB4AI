@@ -1,19 +1,23 @@
 class Node:
-    # 计算图中结点类的父类
+    # 计算图中节点类的父类
     def __init__(self, type_id, physic_algorithm='relational', **kwargs):
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
         self.type_id = type_id
+        self.with_grad = kwargs['grad']
+
     def GetId(self):
         return self.id
+
     def GetType(self):
         return self.type_id
-# 通过继承实现的其它结点类
+
+# 通过继承实现的其它节点类
 class Root(Node):
     def __init__(self, **kwargs):
         super().__init__(0, **kwargs)
 
-# 创建张量所用结点
+# 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
         super().__init__(1, **kwargs)
@@ -26,8 +30,11 @@ class CreateTensor(Node):
         self.data_shape = tuple(data_list)
 
 class Val(Node):
-    def __init__(self, value, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(2, **kwargs)
+        self.value = 0
+
+    def set_val(self, value):
         self.value = value
 
 class Sql(Node):
@@ -41,7 +48,7 @@ class Random(Node):
         self.uLimit = uLimit
         self.lLimit = lLimit
 
-# 算术表达式所用结点
+# 算术表达式所用节点
 class Plus(Node):
     def __init__(self, **kwargs):
         super().__init__(5, **kwargs)
@@ -58,7 +65,7 @@ class Divide(Node):
     def __init__(self, **kwargs):
         super().__init__(8, **kwargs)
 
-# 逻辑控制所用结点
+# 逻辑控制所用节点
 class Loop(Node):
     def __init__(self,times,**kwargs):
         super().__init__(9,**kwargs)
@@ -84,24 +91,30 @@ class Assignment(Node):
     def __init__(self,**kwargs):
         super().__init__(14,**kwargs)
 
+#  用于表达式解析的节点
+class Expression(Node):
+    def __init__(self,**kwargs):
+        super().__init__(15,**kwargs)
+
+class Uniform(Node):
+    def __init__(self, **kwargs):
+        super().__init__(16, **kwargs)
+
 # 通过globals方法，以类名选择类进行实例化
-def InstantiationClass(nodeId,nodeType,**otherField):
-    if nodeType == 'Val':
-        value = otherField['value']
-        node = globals()[nodeType](value,id=nodeId)
-    elif nodeType == 'CreateTensor':
+def InstantiationClass(nodeId, nodeType, with_grad = False, **otherField):
+    if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
-        node = globals()[nodeType](data_shape,id=nodeId)
+        node = globals()[nodeType](data_shape, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_name = otherField['t_name']
-        node = globals()[nodeType](t_name, id=nodeId)
+        node = globals()[nodeType](t_name, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Random':
         uLimit = otherField['uLimit']
         lLimit = otherField['lLimit']
-        node = globals()[nodeType](uLimit,lLimit,id=nodeId)
+        node = globals()[nodeType](uLimit, lLimit, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Loop':
         times = otherField['times']
-        node = globals()[nodeType](times,id=nodeId)
+        node = globals()[nodeType](times, id=nodeId, with_grad=with_grad)
     else:
-        node = globals()[nodeType](id=nodeId)
+        node = globals()[nodeType](id=nodeId, with_grad=with_grad)
     return node

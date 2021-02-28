@@ -1,6 +1,8 @@
 import Nodes as nd
 import GraphVisualization as gv
 from queue import Queue as qu
+
+
 class Edge:
     def __init__(self,start,end,condition):
         self.data_shape = None
@@ -24,86 +26,41 @@ class Edge:
         self.start = start
         self.end = end
 
+
 class Graph:
     def __init__(self):
         self.nodes = []
         self.edges = []
-        self.connect_info = dict()
+
     # 有关边的方法
     def InsertEdge(self,start,end,condition = 'no'):
-        # if(len(self.edges)):
-        #     for edge in self.edges:
-        #         if(start==edge.GetStart() and end==edge.GetEnd()):
-        #             return False
         edge = Edge(start,end,condition)
         self.edges.append(edge)
         return True
 
-    # def DeleEdge(self,start,end):
-    #     if (len(self.edges)):
-    #         for edge in self.edges:
-    #             if (start == edge.GetStart() and end == edge.GetEnd()):
-    #                self.edges.remove(edge)
-    #                return True
-    #         else:
-    #             return False
-    #     else:
-    #         return False
-
-    # def SetEdge(self,start,end):
-    #     if (len(self.edges)):
-    #         for edge in self.edges:
-    #             if (start == edge.GetStart() and end == edge.GetEnd()):
-    #                self.edges.remove(edge)
-    #                break
-    #         else:
-    #             return False
-    #         edge = Edge(start, end)
-    #         self.edges.append(edge)
-    #         return True
-    #     else:
-    #         return False
-
     def GetEdge(self,start,end):
-        if (len(self.edges)):
+        if len(self.edges):
             for edge in self.edges:
-                if (start == edge.GetStart() and end == edge.GetEnd()):
+                if start == edge.GetStart() and end == edge.GetEnd():
                     return edge
             else:
                 return False
-    # 有关结点的方法
+
+    # 有关节点的方法
     def InsertNode(self,node):
-        # id = node.GetId
-        # if (len(self.nodes)):
-        #     for n in self.nodes:
-        #         if (id == n.GetId()):
-        #             return False
         self.nodes.append(node)
         return True
 
-    # def DeleNode(self,id):
-    #     if(len(self.nodes)):
-    #         for node in self.nodes:
-    #             if(id == node.GetId()):
-    #                 self.nodes.remove(node)
-    #                 for edge in self.edges:
-    #                     if(edge.GetStart() == id or edge.GetEnd == id):
-    #                         self.edges.remove(edge)
-    #                 return True
-    #         else:
-    #             return False
-    #     else:
-    #         return False
-
     def GetNode(self,id):
-        if (len(self.nodes)):
+        if len(self.nodes):
             for node in self.nodes:
-                if (id == node.GetId()):
+                if id == node.GetId():
                     return node
             else:
                 return False
         else:
-                return False
+            return False
+
     # 其它方法
     def Show(self):
         edges = []
@@ -134,6 +91,7 @@ class Graph:
                 leafs.append(root)
             is_leaf = True
         return leafs
+
 
 if __name__ == '__main__':
     G = Graph()
