@@ -167,7 +167,7 @@ class Parser:
         # 用于匹配的正则表达式
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         data_list_reg = '[(]([1-9,]?(-1,)?)*([1-9])[)]|[(]([1-9,]?(-1,)?)*(-1)[)]|[(]-1,[)]|[(][1-9],[)]'
-        create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?\n$'
+        create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?$'
         val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
         val_info_reg2 = variable_name_reg  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = 'RANDOM[(][(]-1,[0-9][)][)]|RANDOM[(][(][0-9],-1[)][)]|RANDOM[(][(][0-9],[0-9][)][)]'
@@ -321,8 +321,9 @@ class Parser:
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
         if matchObj_if:
+            # TODO: 无法正常生成IF_END节点，请检查状态机
             self.EndIf()
-            if_str = matchObj_if.group(1)
+            if_str = matchObj_if.group(0)
             condition = re.search('[^ ]', if_str).group()
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If')
@@ -343,7 +344,7 @@ class Parser:
             return True
         elif matchObj_elif:
             if self.state == 'if':
-                if_str = matchObj_elif.group(1)
+                if_str = matchObj_elif.group(0)
                 condition = re.search('[^ ]', if_str).group()
                 self.node_id += 1
                 node = Nd.InstantiationClass(self.node_id, 'If_Branch')
@@ -448,17 +449,9 @@ class Parser:
 
 if __name__ == '__main__':
     testList = list()
-    # testList.append('CREATE TENSOR X(-1,4)')
-    # testList.append('CREATE TENSOR Y(-1,1)')
-    # testList.append('IF a<1{\n
-    # CREATE TENSOR X(-1,4)
-    # \n}
-    # ELIF c>0.04{\n
-    # CREATE TENSOR Y(-1,1)
-    # \n}
-    # ELSE{\n
-    # CREATE TENSOR LR(1,) FROM 0.05
-    # \n}')
+    testList.append('CREATE TENSOR X(-1,4)')
+    testList.append('CREATE TENSOR Y(-1,1)')
+    testList.append('IF a<1{\n CREATE TENSOR X(-1,4)\n}ELIF c>0.04{\nCREATE TENSOR Y(-1,1)\n}ELSE{\nCREATE TENSOR LR(1,) FROM 0.05\n}')
     testList.append('CREATE TENSOR LR(1,) FROM 0.05')
     # testList.append('LOOP 100{\n
     # X = SELECT F1,F2,F3,F4 FROM INPUT\n

@@ -4,7 +4,7 @@ class Node:
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
         self.type_id = type_id
-        self.with_grad = kwargs['grad']
+        self.with_grad = kwargs['with_grad']
 
     def GetId(self):
         return self.id
