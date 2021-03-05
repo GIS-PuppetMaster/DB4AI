@@ -9,8 +9,8 @@ class Node:
     def GetId(self):
         return self.id
 
-    # def GetType(self):
-    #     return self.type_id
+    def GetType(self):
+        return self.type_id
 
 # 通过继承实现的其它节点类
 class Root(Node):
