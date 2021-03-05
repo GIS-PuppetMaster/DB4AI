@@ -55,6 +55,8 @@ class Parser:
                     pass
                 elif self.Loop(query):
                     pass
+                elif self.Break(query):
+                    pass
                 elif self.If(query):
                     pass
                 elif self.End(query):
@@ -229,6 +231,9 @@ class Parser:
             elif re.search('AS OUTPUT', create_str):
                 hasAS = 2
             T_name = matchObj.group(1)
+            if self.var_dict.get(T_name, None):
+                print(T_name)
+                return False
             li = create_str.split(' ')
             if len(T_name) != len(li[2]):
                 data = re.search(data_list_reg, li[2])
@@ -347,8 +352,8 @@ class Parser:
         """
         if self.loop_id == 0:
             return False
-        break_reg = 'BREAK'
-        matchObj = re.match(break_reg,query)
+        break_reg = 'BREAK\n$'
+        matchObj = re.match(break_reg, query)
         if matchObj:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)
@@ -356,7 +361,8 @@ class Parser:
             leaf_li = self.graph.GetLeafNode(self.root_id)
             for l_n in leaf_li:
                 self.graph.InsertEdge(l_n, self.node_id)
-            return  True
+
+            return True
         else:
             return False
 
@@ -367,9 +373,9 @@ class Parser:
         :return:True 合法语句，False 非法语句
         """
         con_reg = '[(][a-zA-Z0-9_=!<> ]+[)]'
-        if_reg = 'IF '+con_reg+'{\n'  # 所有关于if的正则，目前未对条件进行约束，待修改
-        elif_reg = 'ELIF '+con_reg+'{\n'
-        else_reg = 'ELSE{\n'
+        if_reg = 'IF '+con_reg+'{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
+        elif_reg = 'ELIF '+con_reg+'{\n$'
+        else_reg = 'ELSE{\n$'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
@@ -441,7 +447,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        end_reg = '\n}'
+        end_reg = '}\n$'
         matchObj = re.match(end_reg, query)
         if matchObj:
             self.EndIf()
@@ -465,17 +471,20 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        ass_reg = f'^{variable_name_reg} = (.+)\n'
+        ass_reg = f'^{variable_name_reg} = (.+)\n$'
         sql_reg = 'SELECT [a-zA-Z_]+[a-zA-Z0-9_]* FROM ([a-zA-Z_]+[a-zA-Z0-9_]*)( WHERE [.]+)?'
         matchObj = re.match(ass_reg, query)
         if matchObj:
             v_name = matchObj.group(1)
-            ass_exp = matchObj.group(2)
-            p = A_e.Analyze_expression(A_e.Pretreatment(ass_exp), self.node_id)
+            self.node_id += 1
+            p = A_e.Analyze_expression(A_e.Pretreatment(matchObj.group()), self.node_id)
             if p:
                 g_set = p[0]
                 g_in = p[1]
                 g_out = p[2]
+                e_node_id = g_out.GetId()
+                self.graph.Merge(g_set)
+                self.node_id = len(self.graph.GetSet()[0]) - 1
                 for in_v in g_in:
                     var_li = self.var_dict.get(in_v[0], None)
                     if var_li:
@@ -483,9 +492,6 @@ class Parser:
                         self.graph.InsertEdge(last_use, in_v[1])
                     else:
                         return False
-                e_node_id = g_out.GetId()
-                self.node_id = e_node_id
-                self.graph.Merge(g_set)
             else:
                 ass_str = matchObj.group(2)
                 print(ass_str)
@@ -531,7 +537,7 @@ class Parser:
         :param query:
         :return: False 结束，True 不结束
         """
-        end_reg = '\n} (AS RELATION)?'
+        end_reg = '} (AS RELATION)?\n$'
         matchObj = re.match(end_reg, query)
         if matchObj:
             return False
@@ -545,7 +551,7 @@ class Parser:
         :return: True 合法语句，False 非法语句
         """
         self.EndIf()
-        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*){\n'
+        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*){\n$'
         matchObj = re.match(c_o_reg, query)
         if matchObj:
             return True
@@ -556,6 +562,7 @@ class Parser:
         g_set = self.graph.GetSet()
         g_info = (self.input, self.output, g_set, self.var_dict)
         return g_info
+
 
 if __name__ == '__main__':
     # create语句测试
@@ -580,27 +587,64 @@ if __name__ == '__main__':
     # loop_test.append('CREATE TENSOR A_(-1,)\n')
     # loop_test.append('LOOP 18{\n')
     # loop_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # loop_test.append('\n}')
-    # loop_test.append('\n}')
+    # loop_test.append('}\n')
+    # loop_test.append('}\n')
     # testPar = Parser(loop_test)
     # testPar()
     # if语句测试
-    if_test = list()
-    if_test.append('CREATE TENSOR a(-1,3) FROM 287\n')
-    if_test.append('IF (a<108){\n')
-    if_test.append('CREATE TENSOR LL2(-1,4)\n')
-    if_test.append('CREATE TENSOR A_(-1,)\n')
-    if_test.append('IF (a<18){\n')
-    if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    if_test.append('\n}')
-    if_test.append('\n}')
-    if_test.append('ELIF (205>a and a>108){\n')
-    if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    if_test.append('\n}')
-    if_test.append('ELSE{\n')
-    if_test.append('CREATE TENSOR LL2(-1,4)\n')
-    if_test.append('\n}')
-    if_test.append('CREATE TENSOR LR(1,4) FROM User\n')
-    testPar = Parser(if_test)
+    # if_test = list()
+    # if_test.append('CREATE TENSOR a(-1,3)\n')
+    # if_test.append('IF (a<108){\n')
+    # if_test.append('CREATE TENSOR LL2(-1,4)\n')
+    # if_test.append('CREATE TENSOR a_(-1,4) FROM 287\n')
+    # if_test.append('IF (a<18){\n')
+    # if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # if_test.append('}\n')
+    # if_test.append('}\n')
+    # if_test.append('ELIF (205>a and a>108){\n')
+    # if_test.append('CREATE TENSOR _Lo(1,4) FROM 0.04\n')
+    # if_test.append('}\n')
+    # if_test.append('ELSE{\n')
+    # if_test.append('CREATE TENSOR LL8(-1,4)\n')
+    # if_test.append('}\n')
+    # if_test.append('$')
+    # testPar = Parser(if_test)
+    # testPar()
+    # 表达式测试
+    exp_test = list()
+    exp_test.append('CREATE TENSOR x(1,4)\n')
+    exp_test.append('CREATE TENSOR y(1,3)\n')
+    exp_test.append('CREATE TENSOR z(1,4,4,6,-1)\n')
+    exp_test.append('CREATE TENSOR a(1,-1,4,-1,3,-1)\n')
+    exp_test.append('CREATE TENSOR b(-1,4,9,3,2,1)\n')
+    exp_test.append('add = x + y * b - z / a\n')
+    testPar = Parser(exp_test)
     testPar()
+    # if和loop的混合测试
+    # test = list()
+    # test.append('CREATE TENSOR a(-1,3) FROM 287\n')
+    # test.append('LOOP 108{\n')
+    # test.append('CREATE TENSOR LL2(-1,4)\n')
+    # test.append('CREATE TENSOR A_(-1,)\n')
+    # test.append('IF (a<18){\n')
+    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # test.append('}\n')
+    # test.append('ELIF (205>a and a>108){\n')
+    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # test.append('BREAK\n')
+    # test.append('}\n')
+    # test.append('ELSE{\n')
+    # test.append('CREATE TENSOR LL2(-1,4)\n')
+    # test.append('}\n')
+    # test.append('}\n')
 
+    # test.append('CREATE TENSOR a(-1,3) FROM 287\n')
+    # test.append('IF (a<108){\n')
+    # test.append('CREATE TENSOR LL2(-1,4)\n')
+    # test.append('CREATE TENSOR A_(-1,)\n')
+    # test.append('LOOP 18{\n')
+    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # test.append('}\n')
+    # test.append('}\n')
+    # testPar = Parser(test)
+    # testPar()
