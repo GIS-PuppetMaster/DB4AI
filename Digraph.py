@@ -79,7 +79,7 @@ class Graph:
             id = node.GetId()
             type = node.GetType()
             print(f'id:{id},type:{node.__class__}')
-            nodes.append(id)
+            # nodes.append(id)
         for edge in self.edges:
             eStart = edge.GetStart()
             eEnd = edge.GetEnd()

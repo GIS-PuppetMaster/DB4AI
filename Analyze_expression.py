@@ -192,10 +192,10 @@ def Analyze_expression(result, x):
             if len(newStack.items) != 0:
                 parent = newStack.pop()
                 if currentgraph != parent and parent.keynode.value != '':
-                    G.InsertEdge(currentgraph.keynode, parent.keynode)
+                    G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
                 newStack.push(parent)
             G.InsertNode(currentgraph.keynode)
-            G.InsertEdge(currentgraph.getChild().keynode, currentgraph.keynode)
+            G.InsertEdge(currentgraph.getChild().keynode.GetId(), currentgraph.keynode.GetId())
             currentgraph.insert(len(G.nodes), 'Symbol', with_grad=requires_grad, value='')
             newStack.push(currentgraph)
             currentgraph = currentgraph.getChild()
@@ -207,7 +207,7 @@ def Analyze_expression(result, x):
             parent = newStack.pop()
             G.InsertNode(currentgraph.keynode)
             if currentgraph != parent:
-                G.InsertEdge(currentgraph.keynode, parent.keynode)
+                G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
             currentgraph = parent
         elif i == 'E':
             currentgraph.setVal(nd.InstantiationClass(x + len(G.nodes), 'CreatTensor', with_grad=requires_grad,
@@ -215,7 +215,7 @@ def Analyze_expression(result, x):
             parent = newStack.pop()
             G.InsertNode(currentgraph.keynode)
             if currentgraph != parent:
-                G.InsertEdge(currentgraph.keynode, parent.keynode)
+                G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
             currentgraph = parent
         elif i.startswith(single_operator):
             for j in single_operator:
@@ -224,7 +224,7 @@ def Analyze_expression(result, x):
                                                               value=j, with_grad=requires_grad))
             G.InsertNode(currentgraph.keynode)
             parent = newStack.pop()
-            G.InsertEdge(currentgraph.keynode, parent.keynode)
+            G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             variable = re.findall(pattern, i)[0]
             if len(variable.split()) != 1:
@@ -236,9 +236,9 @@ def Analyze_expression(result, x):
                     if e.GetStart() is k:
                         flag = 1
                 if flag == 0:
-                    G.InsertEdge(k, currentgraph.keynode)
+                    G.InsertEdge(k, currentgraph.keynode.GetId())
                 if len(temp[0].edges) == 0:
-                    G.InsertEdge(k, currentgraph.keynode)
+                    G.InsertEdge(k, currentgraph.keynode.GetId())
             G.nodes = G.nodes + temp[0].nodes
             G.edges = G.edges + temp[0].edges
             for j in temp[1]:
@@ -250,7 +250,7 @@ def Analyze_expression(result, x):
                                                               value=j, with_grad=requires_grad))
             G.InsertNode(currentgraph.keynode)
             parent = newStack.pop()
-            G.InsertEdge(currentgraph.keynode, parent.keynode)
+            G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             variable = re.findall(pattern, i)[0].split(',')
             for j in variable:
@@ -264,9 +264,9 @@ def Analyze_expression(result, x):
                         if e.GetStart() is k:
                             flag = 1
                         if flag == 0:
-                            G.InsertEdge(k, currentgraph.keynode)
+                            G.InsertEdge(k, currentgraph.keynode.GetId())
                     if len(temp[0].edges) == 0:
-                        G.InsertEdge(k, currentgraph.keynode)
+                        G.InsertEdge(k, currentgraph.keynode.GetId())
                 for k in temp[1]:
                     vallist.append(k)
                 G.nodes = G.nodes + temp[0].nodes
@@ -278,14 +278,14 @@ def Analyze_expression(result, x):
             parent = newStack.pop()
             G.InsertNode(currentgraph.keynode)
             if currentgraph != parent and parent.keynode.value != '':
-                G.InsertEdge(currentgraph.keynode, parent.keynode)
+                G.InsertEdge(currentgraph.keynode.GetId(), parent.keynode.GetId())
             currentgraph = parent
 
     # 返回生成解析树上最上层顶点
     for n in G.nodes:
         flag = 0
         for e in G.edges:
-            if e.GetStart() is n:
+            if e.GetStart() == n.GetId():
                 flag = 1
                 break
         if flag == 0:
