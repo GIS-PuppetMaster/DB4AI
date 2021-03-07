@@ -43,12 +43,13 @@ class Graph:
         self.edges = []
 
     # 有关边的方法
-    def InsertEdge(self,start,end,condition = 'no'):
-        edge = Edge(start,end,condition)
+    def InsertEdge(self, start, end, condition='no'):
+        edge = Edge(start, end, condition)
         self.edges.append(edge)
-        return True
+        start.out_edges.append(edge)
+        end.in_edges.append(edge)
 
-    def GetEdge(self,start,end):
+    def GetEdge(self, start, end):
         if len(self.edges):
             for edge in self.edges:
                 if start == edge.GetStart() and end == edge.GetEnd():
@@ -57,11 +58,11 @@ class Graph:
                 return False
 
     # 有关节点的方法
-    def InsertNode(self,node):
+    def InsertNode(self, node):
         self.nodes.append(node)
         return True
 
-    def GetNode(self,id):
+    def GetNode(self, id):
         if len(self.nodes):
             for node in self.nodes:
                 if id == node.GetId():
@@ -83,10 +84,10 @@ class Graph:
         for edge in self.edges:
             eStart = edge.GetStart()
             eEnd = edge.GetEnd()
-            edges.append((eStart,eEnd))
-        gv.Show_Graph(edges,nodes)
+            edges.append((eStart, eEnd))
+        gv.Show_Graph(edges, nodes)
 
-    def GetLeafNode(self,root_id):
+    def GetLeafNode(self, root_id):
         Q = qu(0)
         leaves = []
         Q.put(root_id)
@@ -107,20 +108,21 @@ class Graph:
         return g_set
 
     def Merge(self, m_set):
-        self.nodes = self.nodes+m_set[0]
-        self.edges = self.edges+m_set[1]
+        self.nodes = self.nodes + m_set[0]
+        self.edges = self.edges + m_set[1]
+
 
 if __name__ == '__main__':
     G = Graph()
-    root = nd.InstantiationClass(0,'Root')
-    X = nd.InstantiationClass(1,'Root')
+    root = nd.InstantiationClass(0, 'Root')
+    X = nd.InstantiationClass(1, 'Root')
     Y = nd.InstantiationClass(2, 'Root')
-    LR = nd.InstantiationClass(3,'Root')
-    Val = nd.InstantiationClass(4,'Root')
-    ass1 = nd.InstantiationClass(5,'Root')
+    LR = nd.InstantiationClass(3, 'Root')
+    Val = nd.InstantiationClass(4, 'Root')
+    ass1 = nd.InstantiationClass(5, 'Root')
     W = nd.InstantiationClass(6, 'Root')
-    Ran = nd.InstantiationClass(7,'Root')
-    ass2 = nd.InstantiationClass(8,'Root')
+    Ran = nd.InstantiationClass(7, 'Root')
+    ass2 = nd.InstantiationClass(8, 'Root')
     G.InsertNode(root)
     G.InsertNode(X)
     G.InsertNode(Y)
@@ -130,15 +132,14 @@ if __name__ == '__main__':
     G.InsertNode(ass2)
     G.InsertNode(W)
     G.InsertNode(Ran)
-    G.InsertEdge(0,1)
-    G.InsertEdge(0,2)
-    G.InsertEdge(0,3)
-    G.InsertEdge(0,6)
-    G.InsertEdge(3,5)
-    G.InsertEdge(4,5)
-    G.InsertEdge(6,8)
-    G.InsertEdge(7,8)
+    G.InsertEdge(0, 1)
+    G.InsertEdge(0, 2)
+    G.InsertEdge(0, 3)
+    G.InsertEdge(0, 6)
+    G.InsertEdge(3, 5)
+    G.InsertEdge(4, 5)
+    G.InsertEdge(6, 8)
+    G.InsertEdge(7, 8)
     G_t = G.GetSet()
     print(G_t[0])
     print(G_t[1])
-

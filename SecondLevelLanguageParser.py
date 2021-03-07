@@ -11,8 +11,10 @@ class Parser:
         self.var_dict = dict()
         self.graph = DG.Graph()
         self.node_id = 0
+        self.current_node = None
         # 记录”状态“，用于特殊语句的解析使用
         self.root_id = 0
+        self.current_root = None
         self.state = ''
         self.state_stack = list()
         self.loop_or_if_id = 0
