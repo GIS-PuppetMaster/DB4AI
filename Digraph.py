@@ -1,10 +1,10 @@
 import Nodes as nd
-import GraphVisualization as gv
+from graphviz import Digraph
 from queue import Queue as qu
 
 
 class Edge:
-    def __init__(self, start, end, condition):
+    def __init__(self, start, end, condition, **kwargs):
         self.data_shape = None
         self.data_type = None
         self.data_physic_type = None
@@ -14,7 +14,8 @@ class Edge:
         self.parameter_index = None
         self.condition = condition
         self.reverse = False
-        self.need_var = list()
+        if self.condition != 'no':
+            self.need_var = kwargs['need_var']
         self.start = start
         self.end = end
         self.SplitCon()
@@ -25,16 +26,17 @@ class Edge:
             if info[0] == 'T':
                 self.reverse = True
                 self.condition = info[1]
-                self.need_var = eval(info[2])
             else:
                 self.condition = info[0]
-                self.need_var = eval(info[1])
 
     def GetStart(self):
         return self.start
 
     def GetEnd(self):
         return self.end
+
+    def GetCondition(self):
+        return self.reverse, self.condition
 
 
 class Graph:
@@ -43,12 +45,13 @@ class Graph:
         self.edges = []
 
     # 有关边的方法
-    def InsertEdge(self,start,end,condition = 'no'):
-        edge = Edge(start,end,condition)
+    def InsertEdge(self, start, end, condition='no', **kwargs):
+        edge = Edge(start, end, condition, **kwargs)
         self.edges.append(edge)
-        return True
+        start.out_edges.append(edge)
+        end.in_edges.append(edge)
 
-    def GetEdge(self,start,end):
+    def GetEdge(self, start, end):
         if len(self.edges):
             for edge in self.edges:
                 if start == edge.GetStart() and end == edge.GetEnd():
@@ -57,11 +60,11 @@ class Graph:
                 return False
 
     # 有关节点的方法
-    def InsertNode(self,node):
+    def InsertNode(self, node):
         self.nodes.append(node)
         return True
 
-    def GetNode(self,id):
+    def GetNode(self, id):
         if len(self.nodes):
             for node in self.nodes:
                 if id == node.GetId():
@@ -73,54 +76,42 @@ class Graph:
 
     # 其它方法
     def Show(self):
-        edges = []
-        nodes = []
+        dot = Digraph(name="computation graph", format="png")
         for node in self.nodes:
             id = node.GetId()
-            type = node.GetType()
-            print(f'id:{id},type:{node.__class__}')
-            # nodes.append(id)
+            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__))
         for edge in self.edges:
-            eStart = edge.GetStart()
-            eEnd = edge.GetEnd()
-            edges.append((eStart,eEnd))
-        gv.Show_Graph(edges,nodes)
-
-    def GetLeafNode(self,root_id):
-        Q = qu(0)
-        leaves = []
-        Q.put(root_id)
-        is_leaf = True
-        while not Q.empty():
-            root = Q.get()
-            for e in self.edges:
-                if root == e.GetStart():
-                    Q.put(e.GetEnd())
-                    is_leaf = False
-            if is_leaf:
-                leaves.append(root)
-            is_leaf = True
-        return leaves
+            if edge.GetCondition()[1] == 'no':
+                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                         label=edge.GetCondition()[1], color='green')
+            elif edge.GetCondition()[0]:
+                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                         label='!' + edge.GetCondition()[1], color='red')
+            else:
+                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                         label=edge.GetCondition()[1], color='yellow')
+        dot.view(filename="my picture")
 
     def GetSet(self):
         g_set = (self.nodes, self.edges)
         return g_set
 
     def Merge(self, m_set):
-        self.nodes = self.nodes+m_set[0]
-        self.edges = self.edges+m_set[1]
+        self.nodes = self.nodes + m_set[0]
+        self.edges = self.edges + m_set[1]
+
 
 if __name__ == '__main__':
     G = Graph()
-    root = nd.InstantiationClass(0,'Root')
-    X = nd.InstantiationClass(1,'Root')
+    root = nd.InstantiationClass(0, 'Root')
+    X = nd.InstantiationClass(1, 'Root')
     Y = nd.InstantiationClass(2, 'Root')
-    LR = nd.InstantiationClass(3,'Root')
-    Val = nd.InstantiationClass(4,'Root')
-    ass1 = nd.InstantiationClass(5,'Root')
+    LR = nd.InstantiationClass(3, 'Root')
+    Val = nd.InstantiationClass(4, 'Root')
+    ass1 = nd.InstantiationClass(5, 'Root')
     W = nd.InstantiationClass(6, 'Root')
-    Ran = nd.InstantiationClass(7,'Root')
-    ass2 = nd.InstantiationClass(8,'Root')
+    Ran = nd.InstantiationClass(7, 'Root')
+    ass2 = nd.InstantiationClass(8, 'Root')
     G.InsertNode(root)
     G.InsertNode(X)
     G.InsertNode(Y)
@@ -130,15 +121,10 @@ if __name__ == '__main__':
     G.InsertNode(ass2)
     G.InsertNode(W)
     G.InsertNode(Ran)
-    G.InsertEdge(0,1)
-    G.InsertEdge(0,2)
-    G.InsertEdge(0,3)
-    G.InsertEdge(0,6)
-    G.InsertEdge(3,5)
-    G.InsertEdge(4,5)
-    G.InsertEdge(6,8)
-    G.InsertEdge(7,8)
+    G.InsertEdge(root, X)
+    G.InsertEdge(root, Y)
+    G.InsertEdge(root, LR)
+    G.InsertEdge(root, W)
     G_t = G.GetSet()
     print(G_t[0])
     print(G_t[1])
-
