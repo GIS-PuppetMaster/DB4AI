@@ -285,7 +285,7 @@ def Analyze_expression(result, x):
     for n in G.nodes:
         flag = 0
         for e in G.edges:
-            if e.GetStart() is n:
+            if e.GetStart() == n:
                 flag = 1
                 break
         if flag == 0:

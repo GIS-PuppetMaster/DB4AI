@@ -1,7 +1,3 @@
-
-from Executor import *
-
-
 class Node:
     # 计算图中节点类的父类
     def __init__(self, type_id, physic_algorithm='relational', **kwargs):
@@ -15,10 +11,21 @@ class Node:
     def GetId(self):
         return self.id
 
+    def GetType(self):
+        return self.type_id
+
+    def __eq__(self, other):
+        if isinstance(other, Node):
+            return (self.id == other.id) and (self.type_id == other.type_id)
+        else:
+            return False
+
+    def __hash__(self):
+        return hash(self.id + self.type_id)
+
     def __call__(self, executor: Executor):
         pass
-    # def GetType(self):
-    #     return self.type_id
+
 
 
 # 通过继承实现的其它节点类
@@ -34,13 +41,7 @@ class Root(Node):
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
         super().__init__(1, **kwargs)
-        data_shape = data_shape.replace('(', ',').replace(')', ',')
-        data = data_shape.split(',')
-        data_list = []
-        for d in data:
-            if len(d) != 0:
-                data_list.append(int(d))
-        self.data_shape = tuple(data_list)
+        self.data_shape = eval(data_shape)
 
     def __call__(self, executor: Executor):
         executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
@@ -62,9 +63,9 @@ class Val(Node):
 
 
 class Sql(Node):
-    def __init__(self, t_name, **kwargs):
+    def __init__(self, t_info, **kwargs):
         super().__init__(3, **kwargs)
-        self.t_name = t_name
+        self.t_info = t_info
 
     def __call__(self, executor: Executor):
         # TODO:和高斯数据的API
@@ -72,10 +73,11 @@ class Sql(Node):
 
 
 class Random(Node):
-    def __init__(self, uLimit, lLimit, **kwargs):
-        super().__init__(4, **kwargs)
-        self.uLimit = uLimit
-        self.lLimit = lLimit
+    def __init__(self, boundary, data_shape, type, **kwargs):
+        super().__init__(4,**kwargs)
+        self.boundary = boundary
+        self.data_shape = eval(data_shape)
+        self.type = type
 
     def __call__(self, executor: Executor):
         # TODO
@@ -168,12 +170,12 @@ class If(Node):
         pass
 
 
-class If_Branch(Node):
+class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
 
 
-class If_End(Node):
+class IfEnd(Node):
     def __init__(self, **kwargs):
         super().__init__(11, **kwargs)
 
@@ -189,12 +191,13 @@ def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
         data_shape = otherField['data_shape']
         node = globals()[nodeType](data_shape, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Sql':
-        t_name = otherField['t_name']
-        node = globals()[nodeType](t_name, id=nodeId, with_grad=with_grad)
+        t_info = otherField['t_info']
+        node = globals()[nodeType](t_info, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Random':
-        uLimit = otherField['uLimit']
-        lLimit = otherField['lLimit']
-        node = globals()[nodeType](uLimit, lLimit, id=nodeId, with_grad=with_grad)
+        boundary = otherField['boundary']
+        data_shape = otherField['data_shape']
+        type = otherField['type']
+        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Loop':
         times = otherField['times']
         loop_id = otherField['loop_id']
