@@ -1,3 +1,4 @@
+from utils import *
 import numpy as np
 
 
@@ -17,8 +18,16 @@ class Executor:
         self.graph = graph
         self.output_of_nodes = dict()
         self.finished_loop_id = set()
+        self.init_data_edges()
 
-    def run(self):
-        current_node = self.graph.nodes[0]
-        while current_node is not None:
-            current_node.run(self)
+    @bfs
+    def init_data_edges(self, current_node):
+        current_node.generate_data_edges()
+
+    @bfs
+    def infer_data(self, current_node):
+        current_node.infer_data()
+
+    @bfs
+    def run(self, current_node):
+        current_node(self)

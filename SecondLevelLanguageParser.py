@@ -132,7 +132,7 @@ class Parser:
         var_li = self.var_dict.get(v_name, None)
         if var_li:
             new_li = var_li
-            new_li.append(self.graph.nodes[nd_id])
+            new_li.append(nd_id)
             self.var_dict[v_name] = new_li
         else:
             new_li = list()
@@ -325,6 +325,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
+        # TODO: 对True死循环的支持
         loop_reg = 'LOOP ([1-9][0-9]*){\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
@@ -350,7 +351,7 @@ class Parser:
         if self.loop_id == 0:
             return False
         break_reg = 'BREAK'
-        matchObj = re.match(break_reg,query)
+        matchObj = re.match(break_reg, query)
         if matchObj:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)

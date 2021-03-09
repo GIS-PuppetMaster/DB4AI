@@ -1,3 +1,6 @@
+from Executor import *
+
+
 class Node:
     # 计算图中节点类的父类
     def __init__(self, type_id, physic_algorithm='relational', **kwargs):
@@ -7,9 +10,19 @@ class Node:
         self.with_grad = kwargs['with_grad']
         self.out_edges = []
         self.in_edges = []
+        self.input_data_edges=[]
 
     def GetId(self):
         return self.id
+
+    def generate_data_edges(self):
+        for in_edge in self.in_edges:
+            if isinstance(in_edge.start, Loop) or isinstance(in_edge.start, If):
+                for data_edge in in_edge.start.in_edges:
+                    if in_edge.var_name == data_edge.var_name:
+                        self.input_data_edges.append(data_edge)
+            else:
+                self.input_data_edges.append(in_edge)
 
     def GetType(self):
         return self.type_id
@@ -27,14 +40,19 @@ class Node:
         pass
 
 
+    def next_nodes(self, executor: Executor):
+        return [edge.end for edge in self.out_edges]
+
+    def infer_data(self):
+        pass
+    # def GetType(self):
+    #     return self.type_id
+
 
 # 通过继承实现的其它节点类
 class Root(Node):
     def __init__(self, **kwargs):
         super().__init__(0, **kwargs)
-
-    def __call__(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
 
 
 # 创建张量所用节点
@@ -45,7 +63,14 @@ class CreateTensor(Node):
 
     def __call__(self, executor: Executor):
         executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
-        return [edge.end for edge in self.out_edges]
+
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_shape = self.data_shape
+            if self.physic_algorithm == 'relational':
+                edge.data_type = 'relation'
+            else:
+                edge.data_type = 'ndarray'
 
 
 class Val(Node):
@@ -59,7 +84,11 @@ class Val(Node):
     def __call__(self, executor: Executor):
         tensor = Tensor(shape=(1,))
         executor.graph.output_of_nodes[self] = tensor.handle = self.value
-        return [edge.end for edge in self.out_edges]
+
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_shape = (1,)
+            edge.data_type = 'ndarray'
 
 
 class Sql(Node):
@@ -71,6 +100,11 @@ class Sql(Node):
         # TODO:和高斯数据的API
         pass
 
+    def infer_data(self):
+        for edge in self.out_edges:
+            # TODO: 使用SQL查询该表的维度
+            # edge.data_shape =
+            edge.data_type = 'relation'
 
 class Random(Node):
     def __init__(self, boundary, data_shape, type, **kwargs):
@@ -85,8 +119,14 @@ class Random(Node):
         # graph.output_of_nodes[self] = tensor.handle = self.value
         pass
 
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_type='ndarray'
+            # TODO: add shape attribute to Random operator
+            edge.data_shape = self.shape
 
 # 算术表达式所用节点
+# TODO: 拆分
 class Symbol(Node):
     def __init__(self, value, **kwargs):
         super().__init__(5, **kwargs)
@@ -102,6 +142,12 @@ class Loop(Node):
         self.finished_times = 0
 
     def __call__(self, executor: Executor):
+        executor.output_of_nodes[self] = []
+        for edge in self.in_edges:
+            start_node = edge.start
+            executor.output_of_nodes[self].append(executor.output_of_nodes[edge.start])
+
+    def next_nodes(self, executor: Executor):
         end_nodes = [edge.end for edge in self.out_edges]
         last_nodes = [edge.start for edge in self.in_edges]
         loop_end_node = None
@@ -121,12 +167,16 @@ class Loop(Node):
             return end_nodes
 
 
+
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
         super().__init__(7, **kwargs)
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
+        pass
+
+    def next_nodes(self, executor: Executor):
         end_nodes = [edge.end for edge in self.out_edges]
         loop_node = None
         for node in end_nodes:
@@ -150,6 +200,9 @@ class Break(Node):
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
+        pass
+
+    def next_nodes(self, executor: Executor):
         executor.finished_loop_id.remove(self.loop_id)
         end_nodes = [edge.end for edge in self.out_edges]
         loop_end_node = None
@@ -166,23 +219,64 @@ class If(Node):
         super().__init__(9, **kwargs)
 
     def __call__(self, executor: Executor):
-        # for edge in self.out_edges:
         pass
+
+    def next_nodes(self, executor: Executor):
+        for edge in self.out_edges:
+            # todo: edge.node_name
+            para = {}
+            for var_name, var_node in zip(edge.node_name, edge.node_var):
+                para[var_name] = var_node
+            res = eval(edge.condition, para)
+            if edge.reverse:
+                res = not res
+            if res:
+                return [edge.end]
 
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
 
+    def __call__(self, executor: Executor):
+        pass
+
+    def next_nodes(self, executor: Executor):
+        for edge in self.out_edges:
+            # todo: edge.node_name
+            para = {}
+            for var_name, var_node in zip(edge.node_name, edge.node_var):
+                para[var_name] = var_node
+            res = eval(edge.condition, para)
+            if edge.reverse:
+                res = not res
+            if res:
+                return [edge.end]
+
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
         super().__init__(11, **kwargs)
 
+    def __call__(self, executor: Executor):
+        pass
+
+    def next_nodes(self, executor: Executor):
+        return [edge.end for edge in self.out_edges]
+
 
 class Assignment(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
+
+    def __call__(self, executor: Executor):
+        assert len(self.input_data_edges) == 2, f'the number of assignment node\'s in_edges not equal to 2, {self.in_edges}'
+        # var_node = self.in_edges[0]
+        data_node = self.input_data_edges[1]
+        executor.output_of_nodes[self] = executor.output_of_nodes[data_node]
+
+    def next_nodes(self, executor: Executor):
+        return [edge.end for edge in self.out_edges]
 
 
 # 通过globals方法，以类名选择类进行实例化
