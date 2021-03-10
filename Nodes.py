@@ -260,15 +260,21 @@ class STACK(Node):
         self.axis = axis
 
 
+# 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
         super().__init__(36, **kwargs)
 
 
+# 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
         super().__init__(37, **kwargs)
+        self.name = ''
         self.slice_info = []
+
+    def set_name(self, name):
+        self.name = name
 
     def set_slice(self, slice_info):
         self.slice_info += slice_info
