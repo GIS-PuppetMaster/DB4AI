@@ -168,8 +168,8 @@ class Parser:
             elif v_name in self.out_var:
                 var_li = self.var_dict.get(v_name)
                 last_use = var_li[-1]
-                self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id])
-                self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id], in_var=v_name)
+                self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id], out_var=v_name)
                 self.UpdateVarList(v_name, self.loop_or_if_id)
 
     def ConnInVar(self, e_node):
@@ -213,11 +213,10 @@ class Parser:
         random_reg = '[(][1-9],-1[)]|[(]-1,[1-9][)]|[(][1-9],[1-9][)]'
         create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?\n$'
         val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
-        val_info_reg2 = variable_name_reg  # 暂时考虑使用变量名的要求,待修改
+        val_info_reg2 = 'SQL[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = 'RANDOM[(](.+)[)]'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
-        hasData = False  # 所建的Tensor要存数据
         hasWith = False  # 是否需要记录梯度
         hasAS = 0 # 是否为自定义算子的输入|输出
         hasFrom = 0  # 赋值结点类型
@@ -241,11 +240,10 @@ class Parser:
                     data_shape = data.group()
                     legal_info.append(T_name)
                     legal_info.append(data_shape)
-                    hasData = True
                 else:
                     return False
             else:
-                legal_info.append(T_name)
+                return False
             if len(li) > 3:
                 from_str = ''
                 for i in range(3, len(li) - 1):
@@ -272,19 +270,13 @@ class Parser:
                             ran_matchObj = re.match(in_random_reg, in_random_str)
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
-                        elif len(re.findall('[(]', in_random_str)) == 1:
-                            ran_matchObj = re.search(random_reg, in_random_str)
-                            data_shape = '()'
-                            boundary = ran_matchObj.group()
                         else:
                             return False
                         legal_info.append([data_shape, boundary, type_li])
                         hasFrom = 3
                     elif match2:
-                        t_name = match2.group()
-                        if len(t_name) > 30:
-                            return False
-                        legal_info.append(t_name)
+                        t_info = match2.group(1)
+                        legal_info.append(t_info)
                         hasFrom = 2
                     else:
                         print('dd')
@@ -298,10 +290,7 @@ class Parser:
         else:
             with_grad = False
         self.node_id += 1
-        if hasData:
-            node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
-        else:
-            node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape='()')
+        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
         self.graph.InsertNode(node1)
         self.leaf_li.add(node1)
         self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
@@ -313,10 +302,7 @@ class Parser:
             self.output.append([legal_info[0], self.node_id])
         if hasFrom != 0:
             self.leaf_li.remove(node1)
-            if hasData:
-                from_info = legal_info[2]
-            else:
-                from_info = legal_info[1]
+            from_info = legal_info[2]
             node1_id = self.node_id
             self.node_id += 1
             if hasFrom == 1:
@@ -503,7 +489,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg = f'^{variable_name_reg} = (.+)\n$'
-        sql_reg = 'SELECT ([a-zA-Z_]+[a-zA-Z0-9_]*) FROM ([a-zA-Z_]+[a-zA-Z0-9_]*)( WHERE .+)?'
+        sql_reg = 'SQL[(](.+)[)]'
         matchObj = re.match(ass_reg, query)
         if matchObj:
             exp = matchObj.group()
@@ -532,10 +518,7 @@ class Parser:
             #     self.node_id = e_node_id
             sql_matchObj = re.match(sql_reg, ass_exp)
             if sql_matchObj:
-                t_info = 'C'+'$'+sql_matchObj.group(1)+'$'+sql_matchObj.group(2)
-                hasWhere = re.search('WHERE (.+)', sql_matchObj.group())
-                if hasWhere:
-                    t_info = 'W'+'$'+t_info+'$'+hasWhere.group(1)
+                t_info = sql_matchObj.group(1)
                 self.node_id += 1
                 e_node = Nd.InstantiationClass(self.node_id, 'Sql', t_info=t_info)
                 e_node_id = self.node_id

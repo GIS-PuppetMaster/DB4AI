@@ -17,6 +17,12 @@ class Edge:
         if self.condition != 'no':
             self.need_var = kwargs['need_var']
             self.SplitCon()
+        in_var = kwargs.get('in_var', None)
+        out_var = kwargs.get('out_var', None)
+        if in_var:
+            self.var = in_var
+        elif out_var:
+            self.var = out_var
         self.start = start
         self.end = end
 

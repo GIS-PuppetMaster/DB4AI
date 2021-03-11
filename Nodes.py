@@ -67,19 +67,7 @@ class Val(Node):
 class Sql(Node):
     def __init__(self, t_info, **kwargs):
         super().__init__(3, **kwargs)
-        search_info = t_info.split('$')
-        if search_info[0] == 'W':
-            self.column_name = search_info[2]
-            self.table_name = search_info[3]
-            self.where = search_info[4]
-        elif search_info[0] == 'C':
-            self.column_name = search_info[1]
-            self.table_name = search_info[2]
-            self.where = ''
-        else:
-            self.column_name = ''
-            self.table_name = search_info[0]
-            self.where = ''
+        self.t_search_sentences = t_info
 
     def __call__(self, executor: Executor):
         # TODO:和高斯数据的API
