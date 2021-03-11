@@ -6,7 +6,7 @@ from Nodes import Node
 
 
 class Edge:
-    def __init__(self, start: Node, end: Node, condition, **kwargs):
+    def __init__(self, start: Node, end: Node, condition, in_var=None, out_var=None, **kwargs):
         self.data_shape = None
         self.data_type = None
         self.data_physical_type = None
@@ -19,8 +19,6 @@ class Edge:
         if self.condition != 'no':
             self.need_var = kwargs['need_var']
             self.SplitCon()
-        in_var = kwargs.get('in_var', None)
-        out_var = kwargs.get('out_var', None)
         if in_var:
             self.var = in_var
         elif out_var:

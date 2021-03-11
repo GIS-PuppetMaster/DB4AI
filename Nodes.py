@@ -16,11 +16,10 @@ class Node:
         return self.id
 
     def generate_data_edges(self):
-        # TODO: parser change
         for in_edge in self.in_edges:
             if isinstance(in_edge.start, Loop) or isinstance(in_edge.start, If):
                 for data_edge in in_edge.start.in_edges:
-                    if in_edge.var_name == data_edge.var_name:
+                    if in_edge.in_var == data_edge.in_var:
                         self.input_data_edges.append(data_edge)
             else:
                 self.input_data_edges.append(in_edge)

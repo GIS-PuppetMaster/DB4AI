@@ -68,8 +68,7 @@ class Parser:
                 elif query == '$':
                     self.EndIf()
                 else:
-                    print('非法语句：' + query)
-                    exit(1)
+                    raise Exception('非法语句：' + query)
                 # print('解析语句：' + query)
         self.graph.Show()
 
@@ -118,8 +117,7 @@ class Parser:
                 self.state = state_li[1]
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
-            print('多余括号！')
-            exit(1)
+            raise Exception('多余括号！')
 
     def UpdateVarList(self, v_name, nd_id):
         """
@@ -590,32 +588,9 @@ class Parser:
 
 
 if __name__ == '__main__':
-    # create语句测试
-    # create_test = list()
-    # create_test.append('CREATE TENSOR LR(1,4)\n')
-    # create_test.append('CREATE TENSOR LL2(-1,4)\n')
-    # create_test.append('CREATE TENSOR Ll(3,-1)\n')
-    # create_test.append('CREATE TENSOR A_(-1,)\n')
-    # create_test.append('CREATE TENSOR Ba4S(3,)\n')
-    # create_test.append('CREATE TENSOR lR(1,4) FROM 7\n')
-    # create_test.append('CREATE TENSOR _LR(4) FROM 0.04\n')
-    # create_test.append('CREATE TENSOR LR1(1,4) FROM RANDOM((2,4))\n')
-    # create_test.append('CREATE TENSOR R1(1,4) FROM RANDOM((-1,2,3),(2,4))\n')
-    # create_test.append('CREATE TENSOR L1(1,4) FROM RANDOM((2,4),uniform)\n')
-    # create_test.append('CREATE TENSOR LR2(1,4) FROM User\n')
-    # create_test.append('CREATE TENSOR LR3(1,4) FROM User WITH GRAD\n')
-    # testPar = Parser(create_test)
-    # testPar()
-    #  loop语句测试
-    loop_test = list()
-    loop_test.append('LOOP 108{\n')
-    loop_test.append('CREATE TENSOR LL2(-1,4)\n')
-    loop_test.append('CREATE TENSOR A_(-1,)\n')
-    loop_test.append('LOOP true{\n')
-    loop_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    loop_test.append('\n}')
-    loop_test.append('\n}')
-    testPar = Parser(loop_test)
+    with open('test.txt','r') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
     testPar()
     # if语句测试
     # if_test = list()

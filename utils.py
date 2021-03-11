@@ -1,11 +1,10 @@
 from functools import wraps
 from queue import Queue
-from Digraph import Graph
-from Executor import Executor
+
 
 def bfs(fun):
     @wraps(fun)
-    def decorated(executor: Executor):
+    def decorated(executor):
         queue = Queue()
         visited = set()
         root = executor.graph.nodes[0]
