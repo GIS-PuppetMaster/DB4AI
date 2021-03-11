@@ -1,6 +1,6 @@
 import Nodes as nd
+import numpy as np
 from graphviz import Digraph
-from queue import Queue as qu
 
 
 class Edge:
@@ -16,18 +16,17 @@ class Edge:
         self.reverse = False
         if self.condition != 'no':
             self.need_var = kwargs['need_var']
+            self.SplitCon()
         self.start = start
         self.end = end
-        self.SplitCon()
 
     def SplitCon(self):
-        if self.condition != 'no':
-            info = self.condition.split('$')
-            if info[0] == 'T':
-                self.reverse = True
-                self.condition = info[1]
-            else:
-                self.condition = info[0]
+        con_info = self.condition.split('$')
+        if con_info[0] == 'T':
+            self.reverse = True
+            self.condition = con_info[1]
+        else:
+            self.condition = con_info[0]
 
     def GetStart(self):
         return self.start
@@ -92,14 +91,17 @@ class Graph:
                          label=edge.GetCondition()[1], color='yellow')
         dot.view(filename="my picture")
 
-    def GetSet(self):
-        g_set = (self.nodes, self.edges)
-        return g_set
-
     def Merge(self, m_set):
         self.nodes = self.nodes + m_set[0]
         self.edges = self.edges + m_set[1]
 
+    def ConvertToMatrix(self):
+        matrix = np.zeros((3, len(self.nodes)+1, len(self.nodes)+1), dtype='np.float')
+        for e in self.edges:
+            matrix[0][e.start.GetId()][e.end.GetId()] = 1
+            matrix[1][e.start.GetId()][e.end.GetId()] = e.condition
+            matrix[2][e.start.GetId()][e.end.GetId()] = e.reverse
+        return matrix
 
 if __name__ == '__main__':
     G = Graph()
@@ -117,14 +119,15 @@ if __name__ == '__main__':
     G.InsertNode(Y)
     G.InsertNode(Val)
     G.InsertNode(LR)
-    G.InsertNode(ass1)
-    G.InsertNode(ass2)
     G.InsertNode(W)
     G.InsertNode(Ran)
     G.InsertEdge(root, X)
     G.InsertEdge(root, Y)
     G.InsertEdge(root, LR)
-    G.InsertEdge(root, W)
-    G_t = G.GetSet()
-    print(G_t[0])
-    print(G_t[1])
+    G.InsertEdge(X, W)
+    G.InsertEdge(Y, W)
+    G.InsertEdge(W, Val)
+    G.InsertEdge(Val, Ran)
+    print(G.ConvertToMatrix())
+    G.Show()
+

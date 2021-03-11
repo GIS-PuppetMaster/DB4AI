@@ -283,21 +283,17 @@ def Analyze_expression(result, x):
 
     # 返回生成解析树上最上层顶点
     for n in G.nodes:
-        flag = 0
-        for e in G.edges:
-            if e.GetStart() == n:
-                flag = 1
-                break
-        if flag == 0:
+        if len(n.out_edges) == 0:
             top_node = n
             break
     else:
         top_node = None
-    return G.GetSet(), vallist, top_node
+    G.Show()
+    return G, vallist, top_node
 
 
 if __name__ == '__main__':
-    s = 'A = ( B + C ) * D WITH GRAD'
+    s = 'a = x + y / ( z - x ) * x'
     p = Analyze_expression(Pretreatment(s), 0)
     # for i in p[0].nodes:
     #     print(i, i.value)
@@ -305,5 +301,3 @@ if __name__ == '__main__':
     # for i in p[0].edges:
     #     print(i, i.start.value, i.end.value)
     #     # print(i)
-    print(p[1])
-    print(p[2])

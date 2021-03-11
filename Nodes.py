@@ -67,7 +67,19 @@ class Val(Node):
 class Sql(Node):
     def __init__(self, t_info, **kwargs):
         super().__init__(3, **kwargs)
-        self.t_info = t_info
+        search_info = t_info.split('$')
+        if search_info[0] == 'W':
+            self.column_name = search_info[2]
+            self.table_name = search_info[3]
+            self.where = search_info[4]
+        elif search_info[0] == 'C':
+            self.column_name = search_info[1]
+            self.table_name = search_info[2]
+            self.where = ''
+        else:
+            self.column_name = ''
+            self.table_name = search_info[0]
+            self.where = ''
 
     def __call__(self, executor: Executor):
         # TODO:和高斯数据的API
@@ -97,9 +109,14 @@ class Symbol(Node):
 
 # 逻辑控制所用节点
 class Loop(Node):
-    def __init__(self, times, loop_id, **kwargs):
+    def __init__(self, condition, loop_id, **kwargs):
         super().__init__(6, **kwargs)
-        self.times = times
+        if condition:
+            self.dead_cycle = condition
+            self.times = 0
+        else:
+            self.dead_cycle = False
+            self.times = condition
         self.loop_id = loop_id
         self.finished_times = 0
 
@@ -201,9 +218,9 @@ def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
         type = otherField['type']
         node = globals()[nodeType](boundary, data_shape, type, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Loop':
-        times = otherField['times']
+        condition = otherField['condition']
         loop_id = otherField['loop_id']
-        node = globals()[nodeType](times, loop_id, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](condition, loop_id, id=nodeId, with_grad=with_grad)
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, with_grad=with_grad)
