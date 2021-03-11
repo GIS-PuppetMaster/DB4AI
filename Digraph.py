@@ -1,13 +1,15 @@
 import Nodes as nd
 import numpy as np
 from graphviz import Digraph
+from queue import Queue as qu
+from Nodes import Node
 
 
 class Edge:
-    def __init__(self, start, end, condition, **kwargs):
+    def __init__(self, start: Node, end: Node, condition, in_var=None, out_var=None, **kwargs):
         self.data_shape = None
         self.data_type = None
-        self.data_physic_type = None
+        self.data_physical_type = None
         # 表示边上数据在end节点执行函数中的参数位置，
         # 例如2^3，end节点为pow，则2对应的边的parameter_index=1，3对应的边的parameter_index=2
         # 例如3^2，end节点为pow，则3对应的边的parameter_index=1，2对应的边的parameter_index=2
@@ -17,8 +19,6 @@ class Edge:
         if self.condition != 'no':
             self.need_var = kwargs['need_var']
             self.SplitCon()
-        in_var = kwargs.get('in_var', None)
-        out_var = kwargs.get('out_var', None)
         if in_var:
             self.var = in_var
         elif out_var:
@@ -97,12 +97,11 @@ class Graph:
                          label=edge.GetCondition()[1], color='yellow')
         dot.view(filename="my picture")
 
-    def Merge(self, m_set):
-        self.nodes = self.nodes + m_set[0]
-        self.edges = self.edges + m_set[1]
+    def GetSet(self):
+        return self.nodes, self.edges
 
     def ConvertToMatrix(self):
-        matrix = np.zeros((3, len(self.nodes)+1, len(self.nodes)+1), dtype='np.float')
+        matrix = np.zeros((3, len(self.nodes) + 1, len(self.nodes) + 1), dtype='np.float')
         for e in self.edges:
             matrix[0][e.start.GetId()][e.end.GetId()] = 1
             matrix[1][e.start.GetId()][e.end.GetId()] = e.condition

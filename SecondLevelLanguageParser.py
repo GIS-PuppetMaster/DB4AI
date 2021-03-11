@@ -209,8 +209,10 @@ class Parser:
         """
         # 用于匹配的正则表达式
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        data_list_reg = '[(]([1-9,]?(-1,)?)*([1-9])[)]|[(]([1-9,]?(-1,)?)*(-1)[)]|[(]-1,[)]|[(][1-9],[)]'
-        random_reg = '[(][1-9],-1[)]|[(]-1,[1-9][)]|[(][1-9],[1-9][)]'
+        data_list_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
+        random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
+                     ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
         create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?\n$'
         val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
         val_info_reg2 = 'SQL[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
@@ -383,7 +385,7 @@ class Parser:
         con_reg = '[(][a-zA-Z0-9_=!<> ]+[)]'
         if_reg = 'IF '+con_reg+'{\n'  # 所有关于if的正则，目前未对条件进行约束，待修改
         elif_reg = 'ELIF '+con_reg+'{\n'
-        else_reg = 'ELSE{\n'
+        else_reg = 'ELSE {\n'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
@@ -398,6 +400,7 @@ class Parser:
             node = Nd.InstantiationClass(self.node_id, 'If')
             self.graph.InsertNode(node)
             for l_n in self.leaf_li:
+                print(l_n.id)
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
             self.leaf_li.clear()
             self.StateConvert('if')
@@ -462,7 +465,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        end_reg = '\n}'
+        end_reg = '}\n'
         matchObj = re.match(end_reg, query)
         if matchObj:
             self.EndIf()
@@ -591,6 +594,10 @@ class Parser:
 
 
 if __name__ == '__main__':
+    with open('test.txt','r') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    testPar()
     # create语句测试
     # create_test = list()
     # create_test.append('CREATE TENSOR LR(1,4)\n')
@@ -608,16 +615,16 @@ if __name__ == '__main__':
     # testPar = Parser(create_test)
     # testPar()
     #  loop语句测试
-    loop_test = list()
-    loop_test.append('LOOP 108{\n')
-    loop_test.append('CREATE TENSOR LL2(-1,4)\n')
-    loop_test.append('CREATE TENSOR A_(-1,)\n')
-    loop_test.append('LOOP true{\n')
-    loop_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    loop_test.append('\n}')
-    loop_test.append('\n}')
-    testPar = Parser(loop_test)
-    testPar()
+    # loop_test = list()
+    # loop_test.append('LOOP 108{\n')
+    # loop_test.append('CREATE TENSOR LL2(-1,4)\n')
+    # loop_test.append('CREATE TENSOR A_(-1,)\n')
+    # loop_test.append('LOOP true{\n')
+    # loop_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # loop_test.append('\n}')
+    # loop_test.append('\n}')
+    # testPar = Parser(loop_test)
+    # testPar()
     # if语句测试
     # if_test = list()
     # if_test.append('CREATE TENSOR a(-1,3) FROM 287\n')
