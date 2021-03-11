@@ -1,13 +1,14 @@
 import Nodes as nd
 from graphviz import Digraph
 from queue import Queue as qu
+from Nodes import Node
 
 
 class Edge:
-    def __init__(self, start, end, condition, **kwargs):
+    def __init__(self, start: Node, end: Node, condition, **kwargs):
         self.data_shape = None
         self.data_type = None
-        self.data_physic_type = None
+        self.data_physical_type = None
         # 表示边上数据在end节点执行函数中的参数位置，
         # 例如2^3，end节点为pow，则2对应的边的parameter_index=1，3对应的边的parameter_index=2
         # 例如3^2，end节点为pow，则3对应的边的parameter_index=1，2对应的边的parameter_index=2

@@ -19,6 +19,7 @@ class Executor:
         self.output_of_nodes = dict()
         self.finished_loop_id = set()
         self.init_data_edges()
+        self.infer_data()
 
     @bfs
     def init_data_edges(self, current_node):
@@ -29,5 +30,8 @@ class Executor:
         current_node.infer_data()
 
     @bfs
-    def run(self, current_node):
+    def execute(self, current_node):
         current_node(self)
+
+    def run(self):
+        self.execute()

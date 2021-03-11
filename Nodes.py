@@ -10,12 +10,13 @@ class Node:
         self.with_grad = kwargs['with_grad']
         self.out_edges = []
         self.in_edges = []
-        self.input_data_edges=[]
+        self.input_data_edges = []
 
     def GetId(self):
         return self.id
 
     def generate_data_edges(self):
+        # TODO: parser change
         for in_edge in self.in_edges:
             if isinstance(in_edge.start, Loop) or isinstance(in_edge.start, If):
                 for data_edge in in_edge.start.in_edges:
@@ -38,7 +39,6 @@ class Node:
 
     def __call__(self, executor: Executor):
         pass
-
 
     def next_nodes(self, executor: Executor):
         return [edge.end for edge in self.out_edges]
@@ -106,24 +106,35 @@ class Sql(Node):
             # edge.data_shape =
             edge.data_type = 'relation'
 
+
 class Random(Node):
-    def __init__(self, boundary, data_shape, type, **kwargs):
-        super().__init__(4,**kwargs)
+    def __init__(self, boundary, data_shape, distribution, **kwargs):
+        super().__init__(4, **kwargs)
         self.boundary = boundary
         self.data_shape = eval(data_shape)
-        self.type = type
+        if distribution == '':
+            self.distribution = 'normal'
+        else:
+            self.distribution = distribution
 
     def __call__(self, executor: Executor):
-        # TODO
-        # tensor = Tensor(shape=(1,))
-        # graph.output_of_nodes[self] = tensor.handle = self.value
-        pass
+        tensor = Tensor(shape=self.data_shape)
+        if self.distribution == 'normal':
+            # boundary[0]=lower_boundary, boundary[1]=upper_boundary
+            data = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
+        elif self.distribution == 'gauss':
+            # boundary[0]=mu, boundary[1]=sigma
+            data = np.random.randn() * self.boundary[1] + self.boundary[0]
+        else:
+            raise Exception(f'Not supported distribution:{self.distribution}')
+        tensor.handle = data
+        executor.graph.output_of_nodes[self] = tensor.handle
 
     def infer_data(self):
         for edge in self.out_edges:
-            edge.data_type='ndarray'
-            # TODO: add shape attribute to Random operator
-            edge.data_shape = self.shape
+            edge.data_type = 'ndarray'
+            edge.data_shape = self.data_shape
+
 
 # 算术表达式所用节点
 # TODO: 拆分
@@ -145,7 +156,7 @@ class Loop(Node):
         executor.output_of_nodes[self] = []
         for edge in self.in_edges:
             start_node = edge.start
-            executor.output_of_nodes[self].append(executor.output_of_nodes[edge.start])
+            executor.output_of_nodes[self].append(executor.output_of_nodes[start_node])
 
     def next_nodes(self, executor: Executor):
         end_nodes = [edge.end for edge in self.out_edges]
@@ -165,7 +176,6 @@ class Loop(Node):
             return [loop_end_node]
         else:
             return end_nodes
-
 
 
 class LoopEnd(Node):
