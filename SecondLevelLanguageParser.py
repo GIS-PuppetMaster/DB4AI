@@ -207,8 +207,10 @@ class Parser:
         """
         # 用于匹配的正则表达式
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        data_list_reg = '[(]([1-9,]?(-1,)?)*([1-9])[)]|[(]([1-9,]?(-1,)?)*(-1)[)]|[(]-1,[)]|[(][1-9],[)]'
-        random_reg = '[(][1-9],-1[)]|[(]-1,[1-9][)]|[(][1-9],[1-9][)]'
+        data_list_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
+        random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
+                     ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
         create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?\n$'
         val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
         val_info_reg2 = 'SQL[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
@@ -277,6 +279,7 @@ class Parser:
                         legal_info.append(t_info)
                         hasFrom = 2
                     else:
+                        print('dd')
                         return False
         else:
             return False
@@ -380,7 +383,7 @@ class Parser:
         con_reg = '[(][a-zA-Z0-9_=!<> ]+[)]'
         if_reg = 'IF '+con_reg+'{\n'  # 所有关于if的正则，目前未对条件进行约束，待修改
         elif_reg = 'ELIF '+con_reg+'{\n'
-        else_reg = 'ELSE{\n'
+        else_reg = 'ELSE {\n'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
@@ -395,6 +398,7 @@ class Parser:
             node = Nd.InstantiationClass(self.node_id, 'If')
             self.graph.InsertNode(node)
             for l_n in self.leaf_li:
+                print(l_n.id)
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
             self.leaf_li.clear()
             self.StateConvert('if')
@@ -459,7 +463,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        end_reg = '\n}'
+        end_reg = '}\n'
         matchObj = re.match(end_reg, query)
         if matchObj:
             self.EndIf()

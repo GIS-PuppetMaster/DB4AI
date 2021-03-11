@@ -97,12 +97,11 @@ class Graph:
                          label=edge.GetCondition()[1], color='yellow')
         dot.view(filename="my picture")
 
-    def Merge(self, m_set):
-        self.nodes = self.nodes + m_set[0]
-        self.edges = self.edges + m_set[1]
+    def GetSet(self):
+        return self.nodes, self.edges
 
     def ConvertToMatrix(self):
-        matrix = np.zeros((3, len(self.nodes)+1, len(self.nodes)+1), dtype='np.float')
+        matrix = np.zeros((3, len(self.nodes) + 1, len(self.nodes) + 1), dtype='np.float')
         for e in self.edges:
             matrix[0][e.start.GetId()][e.end.GetId()] = 1
             matrix[1][e.start.GetId()][e.end.GetId()] = e.condition
