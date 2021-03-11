@@ -11,8 +11,10 @@ class Parser:
         self.var_dict = dict()
         self.graph = DG.Graph()
         self.node_id = 0
+        self.current_node = None
         # 记录”状态“，用于特殊语句的解析使用
         self.root_id = 0
+        self.current_root = None
         self.state = ''
         self.state_stack = list()
         self.loop_or_if_id = 0
@@ -20,8 +22,7 @@ class Parser:
         self.out_var = list()
         self.in_var = list()
         self.oth_branch = 0
-        self.G_n_set = list()
-        self.G_e_set = list()
+        self.leaf_li = set()
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.output = list()
@@ -38,6 +39,7 @@ class Parser:
         if len(kwargs) == 0:
             root = Nd.InstantiationClass(self.node_id, 'Root')
             self.graph.InsertNode(root)
+            self.leaf_li.add(root)
         else:
             self.node_id = kwargs['start_id']
             self.pre = self.pre_li[random.randint(0, 9)]+self.pre_li[random.randint(0, 9)]
@@ -55,8 +57,6 @@ class Parser:
                     pass
                 elif self.Loop(query):
                     pass
-                elif self.Break(query):
-                    pass
                 elif self.If(query):
                     pass
                 elif self.End(query):
@@ -68,8 +68,7 @@ class Parser:
                 elif query == '$':
                     self.EndIf()
                 else:
-                    print('非法语句：' + query)
-                    exit(1)
+                    raise Exception('非法语句：' + query)
                 # print('解析语句：' + query)
         self.graph.Show()
 
@@ -118,8 +117,7 @@ class Parser:
                 self.state = state_li[1]
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
-            print('多余括号！')
-            exit(1)
+            raise Exception('多余括号！')
 
     def UpdateVarList(self, v_name, nd_id):
         """
@@ -132,11 +130,11 @@ class Parser:
         var_li = self.var_dict.get(v_name, None)
         if var_li:
             new_li = var_li
-            new_li.append(nd_id)
+            new_li.append(self.graph.nodes[nd_id])
             self.var_dict[v_name] = new_li
         else:
             new_li = list()
-            new_li.append(nd_id)
+            new_li.append(self.graph.nodes[nd_id])
             self.var_dict[v_name] = new_li
 
     def EndIf(self):
@@ -146,11 +144,12 @@ class Parser:
         """
         if self.state == 'if':
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'If_End')
+            node = Nd.InstantiationClass(self.node_id, 'IfEnd')
             self.graph.InsertNode(node)
-            leaf_li = self.graph.GetLeafNode(self.loop_or_if_id)
-            for l_n in leaf_li:
-                self.graph.InsertEdge(l_n, self.node_id)
+            for l_n in self.leaf_li:
+                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+            self.leaf_li.clear()
+            self.leaf_li.add(node)
             self.ConnInVar(self.node_id)
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
 
@@ -167,8 +166,8 @@ class Parser:
             elif v_name in self.out_var:
                 var_li = self.var_dict.get(v_name)
                 last_use = var_li[-1]
-                self.graph.InsertEdge(last_use, self.loop_or_if_id)
-                self.graph.InsertEdge(self.loop_or_if_id, self.node_id)
+                self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id], in_var=v_name)
+                self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id], out_var=v_name)
                 self.UpdateVarList(v_name, self.loop_or_if_id)
 
     def ConnInVar(self, e_node):
@@ -194,87 +193,93 @@ class Parser:
                 if v != 'or' and v != 'and':
                     var_li = self.var_dict.get(v, None)
                     last_use = var_li[-1]
-                    v_li.append(last_use)
+                    v_li.append([v, last_use])
             return v_li
         else:
             return None
 
     #  用于解析语句的主要函数
-    def CreateTensor(self, create_str):
+    def CreateTensor(self, query):
         """
         解析create语句的函数，对于合法的语句进行建图操作
-        :param create_str: 需要解析的语句
+        :param query: 需要解析的语句
         :return: True 语句合法，False 语句非法
         """
         # 用于匹配的正则表达式
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        data_list_reg = '[(]([1-9,]?(-1,)?)*([1-9])[)]|[(]([1-9,]?(-1,)?)*(-1)[)]|[(]-1,[)]|[(][1-9],[)]'
-        random_reg = '[(][1-9],-1[)]|[(]-1,[1-9][)]|[(][1-9],[1-9][)]'
+        data_list_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
+        random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
+                     ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
         create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?( AS [A-Z]+)?\n$'
         val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
-        val_info_reg2 = variable_name_reg  # 暂时考虑使用变量名的要求,待修改
-        val_info_reg3 = 'RANDOM[(][(]-1,[0-9][)][)]|RANDOM[(][(][0-9],-1[)][)]|RANDOM[(][(][0-9],[0-9][)][)]'
+        val_info_reg2 = 'SQL[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
+        val_info_reg3 = 'RANDOM[(](.+)[)]'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
-        hasData = False  # 所建的Tensor要存数据
         hasWith = False  # 是否需要记录梯度
         hasAS = 0 # 是否为自定义算子的输入|输出
         hasFrom = 0  # 赋值结点类型
         legal_info = []  # 记录合法的信息
-        matchObj = re.match(create_tensor_reg, create_str)
+        matchObj = re.match(create_tensor_reg, query)
         if matchObj:
-            create_str = matchObj.group()
-            if re.search('WITH', create_str):
+            query = matchObj.group()
+            if re.search('WITH', query):
                 hasWith = True
-            if re.search('AS INPUT', create_str):
+            if re.search('AS INPUT', query):
                 hasAS = 1
-            elif re.search('AS OUTPUT', create_str):
+            elif re.search('AS OUTPUT', query):
                 hasAS = 2
             T_name = matchObj.group(1)
             if self.var_dict.get(T_name, None):
-                print(T_name)
                 return False
-            li = create_str.split(' ')
+            li = query.split(' ')
             if len(T_name) != len(li[2]):
                 data = re.search(data_list_reg, li[2])
                 if data:
                     data_shape = data.group()
                     legal_info.append(T_name)
                     legal_info.append(data_shape)
-                    hasData = True
                 else:
                     return False
             else:
-                legal_info.append(T_name)
+                return False
             if len(li) > 3:
                 from_str = ''
                 for i in range(3, len(li) - 1):
                     if 'FROM' == li[i]:
                         j = i + 1
-                        from_str = li[j]
+                        from_str = li[j].split('\n')[0]
                 if len(from_str) != 0:
-                    if re.match(val_info_reg1, from_str):
-                        value_str = re.match(val_info_reg1, from_str).group()
+                    match1 = re.match(val_info_reg1, from_str)
+                    match2 = re.match(val_info_reg2, from_str)
+                    match3 = re.match(val_info_reg3, from_str)
+                    if match1:
+                        value_str = match1.group()
                         if re.search('[.]', value_str):
                             value = float(value_str)
                         else:
                             value = int(value_str)
                         legal_info.append(value)
                         hasFrom = 1
-                    elif re.match(val_info_reg2, from_str):
-                        t_name = re.match(val_info_reg2, from_str).group()
-                        if len(t_name) > 30:
+                    elif match3:
+                        in_random_str = match3.group(1)
+                        type_li = re.findall('[a-zA-z]', in_random_str)
+                        if len(re.findall('[(]', in_random_str)) == 2:
+                            in_random_reg = f'^({data_list_reg}),({random_reg})'
+                            ran_matchObj = re.match(in_random_reg, in_random_str)
+                            data_shape = ran_matchObj.group(1)
+                            boundary = ran_matchObj.group(2)
+                        else:
                             return False
-                        legal_info.append(t_name)
-                        hasFrom = 2
-                    elif re.match(val_info_reg3, from_str):
-                        data_list_str = re.search(random_reg, from_str).group()
-                        data_list = eval(data_list_str.replace('(', '[').replace(')', ']'))
-                        if data_list[0] == data_list[1]:
-                            return False
-                        legal_info.append(data_list)
+                        legal_info.append([data_shape, boundary, type_li])
                         hasFrom = 3
+                    elif match2:
+                        t_info = match2.group(1)
+                        legal_info.append(t_info)
+                        hasFrom = 2
                     else:
+                        print('dd')
                         return False
         else:
             return False
@@ -285,38 +290,38 @@ class Parser:
         else:
             with_grad = False
         self.node_id += 1
-        if hasData:
-            node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
-        else:
-            node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape='()')
+        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
         self.graph.InsertNode(node1)
-        self.graph.InsertEdge(self.root_id, self.node_id)
+        self.leaf_li.add(node1)
+        self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
+        if self.graph.nodes[self.root_id] in self.leaf_li:
+            self.leaf_li.remove(self.graph.nodes[self.root_id])
         if hasAS == 1:
             self.input.append([legal_info[0], self.node_id])
         elif hasAS == 2:
             self.output.append([legal_info[0], self.node_id])
         if hasFrom != 0:
-            if hasData:
-                from_info = legal_info[2]
-            else:
-                from_info = legal_info[1]
+            self.leaf_li.remove(node1)
+            from_info = legal_info[2]
             node1_id = self.node_id
             self.node_id += 1
             if hasFrom == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', with_grad)
                 node2.set_val(legal_info[0])
             elif hasFrom == 2:
-                node2 = Nd.InstantiationClass(self.node_id, 'Sql', with_grad, t_name=from_info)
+                node2 = Nd.InstantiationClass(self.node_id, 'Sql', with_grad, t_info=from_info)
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Random', with_grad, uLimit=from_info[1], lLimit=from_info[0])
+                node2 = Nd.InstantiationClass(self.node_id, 'Random', with_grad,
+                                              data_shape=from_info[0], boundary=from_info[1], type=from_info[2])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.node_id += 1
             node3 = Nd.InstantiationClass(self.node_id, 'Assignment', with_grad)
             self.graph.InsertNode(node3)
-            self.graph.InsertEdge(node1_id, self.node_id)
-            self.graph.InsertEdge(node2_id, self.node_id)
-            self.graph.InsertEdge(self.root_id, node2_id)
+            self.leaf_li.add(node3)
+            self.graph.InsertEdge(self.graph.nodes[node1_id], self.graph.nodes[self.node_id])
+            self.graph.InsertEdge(self.graph.nodes[node2_id], self.graph.nodes[self.node_id])
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
             self.DealInVar(legal_info[0], True)
         self.UpdateVarList(legal_info[0], self.node_id)
         return True
@@ -327,17 +332,20 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        loop_reg = 'LOOP ([1-9][0-9]*){\n$'
+        loop_reg = 'LOOP ([1-9][0-9]*|true){\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
             loop_str = matchObj.group(1)
-            times = int(re.search('[1-9][0-9]*', loop_str).group())
+            if loop_str == 'true':
+                condition = True
+            else:
+                condition = int(loop_str)
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'Loop', times=times, loop_id=self.loop_id)
+            node = Nd.InstantiationClass(self.node_id, 'Loop', condition=condition, loop_id=self.loop_id)
             self.graph.InsertNode(node)
-            leaf_li = self.graph.GetLeafNode(self.root_id)
-            for l_n in leaf_li:
-                self.graph.InsertEdge(l_n, self.node_id)
+            for l_n in self.leaf_li:
+                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+            self.leaf_li.clear()
             self.StateConvert('loop')
             self.EndIf()
             return True
@@ -352,16 +360,16 @@ class Parser:
         """
         if self.loop_id == 0:
             return False
-        break_reg = 'BREAK\n$'
+        break_reg = 'BREAK'
         matchObj = re.match(break_reg, query)
         if matchObj:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)
             self.graph.InsertNode(node)
-            leaf_li = self.graph.GetLeafNode(self.root_id)
-            for l_n in leaf_li:
-                self.graph.InsertEdge(l_n, self.node_id)
-
+            for l_n in self.leaf_li:
+                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+            self.leaf_li.clear()
+            self.leaf_li.add(node)
             return True
         else:
             return False
@@ -373,9 +381,9 @@ class Parser:
         :return:True 合法语句，False 非法语句
         """
         con_reg = '[(][a-zA-Z0-9_=!<> ]+[)]'
-        if_reg = 'IF '+con_reg+'{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
-        elif_reg = 'ELIF '+con_reg+'{\n$'
-        else_reg = 'ELSE{\n$'
+        if_reg = 'IF '+con_reg+'{\n'  # 所有关于if的正则，目前未对条件进行约束，待修改
+        elif_reg = 'ELIF '+con_reg+'{\n'
+        else_reg = 'ELSE {\n'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
@@ -384,26 +392,28 @@ class Parser:
             if_str = matchObj_if.group()
             condition = re.search(con_reg, if_str).group()
             var_li = self.MatchLogicExp(condition)
-            if var_li:
-                condition = condition+'$'+str(var_li)
-            else:
+            if not var_li:
                 return False
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If')
             self.graph.InsertNode(node)
-            leaf_li = self.graph.GetLeafNode(self.root_id)
-            for l_n in leaf_li:
-                self.graph.InsertEdge(l_n, self.node_id)
+            for l_n in self.leaf_li:
+                print(l_n.id)
+                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+            self.leaf_li.clear()
             self.StateConvert('if')
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'If_Branch')
+            node = Nd.InstantiationClass(self.node_id, 'IfBranch')
             self.graph.InsertNode(node)
-            self.graph.InsertEdge(self.root_id, self.node_id, condition)
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id],
+                                  condition, need_var=var_li)
             self.StateConvert('if_branch')
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'If_Branch')
+            node = Nd.InstantiationClass(self.node_id, 'IfBranch')
             self.graph.InsertNode(node)
-            self.graph.InsertEdge(self.loop_or_if_id, self.node_id, 'T'+'$'+condition)
+            self.leaf_li.add(node)
+            self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id],
+                                  'T'+'$'+condition, need_var=var_li)
             self.oth_branch = self.node_id
             return True
         elif matchObj_elif:
@@ -411,19 +421,23 @@ class Parser:
                 if_str = matchObj_elif.group()
                 condition = re.search(con_reg, if_str).group()
                 var_li = self.MatchLogicExp(condition)
-                if var_li:
-                    condition = condition + '$' + str(var_li)
-                else:
+                print(var_li)
+                if not var_li:
                     return False
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'If_Branch')
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
                 self.graph.InsertNode(node)
-                self.graph.InsertEdge(self.oth_branch, self.node_id, condition)
+                self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
+                                      condition, need_var=var_li)
+                if self.graph.nodes[self.oth_branch] in self.leaf_li:
+                    self.leaf_li.remove(self.graph.nodes[self.oth_branch])
                 self.StateConvert('if_branch')
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'If_Branch')
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
                 self.graph.InsertNode(node)
-                self.graph.InsertEdge(self.oth_branch, self.node_id, 'T'+'$'+condition)
+                self.leaf_li.add(node)
+                self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
+                                      'T'+'$'+condition, need_var=var_li)
                 self.oth_branch = self.node_id
                 return True
             else:
@@ -431,9 +445,11 @@ class Parser:
         elif matchObj_else:
             if self.state == 'if':
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'If_Branch')
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
                 self.graph.InsertNode(node)
-                self.graph.InsertEdge(self.oth_branch, self.node_id)
+                self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
+                if self.graph.nodes[self.oth_branch] in self.leaf_li:
+                    self.leaf_li.remove(self.graph.nodes[self.oth_branch])
                 self.StateConvert('if_branch')
                 return True
             else:
@@ -447,18 +463,20 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        end_reg = '}\n$'
+        end_reg = '}\n'
         matchObj = re.match(end_reg, query)
         if matchObj:
             self.EndIf()
             if self.state == 'loop':
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'Loop_End', loop_id=self.loop_id)
+                node = Nd.InstantiationClass(self.node_id, 'LoopEnd', loop_id=self.loop_id)
                 self.graph.InsertNode(node)
-                leaf_li = self.graph.GetLeafNode(self.root_id)
-                for l_n in leaf_li:
-                    self.graph.InsertEdge(l_n, self.node_id)
+                for l_n in self.leaf_li:
+                    self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.leaf_li.clear()
                 self.ConnInVar(self.node_id)
+                self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
+                self.leaf_li.add(node)
             self.StateConvert('end')
             return True
         else:
@@ -472,39 +490,43 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg = f'^{variable_name_reg} = (.+)\n$'
-        sql_reg = 'SELECT [a-zA-Z_]+[a-zA-Z0-9_]* FROM ([a-zA-Z_]+[a-zA-Z0-9_]*)( WHERE [.]+)?'
+        sql_reg = 'SQL[(](.+)[)]'
         matchObj = re.match(ass_reg, query)
         if matchObj:
+            exp = matchObj.group()
             v_name = matchObj.group(1)
-            self.node_id += 1
-            p = A_e.Analyze_expression(A_e.Pretreatment(matchObj.group()), self.node_id)
-            if p:
-                g_set = p[0]
-                g_in = p[1]
-                g_out = p[2]
-                e_node_id = g_out.GetId()
-                self.graph.Merge(g_set)
-                self.node_id = len(self.graph.GetSet()[0]) - 1
-                for in_v in g_in:
-                    var_li = self.var_dict.get(in_v[0], None)
-                    if var_li:
-                        last_use = var_li[-1]
-                        self.graph.InsertEdge(last_use, in_v[1])
-                    else:
-                        return False
+            ass_exp = matchObj.group(2)
+            # self.node_id += 1
+            # p = A_e.Analyze_expression(A_e.Pretreatment(exp), self.node_id)
+            # if p:
+            #     g = p[0]
+            #     g_in = p[1]
+            #     g_out = p[2]
+            #     print(g_in)
+            #     print(g_out)
+            #     if not g_out:
+            #         return False
+            #     self.graph.Merge([g.nodes, g.edges])
+            #     for in_v in g_in:
+            #         var_li = self.var_dict.get(in_v[0], None)
+            #         if var_li:
+            #             last_use = var_li[-1]
+            #             self.graph.InsertEdge(last_use, self.graph.nodes[in_v[1]])
+            #         else:
+            #             print('cc')
+            #             return False
+            #     e_node_id = g_out.GetId()
+            #     self.node_id = e_node_id
+            sql_matchObj = re.match(sql_reg, ass_exp)
+            if sql_matchObj:
+                t_info = sql_matchObj.group(1)
+                self.node_id += 1
+                e_node = Nd.InstantiationClass(self.node_id, 'Sql', t_info=t_info)
+                e_node_id = self.node_id
+                self.graph.InsertNode(e_node)
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
             else:
-                ass_str = matchObj.group(2)
-                print(ass_str)
-                sql_matchObj = re.match(sql_reg, ass_str)
-                if sql_matchObj:
-                    t_name = sql_matchObj.group(1)
-                    self.node_id += 1
-                    e_node = Nd.InstantiationClass(self.node_id, 'Sql', t_name=t_name)
-                    e_node_id = self.node_id
-                    self.graph.InsertNode(e_node)
-                    self.graph.InsertEdge(self.root_id, self.node_id)
-                else:
-                    return False
+                return False
         else:
             return False
         var_li = self.var_dict.get(v_name, None)
@@ -514,7 +536,9 @@ class Parser:
             self.node_id += 1
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
             self.graph.InsertNode(ass_n)
-            self.graph.InsertEdge(last_use, self.node_id)
+            self.graph.InsertEdge(last_use, ass_n)
+            if last_use in self.leaf_li:
+                self.leaf_li.remove(last_use)
         else:
             self.DealInVar(v_name, True)
             self.node_id += 1
@@ -524,8 +548,12 @@ class Parser:
             self.node_id += 1
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
             self.graph.InsertNode(ass_n)
-            self.graph.InsertEdge(node_l_id, self.node_id)
-        self.graph.InsertEdge(e_node_id, self.node_id)
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node_l_id])
+            if self.graph.nodes[self.root_id] in self.leaf_li:
+                self.leaf_li.remove(self.graph.nodes[self.root_id])
+            self.graph.InsertEdge(self.graph.nodes[node_l_id], ass_n)
+        self.graph.InsertEdge(self.graph.nodes[e_node_id], ass_n)
+        self.leaf_li.add(ass_n)
         self.UpdateVarList(v_name, self.node_id)
         return True
 
@@ -537,7 +565,7 @@ class Parser:
         :param query:
         :return: False 结束，True 不结束
         """
-        end_reg = '} (AS RELATION)?\n$'
+        end_reg = '\n} (AS RELATION)?'
         matchObj = re.match(end_reg, query)
         if matchObj:
             return False
@@ -551,7 +579,7 @@ class Parser:
         :return: True 合法语句，False 非法语句
         """
         self.EndIf()
-        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*){\n$'
+        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*){\n'
         matchObj = re.match(c_o_reg, query)
         if matchObj:
             return True
@@ -559,92 +587,46 @@ class Parser:
             return False
 
     def GetGInfo(self):
-        g_set = self.graph.GetSet()
-        g_info = (self.input, self.output, g_set, self.var_dict)
+        g_info = (self.input, self.output, self.graph, self.var_dict)
         return g_info
 
 
 if __name__ == '__main__':
-    # create语句测试
-    # create_test = list()
-    # create_test.append('CREATE TENSOR LR(1,4)\n')
-    # create_test.append('CREATE TENSOR LL2(-1,4)\n')
-    # create_test.append('CREATE TENSOR Ll(3,-1)\n')
-    # create_test.append('CREATE TENSOR A_(-1,)\n')
-    # create_test.append('CREATE TENSOR Ba4S(3,)\n')
-    # create_test.append('CREATE TENSOR lR(1,4) FROM 7\n')
-    # create_test.append('CREATE TENSOR _LR(4) FROM 0.04\n')
-    # create_test.append('CREATE TENSOR LR(1,4) FROM RANDOM(2,4)\n')
-    # create_test.append('CREATE TENSOR LR(1,4) FROM User\n')
-    # create_test.append('CREATE TENSOR LR(1,4) FROM User WITH GRAD\n')
-    # create_test.append('CREATE TENSOR LR(1,4) FROM User WITH 0.05\n')
-    # testPar = Parser(create_test)
-    # testPar()
-    #  loop语句测试
-    # loop_test = list()
-    # loop_test.append('LOOP 108{\n')
-    # loop_test.append('CREATE TENSOR LL2(-1,4)\n')
-    # loop_test.append('CREATE TENSOR A_(-1,)\n')
-    # loop_test.append('LOOP 18{\n')
-    # loop_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # loop_test.append('}\n')
-    # loop_test.append('}\n')
-    # testPar = Parser(loop_test)
-    # testPar()
+    with open('test.txt','r') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    testPar()
     # if语句测试
     # if_test = list()
-    # if_test.append('CREATE TENSOR a(-1,3)\n')
+    # if_test.append('CREATE TENSOR a(-1,3) FROM 287\n')
     # if_test.append('IF (a<108){\n')
     # if_test.append('CREATE TENSOR LL2(-1,4)\n')
-    # if_test.append('CREATE TENSOR a_(-1,4) FROM 287\n')
+    # if_test.append('CREATE TENSOR A_(-1,)\n')
     # if_test.append('IF (a<18){\n')
     # if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # if_test.append('}\n')
-    # if_test.append('}\n')
+    # if_test.append('\n}')
+    # if_test.append('\n}')
     # if_test.append('ELIF (205>a and a>108){\n')
-    # if_test.append('CREATE TENSOR _Lo(1,4) FROM 0.04\n')
-    # if_test.append('}\n')
+    # if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
+    # if_test.append('\n}')
     # if_test.append('ELSE{\n')
-    # if_test.append('CREATE TENSOR LL8(-1,4)\n')
-    # if_test.append('}\n')
-    # if_test.append('$')
+    # if_test.append('CREATE TENSOR LL2(-1,4)\n')
+    # if_test.append('\n}')
+    # if_test.append('CREATE TENSOR LR(1,4) FROM User\n')
     # testPar = Parser(if_test)
     # testPar()
     # 表达式测试
-    exp_test = list()
-    exp_test.append('CREATE TENSOR x(1,4)\n')
-    exp_test.append('CREATE TENSOR y(1,3)\n')
-    exp_test.append('CREATE TENSOR z(1,4,4,6,-1)\n')
-    exp_test.append('CREATE TENSOR a(1,-1,4,-1,3,-1)\n')
-    exp_test.append('CREATE TENSOR b(-1,4,9,3,2,1)\n')
-    exp_test.append('add = x + y * b - z / a\n')
-    testPar = Parser(exp_test)
-    testPar()
-    # if和loop的混合测试
-    # test = list()
-    # test.append('CREATE TENSOR a(-1,3) FROM 287\n')
-    # test.append('LOOP 108{\n')
-    # test.append('CREATE TENSOR LL2(-1,4)\n')
-    # test.append('CREATE TENSOR A_(-1,)\n')
-    # test.append('IF (a<18){\n')
-    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # test.append('}\n')
-    # test.append('ELIF (205>a and a>108){\n')
-    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # test.append('BREAK\n')
-    # test.append('}\n')
-    # test.append('ELSE{\n')
-    # test.append('CREATE TENSOR LL2(-1,4)\n')
-    # test.append('}\n')
-    # test.append('}\n')
-
-    # test.append('CREATE TENSOR a(-1,3) FROM 287\n')
-    # test.append('IF (a<108){\n')
-    # test.append('CREATE TENSOR LL2(-1,4)\n')
-    # test.append('CREATE TENSOR A_(-1,)\n')
-    # test.append('LOOP 18{\n')
-    # test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # test.append('}\n')
-    # test.append('}\n')
-    # testPar = Parser(test)
-    # testPar()
+    # exp_test = list()
+    # exp_test.append('CREATE TENSOR x(-1,3,4,-1,3)\n')
+    # exp_test.append('CREATE TENSOR y(-1,2,6,-1,7)\n')
+    # exp_test.append('CREATE TENSOR z(-1,3,-1,4,-1)\n')
+    # exp_test.append('CREATE TENSOR a(-1,3,4)\n')
+    # exp_test.append('CREATE TENSOR b(3,-1)\n')
+    # exp_test.append('CREATE TENSOR c(-1,)\n')
+    # exp_test.append('CREATE TENSOR e(-1,-1)\n')
+    # exp_test.append('a = x + y / z - x * x\n')
+    # exp_test.append('b = LOG(x)\n')
+    # exp_test.append('c = MATMUL(y , z) WITH GRAD\n')
+    # exp_test.append('e = SELECT user_name FROM USER WHERE true\n')
+    # test_par = Parser(exp_test)
+    # test_par()
