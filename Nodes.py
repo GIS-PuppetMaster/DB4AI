@@ -19,7 +19,7 @@ class Node:
         for in_edge in self.in_edges:
             if isinstance(in_edge.start, Loop) or isinstance(in_edge.start, If):
                 for data_edge in in_edge.start.in_edges:
-                    if in_edge.in_var == data_edge.in_var:
+                    if in_edge.var == data_edge.var:
                         self.input_data_edges.append(data_edge)
             else:
                 self.input_data_edges.append(in_edge)
@@ -286,12 +286,194 @@ class Assignment(Node):
     def __call__(self, executor: Executor):
         assert len(self.input_data_edges) == 2, f'the number of assignment node\'s in_edges not equal to 2, {self.in_edges}'
         # var_node = self.in_edges[0]
-        data_node = self.input_data_edges[1]
+        data_node = self.input_data_edges[1].start
         executor.output_of_nodes[self] = executor.output_of_nodes[data_node]
 
     def next_nodes(self, executor: Executor):
         return [edge.end for edge in self.out_edges]
 
+class Add(Node):
+    def __init__(self, **kwargs):
+        super().__init__(12, **kwargs)
+
+
+class Sub(Node):
+    def __init__(self, **kwargs):
+        super().__init__(13, **kwargs)
+
+
+class Mul(Node):
+    def __init__(self, **kwargs):
+        super().__init__(14, **kwargs)
+
+
+class Div(Node):
+    def __init__(self, **kwargs):
+        super().__init__(15, **kwargs)
+
+
+class LOG(Node):
+    def __init__(self, **kwargs):
+        super().__init__(16, **kwargs)
+
+
+class POW(Node):
+    def __init__(self, **kwargs):
+        super().__init__(17, **kwargs)
+        self.base = 0
+
+    def set_base(self, base):
+        self.base = base
+
+
+class SQRT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(18, **kwargs)
+
+
+class MATMUL(Node):
+    def __init__(self, **kwargs):
+        super().__init__(19, **kwargs)
+
+
+class DOT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(20, **kwargs)
+
+
+class INNER(Node):
+    def __init__(self, **kwargs):
+        super().__init__(21, **kwargs)
+
+
+class OUTER(Node):
+    def __init__(self, **kwargs):
+        super().__init__(22, **kwargs)
+
+
+class TENSORDOT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(23, **kwargs)
+        self.axes = 2
+
+    def set_axes(self, axes):
+        self.axes = axes
+
+class KRON(Node):
+    def __init__(self, **kwargs):
+        super().__init__(24, **kwargs)
+
+
+class CHOLESKY(Node):
+    def __init__(self, **kwargs):
+        super().__init__(25, **kwargs)
+
+
+class QR(Node):
+    def __init__(self, **kwargs):
+        super().__init__(26, **kwargs)
+        self.mode = ''
+
+    def set_mode(self, mode):
+        self.mode = mode
+
+
+class SVD(Node):
+    def __init__(self, **kwargs):
+        super().__init__(27, **kwargs)
+        self.parameter_dict = {'full_matrices': 1, 'compute_uv': 1, 'hermitian': 0}
+
+    def set_param(self, full_matrices, compute_uv, hermitian):
+        self.parameter_dict['full_matrices'] = full_matrices
+        self.parameter_dict['compute_uv'] = compute_uv
+        self.parameter_dict['hermitian'] = hermitian
+
+
+class NORM(Node):
+    def __init__(self, **kwargs):
+        super().__init__(28, **kwargs)
+        self.parameter_dict = {'ord': None, 'axis': None, 'keepdims': 0}
+
+    def set_param(self, ord, axis, keepdims):
+        self.parameter_dict['ord'] = ord
+        self.parameter_dict['axis'] = axis
+        self.parameter_dict['keepdims'] = keepdims
+
+
+class COND(Node):
+    def __init__(self, **kwargs):
+        super().__init__(29, **kwargs)
+        self.parameter_dict = {'p': None}
+
+    def set_param(self, p):
+        self.parameter_dict['p'] = p
+
+
+class DET(Node):
+    def __init__(self, **kwargs):
+        super().__init__(30, **kwargs)
+
+
+class RANK(Node):
+    def __init__(self, **kwargs):
+        super().__init__(31, **kwargs)
+
+
+class TRACE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(32, **kwargs)
+        self.parameter_dict = {'offset': 0, 'axis1': 0, 'axis2': 1, 'dtype': None, 'out': None}
+
+    def set_param(self, offset, axis1, axis2, dtype, out):
+        self.parameter_dict['offset'] = offset
+        self.parameter_dict['axis1'] = axis1
+        self.parameter_dict['axis2'] = axis2
+        self.parameter_dict['dtype'] = dtype
+        self.parameter_dict['out'] = out
+
+
+class RESHAPE(Node):
+    def __init__(self,  **kwargs):
+        super().__init__(33, **kwargs)
+        self.parameter_dict = {'newshape': None, 'order': 'C'}
+
+    def set_param(self, newshape, order):
+        self.parameter_dict['newshape'] = newshape
+        self.parameter_dict['order'] = order
+
+
+class TRANSPOSE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(34, **kwargs)
+
+
+class STACK(Node):
+    def __init__(self, **kwargs):
+        super().__init__(35, **kwargs)
+        self.axis = 0
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+# 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
+class Blank(Node):
+    def __init__(self, **kwargs):
+        super().__init__(36, **kwargs)
+
+
+# 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
+class Slice(Node):
+    def __init__(self, **kwargs):
+        super().__init__(37, **kwargs)
+        self.name = ''
+        self.slice_info = []
+
+    def set_name(self, name):
+        self.name = name
+
+    def set_slice(self, slice_info):
+        self.slice_info += slice_info
 
 # 通过globals方法，以类名选择类进行实例化
 def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
