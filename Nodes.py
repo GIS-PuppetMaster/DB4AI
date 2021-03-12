@@ -124,10 +124,6 @@ class LOG(Node):
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(17, **kwargs)
-        self.base = 0
-
-    def set_base(self, base):
-        self.base = base
 
 
 class SQRT(Node):

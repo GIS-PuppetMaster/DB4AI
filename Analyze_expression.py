@@ -284,13 +284,15 @@ def analyze_expression(expression, x):
             parent = new_stack.pop()
             if current_graph != parent and parent.keynode.GetType() != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
+            new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             variable = re.findall(pattern, i)[0].split(',')
             new_expression = 'DEF ' + X + ' = ' + variable[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
             temp = analyze_expression(new_expression, x)
-            # 对单变量进行解析操作
+            x += 1
+            # 对单变量进行解析操作,找到顶点
             for k in temp[0][0]:
                 flag = 0
                 for e in temp[0][1]:
@@ -306,10 +308,17 @@ def analyze_expression(expression, x):
 
             # 对参数进行解析操作
             if j == 'POW':
-                base = variable[1]
-                if variable[1].find('base') != -1:
-                    base = variable[1].split('=')[1].strip()
-                current_graph.keynode.set_base(base)
+                exp = variable[1]
+                if re.fullmatch(re.compile('\d+'), exp.strip()):
+                    exp_node = nd.InstantiationClass(x, 'Val', value=eval(exp))
+                    x += 1
+                    G.InsertNode(exp_node)
+                    G.InsertEdge(exp_node, current_graph.keynode)
+                else:
+                    exp_node = nd.InstantiationClass(x, 'Var', exp.strip())
+                    x += 1
+                    G.InsertNode(exp_node)
+                    G.InsertEdge(exp_node, current_graph.keynode)
             if j == 'QR':
                 mode = variable[1]
                 if variable[1].find('mode') != -1:
@@ -382,7 +391,7 @@ def analyze_expression(expression, x):
                         order = variable[count].split(',')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(newshape, order)
-
+            current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
                 if i.startswith(j):
@@ -392,6 +401,7 @@ def analyze_expression(expression, x):
             parent = new_stack.pop()
             if current_graph != parent and parent.keynode.GetType() != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
+            new_stack.push(parent)
 
             # 关于后续是否直接输入张量
             if j == 'TENSORDOT':
@@ -433,7 +443,8 @@ def analyze_expression(expression, x):
                     vallist.append(k)
                 G.nodes = G.nodes + temp[0][0]
                 G.edges = G.edges + temp[0][1]
-
+                current_graph = new_stack.pop()
+            current_graph = new_stack.pop()
         # 识别列表切片
         elif re.search(re.compile(r'\[(.*?)\]', re.S), i):
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Slice', with_grad=requires_grad))
@@ -475,7 +486,7 @@ def analyze_expression(expression, x):
 
 
 if __name__ == '__main__':
-    s = "a = x + y / z - x * PI + POW(T , 3)"
+    s = "a = x + POW(T , 3) + y / z - x * E"
     # s = "DEF s = N * TENSORDOT(J , F , ([1,0],[0,1])"
     p = analyze_expression(s, 0)
     for i in p[0][1]:
