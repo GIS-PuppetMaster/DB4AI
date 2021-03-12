@@ -462,7 +462,7 @@ def analyze_expression(expression, x):
 
         # 对于未识别字符设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
-            vallist.append([i, x])
+            vallist.append([i, x - 1])
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', with_grad=requires_grad))
             current_graph.keynode.set_val(i)
             parent = new_stack.pop()
