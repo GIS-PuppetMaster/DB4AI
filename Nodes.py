@@ -35,12 +35,10 @@ class CreateTensor(Node):
         self.data_shape = tuple(data_list)
 
 
+# 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
-    def __init__(self, **kwargs):
+    def __init__(self, value, **kwargs):
         super().__init__(2, **kwargs)
-        self.value = 0
-
-    def set_val(self, value):
         self.value = value
 
 
@@ -283,6 +281,16 @@ class Slice(Node):
         self.slice_info += slice_info
 
 
+# 该类用来存储参数变量，如x，y
+class Var(Node):
+    def __init__(self, **kwargs):
+        super().__init__(38, **kwargs)
+        self.var = 0
+
+    def set_val(self, var):
+        self.var = var
+
+
 # 通过globals方法，以类名选择类进行实例化
 def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
@@ -302,7 +310,7 @@ def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
     elif nodeType == 'Loop_End' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, with_grad=with_grad)
-    elif nodeType == 'Symbol':
+    elif nodeType == 'Val':
         value = otherField['value']
         node = globals()[nodeType](value, id=nodeId, with_grad=with_grad)
     else:

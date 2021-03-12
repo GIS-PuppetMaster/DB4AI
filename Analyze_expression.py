@@ -27,20 +27,12 @@ class Stack:
 
 class BuildGraph:
     def __init__(self, node_id, nodeType, **otherField):
-        if nodeType == 'Symbol':
-            value = otherField['value']
-            node = nd.InstantiationClass(node_id, nodeType, value=value)
-        else:
-            node = nd.InstantiationClass(node_id, nodeType)
+        node = nd.InstantiationClass(node_id, nodeType, **otherField)
         self.keynode = node
         self.children = []
 
     def insert(self, node_id, nodeType, **otherField):
-        if nodeType == 'Symbol':
-            value = otherField['value']
-            child = BuildGraph(node_id, nodeType, value=value)
-        else:
-            child = BuildGraph(node_id, nodeType)
+        child = BuildGraph(node_id, nodeType, **otherField)
         self.children.append(child)
 
     def get_child(self):
@@ -269,7 +261,6 @@ def analyze_expression(expression, x):
         # 对于constant.PI和constant.E，节点值为对应张量，操作节点转移到父节点
         elif i == 'PI':
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', value=math.pi, with_grad=requires_grad))
-            current_graph.keynode.set_val(math.pi)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and parent.keynode.GetType() != 36:
@@ -277,7 +268,6 @@ def analyze_expression(expression, x):
             current_graph = parent
         elif i == 'E':
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', value=math.e, with_grad=requires_grad))
-            current_graph.keynode.set_val(math.e)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and parent.keynode.GetType() != 36:
@@ -463,7 +453,7 @@ def analyze_expression(expression, x):
         # 对于未识别字符设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
             vallist.append([i, x - 1])
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', with_grad=requires_grad))
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Var', with_grad=requires_grad))
             current_graph.keynode.set_val(i)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
@@ -485,7 +475,7 @@ def analyze_expression(expression, x):
 
 
 if __name__ == '__main__':
-    s = "a = x + y / z - x * x + POW(T , 3)"
+    s = "a = x + y / z - x * PI + POW(T , 3)"
     # s = "DEF s = N * TENSORDOT(J , F , ([1,0],[0,1])"
     p = analyze_expression(s, 0)
     for i in p[0][1]:
