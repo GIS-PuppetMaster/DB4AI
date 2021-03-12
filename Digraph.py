@@ -108,6 +108,7 @@ class Graph:
             matrix[2][e.start.GetId()][e.end.GetId()] = e.reverse
         return matrix
 
+
 if __name__ == '__main__':
     G = Graph()
     root = nd.InstantiationClass(0, 'Root')

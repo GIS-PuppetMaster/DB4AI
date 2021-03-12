@@ -293,7 +293,7 @@ def Analyze_expression(result, x):
 
 
 if __name__ == '__main__':
-    s = 'a = x + y / ( z - x ) * x'
+    s = 'a = x + y / ( z - x '
     p = Analyze_expression(Pretreatment(s), 0)
     # for i in p[0].nodes:
     #     print(i, i.value)

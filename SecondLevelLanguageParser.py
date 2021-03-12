@@ -168,6 +168,8 @@ class Parser:
             elif v_name in self.out_var:
                 var_li = self.var_dict.get(v_name)
                 last_use = var_li[-1]
+                print('a'+str(last_use.id)+','+str(self.loop_or_if_id))
+                print('b'+str(self.loop_or_if_id)+','+str(self.node_id))
                 self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id], in_var=v_name)
                 self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id], out_var=v_name)
                 self.UpdateVarList(v_name, self.loop_or_if_id)
@@ -400,7 +402,6 @@ class Parser:
             node = Nd.InstantiationClass(self.node_id, 'If')
             self.graph.InsertNode(node)
             for l_n in self.leaf_li:
-                print(l_n.id)
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
             self.leaf_li.clear()
             self.StateConvert('if')
@@ -533,16 +534,15 @@ class Parser:
             return False
         var_li = self.var_dict.get(v_name, None)
         if var_li:
-            self.DealInVar(v_name, False)
             last_use = var_li[-1]
             self.node_id += 1
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
             self.graph.InsertNode(ass_n)
             self.graph.InsertEdge(last_use, ass_n)
+            self.DealInVar(v_name, False)
             if last_use in self.leaf_li:
                 self.leaf_li.remove(last_use)
         else:
-            self.DealInVar(v_name, True)
             self.node_id += 1
             node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', data_shape='()')
             self.graph.InsertNode(node_l)
@@ -551,6 +551,7 @@ class Parser:
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
             self.graph.InsertNode(ass_n)
             self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node_l_id])
+            self.DealInVar(v_name, True)
             if self.graph.nodes[self.root_id] in self.leaf_li:
                 self.leaf_li.remove(self.graph.nodes[self.root_id])
             self.graph.InsertEdge(self.graph.nodes[node_l_id], ass_n)
@@ -633,14 +634,14 @@ if __name__ == '__main__':
     # if_test.append('CREATE TENSOR A_(-1,)\n')
     # if_test.append('IF (a<18){\n')
     # if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # if_test.append('\n}')
+    # if_test.append('}')
     # if_test.append('\n}')
     # if_test.append('ELIF (205>a and a>108){\n')
     # if_test.append('CREATE TENSOR _LR(1,4) FROM 0.04\n')
-    # if_test.append('\n}')
+    # if_test.append('}\n')
     # if_test.append('ELSE{\n')
     # if_test.append('CREATE TENSOR LL2(-1,4)\n')
-    # if_test.append('\n}')
+    # if_test.append('}\n')
     # if_test.append('CREATE TENSOR LR(1,4) FROM User\n')
     # testPar = Parser(if_test)
     # testPar()
