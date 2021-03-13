@@ -22,7 +22,7 @@ class Parser:
         self.out_var = list()
         self.in_var = list()
         self.oth_branch = 0
-        self.leaf_li = set()
+        self.exist_edge = dict(dict())
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.output = list()
@@ -39,7 +39,6 @@ class Parser:
         if len(kwargs) == 0:
             root = Nd.InstantiationClass(self.node_id, 'Root')
             self.graph.InsertNode(root)
-            self.leaf_li.add(root)
         else:
             self.node_id = kwargs['start_id']
             self.pre = self.pre_li[random.randint(0, 9)]+self.pre_li[random.randint(0, 9)]
@@ -146,10 +145,8 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'IfEnd')
             self.graph.InsertNode(node)
-            for l_n in self.leaf_li:
+            for l_n in self.graph.GetNoOutNodes():
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
-            self.leaf_li.clear()
-            self.leaf_li.add(node)
             self.ConnInVar(self.node_id)
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
 
@@ -166,20 +163,18 @@ class Parser:
             elif v_name in self.out_var:
                 var_li = self.var_dict.get(v_name)
                 last_use = var_li[-1]
-                print('a'+str(last_use.id)+','+str(self.loop_or_if_id))
-                print('b'+str(self.loop_or_if_id)+','+str(self.node_id))
                 self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id], in_var=v_name)
                 self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id], out_var=v_name)
                 self.UpdateVarList(v_name, self.loop_or_if_id)
 
-    def ConnInVar(self, e_node):
+    def ConnInVar(self, e_node_id):
         """
         连接循环结构和条件结构的内部新建变量到end节点
-        :param e_node: end节点
+        :param e_node_id: end节点
         :return: 无
         """
         for i_n in self.in_var:
-            self.UpdateVarList(i_n, e_node)
+            self.UpdateVarList(i_n, e_node_id)
 
     def MatchLogicExp(self, m_str):
         """
@@ -294,16 +289,12 @@ class Parser:
         self.node_id += 1
         node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
         self.graph.InsertNode(node1)
-        self.leaf_li.add(node1)
         self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
-        if self.graph.nodes[self.root_id] in self.leaf_li:
-            self.leaf_li.remove(self.graph.nodes[self.root_id])
         if hasAS == 1:
             self.input.append([legal_info[0], self.node_id])
         elif hasAS == 2:
             self.output.append([legal_info[0], self.node_id])
         if hasFrom != 0:
-            self.leaf_li.remove(node1)
             from_info = legal_info[2]
             node1_id = self.node_id
             self.node_id += 1
@@ -320,7 +311,6 @@ class Parser:
             self.node_id += 1
             node3 = Nd.InstantiationClass(self.node_id, 'Assignment', with_grad)
             self.graph.InsertNode(node3)
-            self.leaf_li.add(node3)
             self.graph.InsertEdge(self.graph.nodes[node1_id], self.graph.nodes[self.node_id])
             self.graph.InsertEdge(self.graph.nodes[node2_id], self.graph.nodes[self.node_id])
             self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
@@ -345,9 +335,8 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Loop', condition=condition, loop_id=self.loop_id)
             self.graph.InsertNode(node)
-            for l_n in self.leaf_li:
+            for l_n in self.graph.GetNoOutNodes():
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
-            self.leaf_li.clear()
             self.StateConvert('loop')
             self.EndIf()
             return True
@@ -368,10 +357,8 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)
             self.graph.InsertNode(node)
-            for l_n in self.leaf_li:
+            for l_n in self.graph.GetNoOutNodes():
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
-            self.leaf_li.clear()
-            self.leaf_li.add(node)
             return True
         else:
             return False
@@ -399,9 +386,8 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If')
             self.graph.InsertNode(node)
-            for l_n in self.leaf_li:
+            for l_n in self.graph.GetNoOutNodes():
                 self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
-            self.leaf_li.clear()
             self.StateConvert('if')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'IfBranch')
@@ -412,7 +398,6 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'IfBranch')
             self.graph.InsertNode(node)
-            self.leaf_li.add(node)
             self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id],
                                   'T'+'$'+condition, need_var=var_li)
             self.oth_branch = self.node_id
@@ -422,7 +407,6 @@ class Parser:
                 if_str = matchObj_elif.group()
                 condition = re.search(con_reg, if_str).group()
                 var_li = self.MatchLogicExp(condition)
-                print(var_li)
                 if not var_li:
                     return False
                 self.node_id += 1
@@ -430,13 +414,10 @@ class Parser:
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       condition, need_var=var_li)
-                if self.graph.nodes[self.oth_branch] in self.leaf_li:
-                    self.leaf_li.remove(self.graph.nodes[self.oth_branch])
                 self.StateConvert('if_branch')
                 self.node_id += 1
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch')
                 self.graph.InsertNode(node)
-                self.leaf_li.add(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       'T'+'$'+condition, need_var=var_li)
                 self.oth_branch = self.node_id
@@ -449,8 +430,6 @@ class Parser:
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch')
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
-                if self.graph.nodes[self.oth_branch] in self.leaf_li:
-                    self.leaf_li.remove(self.graph.nodes[self.oth_branch])
                 self.StateConvert('if_branch')
                 return True
             else:
@@ -472,12 +451,10 @@ class Parser:
                 self.node_id += 1
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', loop_id=self.loop_id)
                 self.graph.InsertNode(node)
-                for l_n in self.leaf_li:
+                for l_n in self.graph.GetNoOutNodes():
                     self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
-                self.leaf_li.clear()
                 self.ConnInVar(self.node_id)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
-                self.leaf_li.add(node)
             self.StateConvert('end')
             return True
         else:
@@ -497,37 +474,32 @@ class Parser:
             exp = matchObj.group()
             v_name = matchObj.group(1)
             ass_exp = matchObj.group(2)
-            # self.node_id += 1
-            # p = A_e.Analyze_expression(A_e.Pretreatment(exp), self.node_id)
-            # if p:
-            #     g = p[0]
-            #     g_in = p[1]
-            #     g_out = p[2]
-            #     print(g_in)
-            #     print(g_out)
-            #     if not g_out:
-            #         return False
-            #     self.graph.Merge([g.nodes, g.edges])
-            #     for in_v in g_in:
-            #         var_li = self.var_dict.get(in_v[0], None)
-            #         if var_li:
-            #             last_use = var_li[-1]
-            #             self.graph.InsertEdge(last_use, self.graph.nodes[in_v[1]])
-            #         else:
-            #             print('cc')
-            #             return False
-            #     e_node_id = g_out.GetId()
-            #     self.node_id = e_node_id
             sql_matchObj = re.match(sql_reg, ass_exp)
             if sql_matchObj:
                 t_info = sql_matchObj.group(1)
                 self.node_id += 1
                 e_node = Nd.InstantiationClass(self.node_id, 'Sql', t_info=t_info)
-                e_node_id = self.node_id
                 self.graph.InsertNode(e_node)
-                self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
             else:
-                return False
+                self.node_id += 1
+                p = A_e.analyze_expression(exp, self.node_id)
+                g = p[0]
+                g_in = p[1]
+                g_out = p[2]
+                if p[0] and p[1] and p[2]:
+                    self.graph.Merge([g.nodes, g.edges])
+                    for in_v in g_in:
+                        var_li = self.var_dict.get(in_v[0], None)
+                        if var_li:
+                            last_use = var_li[-1]
+                            self.graph.InsertEdge(last_use, self.graph.nodes[in_v[1]])
+                        else:
+                            return False
+                    e_node = g_out
+                    self.node_id = e_node.id
+                else:
+                    return False
         else:
             return False
         var_li = self.var_dict.get(v_name, None)
@@ -537,24 +509,19 @@ class Parser:
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
             self.graph.InsertNode(ass_n)
             self.graph.InsertEdge(last_use, ass_n)
+            node_l = last_use
             self.DealInVar(v_name, False)
-            if last_use in self.leaf_li:
-                self.leaf_li.remove(last_use)
         else:
             self.node_id += 1
             node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', data_shape='()')
             self.graph.InsertNode(node_l)
-            node_l_id = self.node_id
             self.node_id += 1
-            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment')
+            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', var_li=[])
             self.graph.InsertNode(ass_n)
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node_l_id])
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
             self.DealInVar(v_name, True)
-            if self.graph.nodes[self.root_id] in self.leaf_li:
-                self.leaf_li.remove(self.graph.nodes[self.root_id])
-            self.graph.InsertEdge(self.graph.nodes[node_l_id], ass_n)
-        self.graph.InsertEdge(self.graph.nodes[e_node_id], ass_n)
-        self.leaf_li.add(ass_n)
+            self.graph.InsertEdge(node_l, ass_n)
+        self.graph.InsertEdge(e_node, ass_n)
         self.UpdateVarList(v_name, self.node_id)
         return True
 
