@@ -10,13 +10,25 @@ class Tensor:
     def assign_value(self, value):
         if isinstance(value, np.ndarray):
             assert value.shape == self.shape
+        else:
+            # TODO shape of table
+            pass
         self.handle = value
 
+    def to_cpu(self):
+        data = np.empty(shape=self.shape)
+        table = None # TODO query the table from DB
+        # TODO convert
+        self.handle = data
+
+    def to_relation(self):
+        # TODO
+        pass
 
 class Executor:
     def __init__(self, graph):
         self.graph = graph
-        self.output_of_nodes = dict()
+        self.var_dict = dict()
         self.finished_loop_id = set()
         self.init_data_edges()
         self.infer_data()

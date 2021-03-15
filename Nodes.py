@@ -11,6 +11,7 @@ class Node:
         self.out_edges = []
         self.in_edges = []
         self.input_data_edges = []
+        self.vars = []
 
     def GetId(self):
         return self.id
@@ -51,17 +52,17 @@ class Node:
 # 通过继承实现的其它节点类
 class Root(Node):
     def __init__(self, **kwargs):
-        super().__init__(0, **kwargs)
+        super().__init__(**kwargs)
 
 
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
-        super().__init__(1, **kwargs)
+        super().__init__(**kwargs)
         self.data_shape = eval(data_shape)
 
     def __call__(self, executor: Executor):
-        executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
+        executor.graph.var_dict[self.vars[0]] = Tensor(shape=self.data_shape)
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -74,7 +75,7 @@ class CreateTensor(Node):
 
 class Val(Node):
     def __init__(self, **kwargs):
-        super().__init__(2, **kwargs)
+        super().__init__(**kwargs)
         self.value = 0
 
     def set_val(self, value):
@@ -82,7 +83,7 @@ class Val(Node):
 
     def __call__(self, executor: Executor):
         tensor = Tensor(shape=(1,))
-        executor.graph.output_of_nodes[self] = tensor.handle = self.value
+        executor.graph.var_dict[self.vars[0]] = tensor.handle = self.value
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -92,7 +93,7 @@ class Val(Node):
 
 class Sql(Node):
     def __init__(self, t_info, **kwargs):
-        super().__init__(3, **kwargs)
+        super().__init__(**kwargs)
         self.t_search_sentences = t_info
 
     def __call__(self, executor: Executor):
@@ -108,7 +109,7 @@ class Sql(Node):
 
 class Random(Node):
     def __init__(self, boundary, data_shape, distribution, **kwargs):
-        super().__init__(4, **kwargs)
+        super().__init__(**kwargs)
         self.boundary = boundary
         self.data_shape = eval(data_shape)
         if distribution == '':
@@ -127,7 +128,7 @@ class Random(Node):
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         tensor.handle = data
-        executor.graph.output_of_nodes[self] = tensor.handle
+        executor.graph.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -135,18 +136,10 @@ class Random(Node):
             edge.data_shape = self.data_shape
 
 
-# 算术表达式所用节点
-# TODO: 拆分
-class Symbol(Node):
-    def __init__(self, value, **kwargs):
-        super().__init__(5, **kwargs)
-        self.value = value
-
-
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(**kwargs)
         if condition:
             self.dead_cycle = condition
             self.times = 0
@@ -155,12 +148,6 @@ class Loop(Node):
             self.times = condition
         self.loop_id = loop_id
         self.finished_times = 0
-
-    def __call__(self, executor: Executor):
-        executor.output_of_nodes[self] = []
-        for edge in self.in_edges:
-            start_node = edge.start
-            executor.output_of_nodes[self].append(executor.output_of_nodes[start_node])
 
     def next_nodes(self, executor: Executor):
         end_nodes = [edge.end for edge in self.out_edges]
@@ -184,11 +171,8 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
-
-    def __call__(self, executor: Executor):
-        pass
 
     def next_nodes(self, executor: Executor):
         end_nodes = [edge.end for edge in self.out_edges]
@@ -210,11 +194,8 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
-
-    def __call__(self, executor: Executor):
-        pass
 
     def next_nodes(self, executor: Executor):
         executor.finished_loop_id.remove(self.loop_id)
@@ -230,16 +211,12 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
-
-    def __call__(self, executor: Executor):
-        pass
+        super().__init__(**kwargs)
 
     def next_nodes(self, executor: Executor):
         for edge in self.out_edges:
-            # todo: edge.node_name
             para = {}
-            for var_name, var_node in zip(edge.node_name, edge.node_var):
+            for var_name, var_node in edge.need_var:
                 para[var_name] = var_node
             res = eval(edge.condition, para)
             if edge.reverse:
@@ -250,16 +227,12 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
-
-    def __call__(self, executor: Executor):
-        pass
+        super().__init__(**kwargs)
 
     def next_nodes(self, executor: Executor):
         for edge in self.out_edges:
-            # todo: edge.node_name
             para = {}
-            for var_name, var_node in zip(edge.node_name, edge.node_var):
+            for var_name, var_node in edge.need_var:
                 para[var_name] = var_node
             res = eval(edge.condition, para)
             if edge.reverse:
@@ -270,108 +243,221 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(11, **kwargs)
-
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
+        super().__init__(**kwargs)
 
 
 class Assignment(Node):
     def __init__(self, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(**kwargs)
 
     def __call__(self, executor: Executor):
-        assert len(self.input_data_edges) == 2, f'the number of assignment node\'s in_edges not equal to 2, {self.in_edges}'
-        # var_node = self.in_edges[0]
-        data_node = self.input_data_edges[1].start
-        executor.output_of_nodes[self] = executor.output_of_nodes[data_node]
+        executor.var_dict[self.vars[0]] = executor.var_dict[self.vars[1]]
 
-    def next_nodes(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
 
 class Add(Node):
     def __init__(self, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle + executor.var_dict[self.vars[2]].handle
 
 
 class Sub(Node):
     def __init__(self, **kwargs):
-        super().__init__(13, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle - executor.var_dict[self.vars[2]].handle
 
 
 class Mul(Node):
     def __init__(self, **kwargs):
-        super().__init__(14, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle * executor.var_dict[self.vars[2]].handle
 
 
 class Div(Node):
     def __init__(self, **kwargs):
-        super().__init__(15, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle / executor.var_dict[self.vars[2]].handle
 
 
 class LOG(Node):
     def __init__(self, **kwargs):
-        super().__init__(16, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.log(executor.var_dict[self.vars[1]].handle)
 
 
 class POW(Node):
     def __init__(self, **kwargs):
-        super().__init__(17, **kwargs)
-        self.base = 0
+        super().__init__(**kwargs)
 
-    def set_base(self, base):
-        self.base = base
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.power(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
 
 
 class SQRT(Node):
     def __init__(self, **kwargs):
-        super().__init__(18, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.sqrt(executor.var_dict[self.vars[1]].handle)
 
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
-        super().__init__(19, **kwargs)
+        super().__init__(**kwargs)
 
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.matmul(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
 
 class DOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(20, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.dot(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
 
 
 class INNER(Node):
     def __init__(self, **kwargs):
-        super().__init__(21, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.inner(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
 
 
 class OUTER(Node):
     def __init__(self, **kwargs):
-        super().__init__(22, **kwargs)
+        super().__init__(**kwargs)
+
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.outer(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
 
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(23, **kwargs)
-        self.axes = 2
+        super().__init__(**kwargs)
 
-    def set_axes(self, axes):
-        self.axes = axes
+    def __call__(self, executor: Executor):
+        if self.physic_algorithm == 'relation':
+            # TODO
+            pass
+        else:
+            for i in range(1, len(self.vars)):
+                temp = executor.var_dict[self.vars[i]]
+                if not isinstance(temp, np.ndarray):
+                    temp.to_cpu()
+            executor.var_dict[self.vars[0]].handle = np.dot(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+
 
 class KRON(Node):
     def __init__(self, **kwargs):
-        super().__init__(24, **kwargs)
+        super().__init__(**kwargs)
 
 
 class CHOLESKY(Node):
     def __init__(self, **kwargs):
-        super().__init__(25, **kwargs)
+        super().__init__(**kwargs)
 
 
 class QR(Node):
     def __init__(self, **kwargs):
-        super().__init__(26, **kwargs)
+        super().__init__(**kwargs)
         self.mode = ''
 
     def set_mode(self, mode):
@@ -380,7 +466,7 @@ class QR(Node):
 
 class SVD(Node):
     def __init__(self, **kwargs):
-        super().__init__(27, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'full_matrices': 1, 'compute_uv': 1, 'hermitian': 0}
 
     def set_param(self, full_matrices, compute_uv, hermitian):
@@ -391,7 +477,7 @@ class SVD(Node):
 
 class NORM(Node):
     def __init__(self, **kwargs):
-        super().__init__(28, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'ord': None, 'axis': None, 'keepdims': 0}
 
     def set_param(self, ord, axis, keepdims):
@@ -402,7 +488,7 @@ class NORM(Node):
 
 class COND(Node):
     def __init__(self, **kwargs):
-        super().__init__(29, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'p': None}
 
     def set_param(self, p):
@@ -411,17 +497,17 @@ class COND(Node):
 
 class DET(Node):
     def __init__(self, **kwargs):
-        super().__init__(30, **kwargs)
+        super().__init__(**kwargs)
 
 
 class RANK(Node):
     def __init__(self, **kwargs):
-        super().__init__(31, **kwargs)
+        super().__init__(**kwargs)
 
 
 class TRACE(Node):
     def __init__(self, **kwargs):
-        super().__init__(32, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'offset': 0, 'axis1': 0, 'axis2': 1, 'dtype': None, 'out': None}
 
     def set_param(self, offset, axis1, axis2, dtype, out):
@@ -433,8 +519,8 @@ class TRACE(Node):
 
 
 class RESHAPE(Node):
-    def __init__(self,  **kwargs):
-        super().__init__(33, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.parameter_dict = {'newshape': None, 'order': 'C'}
 
     def set_param(self, newshape, order):
@@ -444,12 +530,12 @@ class RESHAPE(Node):
 
 class TRANSPOSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(34, **kwargs)
+        super().__init__(**kwargs)
 
 
 class STACK(Node):
     def __init__(self, **kwargs):
-        super().__init__(35, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     def set_axis(self, axis):
@@ -459,13 +545,13 @@ class STACK(Node):
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(**kwargs)
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(**kwargs)
         self.name = ''
         self.slice_info = []
 
@@ -474,6 +560,7 @@ class Slice(Node):
 
     def set_slice(self, slice_info):
         self.slice_info += slice_info
+
 
 # 通过globals方法，以类名选择类进行实例化
 def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
