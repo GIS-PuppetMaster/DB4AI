@@ -1,8 +1,8 @@
 import numpy as np
-
-a = np.zeros((2, 3, 4), dtype='str')
-a[0][2][3] = '1'
-
-print(type(a))
-print(a)
+import time
+a = np.ones((30000,30000))
+b = np.ones((30000,30000))
+s = time.time()
+c = a+b
+print(time.time()-s)
 

@@ -1,9 +1,12 @@
 from Executor import *
+from threading import Thread
+import numpy as np
 
 
-class Node:
+class Node(Thread):
     # 计算图中节点类的父类
     def __init__(self, type_id, physic_algorithm='relational', **kwargs):
+        super().__init__()
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
         self.type_id = type_id
@@ -12,6 +15,7 @@ class Node:
         self.in_edges = []
         self.input_data_edges = []
         self.vars = []
+        self.executor = None
 
     def GetId(self):
         return self.id
@@ -37,10 +41,15 @@ class Node:
     def __hash__(self):
         return hash(self.id + self.type_id)
 
-    def __call__(self, executor: Executor):
-        pass
+    def run(self):
+        # 默认转发经过的数据
+        while True:
+            for in_edge in self.in_edges:
+                d = in_edge.get_data()
+                for out_edges in self.out_edges:
+                    out_edges.put_data(d)
 
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         return [edge.end for edge in self.out_edges]
 
     def infer_data(self):
@@ -54,6 +63,9 @@ class Root(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def run(self):
+        pass
+
 
 # 创建张量所用节点
 class CreateTensor(Node):
@@ -61,8 +73,8 @@ class CreateTensor(Node):
         super().__init__(**kwargs)
         self.data_shape = eval(data_shape)
 
-    def __call__(self, executor: Executor):
-        executor.graph.var_dict[self.vars[0]] = Tensor(shape=self.data_shape)
+    def run(self):
+        self.executor.graph.var_dict[self.vars[0]] = Tensor(shape=self.data_shape)
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -81,9 +93,9 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
-    def __call__(self, executor: Executor):
+    def run(self):
         tensor = Tensor(shape=(1,))
-        executor.graph.var_dict[self.vars[0]] = tensor.handle = self.value
+        self.executor.graph.var_dict[self.vars[0]] = tensor.handle = self.value
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -96,7 +108,7 @@ class Sql(Node):
         super().__init__(**kwargs)
         self.t_search_sentences = t_info
 
-    def __call__(self, executor: Executor):
+    def run(self):
         # TODO:和高斯数据的API
         pass
 
@@ -117,7 +129,7 @@ class Random(Node):
         else:
             self.distribution = distribution
 
-    def __call__(self, executor: Executor):
+    def run(self):
         tensor = Tensor(shape=self.data_shape)
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
@@ -128,7 +140,7 @@ class Random(Node):
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         tensor.handle = data
-        executor.graph.var_dict[self.vars[0]] = tensor
+        self.executor.graph.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -149,7 +161,7 @@ class Loop(Node):
         self.loop_id = loop_id
         self.finished_times = 0
 
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         end_nodes = [edge.end for edge in self.out_edges]
         last_nodes = [edge.start for edge in self.in_edges]
         loop_end_node = None
@@ -163,7 +175,7 @@ class Loop(Node):
         # 循环结束
         if self.finished_times >= self.times:
             # 找到对应的Loop_End
-            executor.finished_loop_id.add(self.loop_id)
+            self.executor.finished_loop_id.add(self.loop_id)
             return [loop_end_node]
         else:
             return end_nodes
@@ -174,7 +186,7 @@ class LoopEnd(Node):
         super().__init__(**kwargs)
         self.loop_id = loop_id
 
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         end_nodes = [edge.end for edge in self.out_edges]
         loop_node = None
         for node in end_nodes:
@@ -184,8 +196,8 @@ class LoopEnd(Node):
         assert loop_node is not None, f'Did not find corresponding loop node for end loop node{self.loop_id}'
         end_nodes.remove(loop_node)
         # 退出循环
-        if self.loop_id in executor.finished_loop_id:
-            executor.finished_loop_id.remove(self.loop_id)
+        if self.loop_id in self.executor.finished_loop_id:
+            self.executor.finished_loop_id.remove(self.loop_id)
             return end_nodes
         # 继续下一次循环
         else:
@@ -197,8 +209,8 @@ class Break(Node):
         super().__init__(**kwargs)
         self.loop_id = loop_id
 
-    def next_nodes(self, executor: Executor):
-        executor.finished_loop_id.remove(self.loop_id)
+    def next_nodes(self):
+        self.executor.finished_loop_id.remove(self.loop_id)
         end_nodes = [edge.end for edge in self.out_edges]
         loop_end_node = None
         for node in end_nodes:
@@ -213,7 +225,7 @@ class If(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
@@ -229,7 +241,7 @@ class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
@@ -250,199 +262,200 @@ class Assignment(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
-        executor.var_dict[self.vars[0]] = executor.var_dict[self.vars[1]]
+    def run(self):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
 
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle + executor.var_dict[self.vars[2]].handle
+            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle + self.executor.var_dict[self.vars[2]].handle
 
 
 class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle - executor.var_dict[self.vars[2]].handle
+            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle - self.executor.var_dict[self.vars[2]].handle
 
 
 class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle * executor.var_dict[self.vars[2]].handle
+            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle * self.executor.var_dict[self.vars[2]].handle
 
 
 class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = executor.var_dict[self.vars[1]].handle / executor.var_dict[self.vars[2]].handle
+            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle / self.executor.var_dict[self.vars[2]].handle
 
 
 class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.log(executor.var_dict[self.vars[1]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.log(self.executor.var_dict[self.vars[1]].handle)
 
 
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.power(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.power(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
 
 
 class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.sqrt(executor.var_dict[self.vars[1]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.sqrt(self.executor.var_dict[self.vars[1]].handle)
 
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.matmul(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.matmul(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+
 
 class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.dot(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.dot(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
 
 
 class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.inner(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.inner(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
 
 
 class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.outer(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.outer(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
 
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def __call__(self, executor: Executor):
+    def run(self):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
         else:
             for i in range(1, len(self.vars)):
-                temp = executor.var_dict[self.vars[i]]
+                temp = self.executor.var_dict[self.vars[i]]
                 if not isinstance(temp, np.ndarray):
                     temp.to_cpu()
-            executor.var_dict[self.vars[0]].handle = np.dot(executor.var_dict[self.vars[1]].handle, executor.var_dict[self.vars[2]].handle)
+            self.executor.var_dict[self.vars[0]].handle = np.dot(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
 
 
 class KRON(Node):
