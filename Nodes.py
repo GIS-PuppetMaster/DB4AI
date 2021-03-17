@@ -58,7 +58,10 @@ class Root(Node):
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
         super().__init__(1, **kwargs)
-        self.data_shape = eval(data_shape)
+        if data_shape:
+            self.data_shape = eval(data_shape)
+        else:
+            self.data_shape = None
 
     def __call__(self, executor: Executor):
         executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
