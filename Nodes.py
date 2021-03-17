@@ -16,6 +16,7 @@ class Node(Thread):
         self.input_data_edges = []
         self.vars = []
         self.executor = None
+        self.batch_counter = 0
 
     def GetId(self):
         return self.id
@@ -29,6 +30,20 @@ class Node(Thread):
             else:
                 self.input_data_edges.append(in_edge)
 
+    @ batch_stream
+    def run(self, input_buffer):
+        # 默认转发经过的数据
+        return input_buffer
+
+    def next_nodes(self):
+        return [edge.end for edge in self.out_edges]
+
+    def infer_data(self):
+        pass
+
+    def infer_shape(self):
+        pass
+
     def GetType(self):
         return self.type_id
 
@@ -41,30 +56,12 @@ class Node(Thread):
     def __hash__(self):
         return hash(self.id + self.type_id)
 
-    def run(self):
-        # 默认转发经过的数据
-        while True:
-            for in_edge in self.in_edges:
-                d = in_edge.get_data()
-                for out_edges in self.out_edges:
-                    out_edges.put_data(d)
-
-    def next_nodes(self):
-        return [edge.end for edge in self.out_edges]
-
-    def infer_data(self):
-        pass
-    # def GetType(self):
-    #     return self.type_id
-
 
 # 通过继承实现的其它节点类
 class Root(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
-        pass
 
 
 # 创建张量所用节点
@@ -74,15 +71,12 @@ class CreateTensor(Node):
         self.data_shape = eval(data_shape)
 
     def run(self):
-        self.executor.graph.var_dict[self.vars[0]] = Tensor(shape=self.data_shape)
+        for out_edges in self.out_edges:
+            out_edges.put_data(self.executor.var_dict[self.vars[0]])
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
-            if self.physic_algorithm == 'relational':
-                edge.data_type = 'relation'
-            else:
-                edge.data_type = 'ndarray'
 
 
 class Val(Node):
@@ -94,29 +88,32 @@ class Val(Node):
         self.value = value
 
     def run(self):
-        tensor = Tensor(shape=(1,))
-        self.executor.graph.var_dict[self.vars[0]] = tensor.handle = self.value
+        self.executor.graph.var_dict[self.vars[0]][0] = self.value
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_shape = (1,)
-            edge.data_type = 'ndarray'
 
 
 class Sql(Node):
     def __init__(self, t_info, **kwargs):
         super().__init__(**kwargs)
         self.t_search_sentences = t_info
+        self.shape = None
+        self.batch_size = None  # TODO: 自动选择batch_size
 
     def run(self):
-        # TODO:和高斯数据的API
-        pass
+        # 根据batch size划分
+        for idx in range(0, np.prod(self.shape), self.batch_size):
+            self.executor.var_dict[self.vars[0]][idx:idx + self.batch_size] = None  # TODO:get data
+            for edge in self.out_edges:
+                edge.put_data(self.executor.var_dict[self.vars[0]][idx:idx + self.batch_size])
 
     def infer_data(self):
         for edge in self.out_edges:
             # TODO: 使用SQL查询该表的维度
-            # edge.data_shape =
-            edge.data_type = 'relation'
+            self.shape = None
+            edge.data_shape = self.shape
 
 
 class Random(Node):
@@ -130,21 +127,18 @@ class Random(Node):
             self.distribution = distribution
 
     def run(self):
-        tensor = Tensor(shape=self.data_shape)
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
-            data = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
+            tensor = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
-            data = np.random.randn() * self.boundary[1] + self.boundary[0]
+            tensor = np.random.randn() * self.boundary[1] + self.boundary[0]
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
-        tensor.handle = data
         self.executor.graph.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
-            edge.data_type = 'ndarray'
             edge.data_shape = self.data_shape
 
 
@@ -262,7 +256,8 @@ class Assignment(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
 
@@ -270,23 +265,21 @@ class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle + self.executor.var_dict[self.vars[2]].handle
+    @ batch_stream
+    def run(self, input_buffer):
+        for i in range(1, len(self.vars)):
+            temp = self.executor.var_dict[self.vars[i]]
+            if not isinstance(temp, np.ndarray):
+                temp.to_cpu()
+        self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle + self.executor.var_dict[self.vars[2]].handle
 
 
 class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -302,7 +295,8 @@ class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -318,7 +312,8 @@ class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -334,7 +329,8 @@ class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -350,7 +346,8 @@ class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -366,7 +363,8 @@ class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -382,7 +380,8 @@ class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -398,7 +397,8 @@ class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -414,7 +414,8 @@ class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -430,7 +431,8 @@ class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass
@@ -446,7 +448,8 @@ class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def run(self):
+    @ batch_stream
+    def run(self, input_buffer):
         if self.physic_algorithm == 'relation':
             # TODO
             pass

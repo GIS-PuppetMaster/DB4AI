@@ -2,31 +2,6 @@ from utils import *
 import numpy as np
 
 
-class Tensor(np.ndarray):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.handle = None
-        self.shape = kwargs['shape']
-
-    def assign_value(self, value):
-        if isinstance(value, np.ndarray):
-            assert value.shape == self.shape
-        else:
-            # TODO shape of table
-            pass
-        self.handle = value
-
-    def to_cpu(self):
-        data = np.empty(shape=self.shape)
-        table = None  # TODO query the table from DB
-        # TODO convert
-        self.handle = data
-
-    def to_relation(self):
-        # TODO
-        pass
-
-
 class Executor:
     def __init__(self, graph):
         self.graph = graph
@@ -37,7 +12,9 @@ class Executor:
     @bfs
     def infer_nodes(self, current_node):
         current_node.generate_data_edges()
-        current_node.infer_nodes()
+        current_node.infer_shape()
+        current_node.infer_data()
+        self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
         current_node.executor = self
 
     @bfs
