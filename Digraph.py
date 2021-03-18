@@ -1,7 +1,6 @@
 import Nodes as nd
 import numpy as np
 from graphviz import Digraph
-from queue import Queue as qu
 from Nodes import Node
 
 
@@ -122,6 +121,10 @@ class Graph:
 
     def GetNoOutNodes(self):
         return self.without_out
+
+    def ReplaceNodeId(self, s_id):
+        for i in range(len(self.nodes)):
+            self.nodes[i].id += s_id
 
 if __name__ == '__main__':
     G = Graph()
