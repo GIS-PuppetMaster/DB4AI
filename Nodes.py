@@ -2,6 +2,8 @@ from Executor import *
 from threading import Thread
 import numpy as np
 
+from Executor import BatchedTensor
+
 
 class Node(Thread):
     # 计算图中节点类的父类
@@ -17,6 +19,28 @@ class Node(Thread):
         self.vars = []
         self.executor = None
         self.batch_counter = 0
+        self._default_batch_size = 0
+        self.batch_size = 0
+        self.use_batch = True
+        self.branch = None
+        self.fathers = [edge.start for edge in self.in_edges]
+        self.sons = [edge.end for edge in self.out_edges]
+
+    @property
+    def default_batch_size(self):
+        return self._default_batch_size
+
+    @default_batch_size.setter
+    def default_batch_size(self, value):
+        if self.use_batch:
+            if value < 1:
+                # 输入的是按比例划分batch_size
+                self.batch_size = int(self.out_edges[0].data_shape[0] * value)
+            else:
+                assert isinstance(value, int)
+                self.batch_size = value
+        else:
+            self.batch_size = self.out_edges[0].data_shape[0]
 
     def GetId(self):
         return self.id
@@ -30,18 +54,15 @@ class Node(Thread):
             else:
                 self.input_data_edges.append(in_edge)
 
-    @ batch_stream
+    @batch_stream
     def run(self, input_buffer):
         # 默认转发经过的数据
         return input_buffer
 
     def next_nodes(self):
-        return [edge.end for edge in self.out_edges]
+        return self.sons
 
     def infer_data(self):
-        pass
-
-    def infer_shape(self):
         pass
 
     def GetType(self):
@@ -63,16 +84,15 @@ class Root(Node):
         super().__init__(**kwargs)
 
 
-
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
         super().__init__(**kwargs)
         self.data_shape = eval(data_shape)
+        self.use_batch = False
 
-    def run(self):
-        for out_edges in self.out_edges:
-            out_edges.put_data(self.executor.var_dict[self.vars[0]])
+    def run(self, **kwargs):
+        self.executor.pipeline[self.vars[0]].put(BatchedTensor(self.executor.var_dict[self.vars[0]], self.next_nodes(), batch_size=self.batch_size, start_index=0))
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -83,12 +103,15 @@ class Val(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.value = 0
+        self.use_batch = False
 
     def set_val(self, value):
         self.value = value
 
-    def run(self):
-        self.executor.graph.var_dict[self.vars[0]][0] = self.value
+    def run(self, **kwargs):
+        self.executor.graph.var_dict[self.vars[0]][...] = self.value
+        data = self.executor.var_dict[self.vars[0]]
+        self.executor.pipeline[self.vars[0]].put(BatchedTensor(data, self.next_nodes(), batch_size=self.batch_size, start_index=0))
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -102,12 +125,12 @@ class Sql(Node):
         self.shape = None
         self.batch_size = None  # TODO: 自动选择batch_size
 
-    def run(self):
+    def run(self, **kwargs):
         # 根据batch size划分
         for idx in range(0, np.prod(self.shape), self.batch_size):
             self.executor.var_dict[self.vars[0]][idx:idx + self.batch_size] = None  # TODO:get data
-            for edge in self.out_edges:
-                edge.put_data(self.executor.var_dict[self.vars[0]][idx:idx + self.batch_size])
+            for var_name in self.vars[1:]:
+                self.executor.pipeline[var_name].put(BatchedTensor(self.executor.var_dict[self.vars[0]], self.next_nodes(), batch_size=self.batch_size, start_index=idx))
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -125,8 +148,9 @@ class Random(Node):
             self.distribution = 'normal'
         else:
             self.distribution = distribution
+        self.use_batch = False
 
-    def run(self):
+    def run(self, **kwargs):
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
             tensor = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
@@ -136,6 +160,8 @@ class Random(Node):
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         self.executor.graph.var_dict[self.vars[0]] = tensor
+        data = self.executor.var_dict[self.vars[0]]
+        self.executor.pipeline[self.vars[0]].put(BatchedTensor(data, self.next_nodes(), batch_size=self.batch_size, start_index=0))
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -256,209 +282,131 @@ class Assignment(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
+        return input_buffer[0]()
 
 
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        for i in range(1, len(self.vars)):
-            temp = self.executor.var_dict[self.vars[i]]
-            if not isinstance(temp, np.ndarray):
-                temp.to_cpu()
-        self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle + self.executor.var_dict[self.vars[2]].handle
+        return input_buffer[0]() + input_buffer[1]()
 
 
 class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle - self.executor.var_dict[self.vars[2]].handle
+        return input_buffer[0]() - input_buffer[1]()
 
 
 class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle * self.executor.var_dict[self.vars[2]].handle
+        return input_buffer[0]() * input_buffer[1]()
 
 
 class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = self.executor.var_dict[self.vars[1]].handle / self.executor.var_dict[self.vars[2]].handle
+        return input_buffer[0]() / input_buffer[1]()
 
 
 class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.log(self.executor.var_dict[self.vars[1]].handle)
+        return np.log(input_buffer[0]())
 
 
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.power(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        return np.power(input_buffer[0](), input_buffer[1]())
 
 
 class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.sqrt(self.executor.var_dict[self.vars[1]].handle)
+        return np.sqrt(input_buffer[0]())
 
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.matmul(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        # TODO
+        pass
 
 
 class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.dot(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        return np.dot(input_buffer[0](), input_buffer[1]())
 
 
 class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.inner(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        return np.inner(input_buffer[0](), input_buffer[1]())
 
 
 class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.outer(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        return np.outer(input_buffer[0](), input_buffer[1]())
 
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @ batch_stream
+    @batch_stream
+    @operator_wrapper
     def run(self, input_buffer):
-        if self.physic_algorithm == 'relation':
-            # TODO
-            pass
-        else:
-            for i in range(1, len(self.vars)):
-                temp = self.executor.var_dict[self.vars[i]]
-                if not isinstance(temp, np.ndarray):
-                    temp.to_cpu()
-            self.executor.var_dict[self.vars[0]].handle = np.dot(self.executor.var_dict[self.vars[1]].handle, self.executor.var_dict[self.vars[2]].handle)
+        return np.tensordot(input_buffer[0](), input_buffer[1](), input_buffer[2]())
 
 
 class KRON(Node):
@@ -569,13 +517,26 @@ class Slice(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.name = ''
-        self.slice_info = []
+        self.slice_info = None
+        self.slice_index = None
 
     def set_name(self, name):
         self.name = name
 
     def set_slice(self, slice_info):
-        self.slice_info += slice_info
+        self.slice_info = slice_info
+        total_slice = []
+        for idx in self.slice_info:
+            if ':' in idx:
+                total_slice.append(slice(*list(map(lambda x:None if x=='' else int(x), idx.split(':')))))
+            else:
+                total_slice.append(int(idx))
+        self.slice_index = total_slice
+
+    @batch_stream
+    @operator_wrapper
+    def run(self, input_buffer):
+        return input_buffer[0]().__getitem__(self.slice_index)
 
 
 # 通过globals方法，以类名选择类进行实例化

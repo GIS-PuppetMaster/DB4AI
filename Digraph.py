@@ -25,7 +25,6 @@ class Edge:
             self.var = out_var
         self.start = start
         self.end = end
-        self.data = Queue()
 
     def SplitCon(self):
         con_info = self.condition.split('$')
@@ -43,13 +42,6 @@ class Edge:
 
     def GetCondition(self):
         return self.reverse, self.condition
-
-    def put_data(self, data):
-        # data = dict(var_name: Tensor)
-        self.data.put(data)
-
-    def get_data(self):
-        return self.data.get()
 
 
 class Graph:

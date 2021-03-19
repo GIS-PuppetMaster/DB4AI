@@ -27,5 +27,5 @@ class Test2(Test):
     def add_postfix(self, input_str):
         return input_str + '_postfix2'
 
-t = Test2()
-t.add_postfix('test')
+t = Test()
+t.add_postfix()
