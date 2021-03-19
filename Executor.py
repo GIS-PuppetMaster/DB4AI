@@ -5,9 +5,77 @@ from utils import *
 import numpy as np
 import yaml
 
+def batch_stream(fun):
+    # 对所有接收数据流并输出数据流的节点使用此装饰器
+    @wraps(fun)
+    def decorated(executor, node):
+        while True:
+            if node.batch_counter * node.batch_size >= node.out_edges[0].shape[0]:
+                node.batch_counter = 0
+            input_buffer = [None for _ in range(len(node.input_data_edges))]
+            # 累积输入的batch直到全部达到当前节点的batch size设置
+            # TODO: 对于不使用batch的节点的适配，例如val常量? -- 疑似split batch可以自动适配
+            while check_buffer(input_buffer, node.batch_size):
+                for idx, var_name in enumerate(node.vars[1:]):
+                    pipeline = executor.pipeline[var_name]
+                    batch = pipeline.queue[0]
+                    # 当这个operator接收的变量对应的queue不为空，且队首的bath的目的节点为此node，则说明轮到这个operator执行操作
+                    # 如果二者的branch吻合，则说明batch属于这个分支
+                    if not pipeline.empty() and node in batch.next_nodes and (node.branch in batch.branches or (node.branch is None and len(batch.branches) == 0)):
+                        pipeline.get()
+                        if input_buffer[idx] is None:
+                            input_buffer[idx] = pipeline.get()
+                        else:
+                            input_buffer[idx].merge_batch(pipeline.get())
+            # 如果当前节点的batch size比输入的若干个batch中的至少一个要小
+            while check_buffer(input_buffer, node.batch_size, False):
+                # 将输入的batch切分
+                for idx, var_name in enumerate(node.vars[1:]):
+                    pipeline = executor.pipeline[var_name]
+                    batch = pipeline.queue[0]
+                    if not pipeline.empty() and node in batch.next_nodes and (node.branch in batch.branches or (node.branch is None and len(batch.branches) == 0)):
+                        pipeline.get()
+                        buffer = batch.split_batch(node.batch_size)
+                        if input_buffer[idx] is None:
+                            input_buffer[idx] = buffer
+                        else:
+                            input_buffer[idx].extend(buffer)
+            if not isinstance(input_buffer[0], list):
+                fun(node, input_buffer)
+            else:
+                for buffer in input_buffer:
+                    fun(node, buffer)
+
+            node.batch_counter += 1
+
+    return decorated
+
+
+def operator_wrapper(fun):
+    @wraps(fun)
+    def decorated(node, input_buffer):
+        deepest_branch = None
+        deepest_branch_depth = -1
+        for i in range(len(input_buffer)):
+            assert input_buffer[i]().shape[0] == node.batch_size, f'i={i}'
+            if len(input_buffer[i].branches) > deepest_branch_depth:
+                deepest_branch = input_buffer[i].branches
+                deepest_branch_depth = len(deepest_branch)
+        node.executor.var_dict[node.vars[0]][...] = fun(node, input_buffer)
+        current_branches = copy(deepest_branch)
+        for next_node in node.sons:
+            if isinstance(next_node, If):
+                current_branches.append(next_node.id)
+                break
+            elif isinstance(next_node, IfEnd):
+                current_branches.pop()
+        batch = BatchedTensor(node.executor.var_dict[node.vars[0]], node.next_nodes(), current_branches, batch_size=node.batch_size, start_index=node.batch_counter * node.batch_size)
+        node.executor.pipeline[node.vars[0]].put(batch)
+
+    return decorated
 
 class BatchedTensor:
-    def __init__(self, source_tensor, next_nodes, batch_size: int, start_index: int, batch_axis: int = 0, step: int = 1):
+    def __init__(self, source_tensor, next_nodes, branches, batch_size: int, start_index: int, batch_axis: int = 0, step: int = 1):
         # 包装tensor
         self._source_tensor = source_tensor
         self._batch_axis = batch_axis
@@ -15,7 +83,7 @@ class BatchedTensor:
         self._start_index = start_index
         self._step = step
         self._slice = slice(self.start_index, self.start_index + self.batch_size, self._step)
-        self.branches = []
+        self.branches = branches
         self.next_nodes = next_nodes
 
     @property
@@ -109,6 +177,7 @@ class Executor:
         self.pipeline = dict()
         self.finished_loop_id = set()
         self.init_nodes()
+        self.init_branches(self.graph.nodes[0], None)
 
     @bfs
     def init_nodes(self, current_node):
@@ -119,9 +188,17 @@ class Executor:
         current_node.executor = self
         current_node.default_batch_size = self.default_batch_size
 
-    def init_branches(self):
-        # TODO: dfs, set branch id for Nodes
-        pass
+    def init_branches(self, node, current_branch):
+        if isinstance(node, IfBranch):
+            current_branch = node.id
+        elif not (isinstance(node, If) or isinstance(node, IfEnd) or isinstance(node, Loop) or isinstance(node, LoopEnd)):
+            node.branch = current_branch
+        next_nodes = node.next_nodes()
+        if len(next_nodes) == 0:
+            return
+        else:
+            for next_node in next_nodes:
+                self.init_branches(next_node, current_branch)
 
     @bfs
     def execute(self, current_node):

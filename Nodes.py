@@ -7,11 +7,11 @@ from Executor import BatchedTensor
 
 class Node(Thread):
     # 计算图中节点类的父类
-    def __init__(self, type_id, physic_algorithm='relational', **kwargs):
+    def __init__(self, id, physic_algorithm='relational', **kwargs):
+        self.id = id
         super().__init__()
         self.physic_algorithm = physic_algorithm
-        self.id = kwargs['id']
-        self.type_id = type_id
+        self.type_id = None
         self.with_grad = kwargs['with_grad']
         self.out_edges = []
         self.in_edges = []
@@ -70,12 +70,12 @@ class Node(Thread):
 
     def __eq__(self, other):
         if isinstance(other, Node):
-            return (self.id == other.id) and (self.type_id == other.type_id)
+            return self.id == other.id
         else:
             return False
 
     def __hash__(self):
-        return hash(self.id + self.type_id)
+        return hash(self.id)
 
 
 # 通过继承实现的其它节点类
@@ -87,7 +87,7 @@ class Root(Node):
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
-        super().__init__(1, **kwargs)
+        super().__init__(**kwargs)
         if data_shape:
             self.data_shape = eval(data_shape)
         else:
