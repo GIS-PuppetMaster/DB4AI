@@ -87,8 +87,11 @@ class Root(Node):
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, **kwargs):
-        super().__init__(**kwargs)
-        self.data_shape = eval(data_shape)
+        super().__init__(1, **kwargs)
+        if data_shape:
+            self.data_shape = eval(data_shape)
+        else:
+            self.data_shape = None
         self.use_batch = False
 
     def run(self, **kwargs):
@@ -279,8 +282,9 @@ class IfEnd(Node):
 
 
 class Assignment(Node):
-    def __init__(self, **kwargs):
+    def __init__(self, var_li, **kwargs):
         super().__init__(**kwargs)
+        self.var_li = var_li
 
     @batch_stream
     @operator_wrapper
@@ -552,6 +556,9 @@ def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
         data_shape = otherField['data_shape']
         type = otherField['type']
         node = globals()[nodeType](boundary, data_shape, type, id=nodeId, with_grad=with_grad)
+    elif nodeType == 'Assignment':
+        var_li = otherField['var_li']
+        node = globals()[nodeType](var_li, id=nodeId, with_grad=with_grad)
     elif nodeType == 'Loop':
         condition = otherField['condition']
         loop_id = otherField['loop_id']
