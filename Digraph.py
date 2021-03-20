@@ -48,13 +48,22 @@ class Graph:
     def __init__(self):
         self.nodes = []
         self.edges = []
+        self.without_out = set()
+        self.exist_edge = dict(dict())
 
     # 有关边的方法
     def InsertEdge(self, start, end, condition='no', **kwargs):
-        edge = Edge(start, end, condition, **kwargs)
-        self.edges.append(edge)
-        start.out_edges.append(edge)
-        end.in_edges.append(edge)
+        if start.id in self.exist_edge.keys() and end.id in self.exist_edge[start.id].keys():
+            return False
+        else:
+            edge = Edge(start, end, condition, **kwargs)
+            self.edges.append(edge)
+            end_dict = {end.id:1}
+            self.exist_edge[start.id] = end_dict
+            if start in self.without_out:
+                self.without_out.remove(start)
+            start.out_edges.append(edge)
+            end.in_edges.append(edge)
 
     def GetEdge(self, start, end):
         if len(self.edges):
@@ -67,6 +76,7 @@ class Graph:
     # 有关节点的方法
     def InsertNode(self, node):
         self.nodes.append(node)
+        self.without_out.add(node)
         return True
 
     def GetNode(self, id):
@@ -105,12 +115,17 @@ class Graph:
         self.edges = self.edges + m_set[1]
 
     def ConvertToMatrix(self):
-        matrix = np.zeros((3, len(self.nodes)+1, len(self.nodes)+1), dtype='np.float')
+        matrix = np.zeros((1, len(self.nodes)+1, len(self.nodes)+1))
         for e in self.edges:
             matrix[0][e.start.GetId()][e.end.GetId()] = 1
-            matrix[1][e.start.GetId()][e.end.GetId()] = e.condition
-            matrix[2][e.start.GetId()][e.end.GetId()] = e.reverse
         return matrix
+
+    def GetNoOutNodes(self):
+        return self.without_out
+
+    def ReplaceNodeId(self, s_id):
+        for i in range(len(self.nodes)):
+            self.nodes[i].id += s_id
 
 if __name__ == '__main__':
     G = Graph()
@@ -137,5 +152,6 @@ if __name__ == '__main__':
     G.InsertEdge(Y, W)
     G.InsertEdge(W, Val)
     G.InsertEdge(Val, Ran)
+    G.InsertEdge(Y, W)
     print(G.ConvertToMatrix())
     G.Show()

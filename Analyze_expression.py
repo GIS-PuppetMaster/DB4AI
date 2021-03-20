@@ -1,3 +1,6 @@
+import json
+import os
+import pickle
 import re
 import Nodes as nd
 import Digraph
@@ -53,13 +56,13 @@ analyze_expression()负责处理输入和输出
 
 其中输入语句是符合规定的DEF表达式语句，即输入中所有符号彼此间由单个空格隔开，括号、参数、矩阵内部符号和切片符号除外，示例如下:
 
-DEF A = B + C * D
-DEF X = Y + LOG(Z + Q)
-DEF M = N * POW(J , 3) WITH GRAD
-DEF A = (B + C) * D WITH GRAD
-DEF M = N * TENSORDOT(J , F , ([1,0],[0,1]) WITH GRAD
-DEF A = B / NORM(c , ord=1 , axis=0) WITH GRAD
-DEF A = a[4:-3,5:-7]
+A = B + C * D
+X = Y + LOG(Z + Q)
+M = N * POW(J , 3) WITH GRAD
+A = (B + C) * D WITH GRAD
+M = N * TENSORDOT(J , F , ([1,0],[0,1]) WITH GRAD
+A = B / NORM(c , ord=1 , axis=0) WITH GRAD
+A = a[4:-3,5:-7]
 
 输出图G，变量列表(包括表达式中出现的变量和其生成Val节点对应序号），图G顶端的最上层顶点；
 
@@ -96,6 +99,14 @@ def analyze_expression(expression, x):
                        'TRANSPOSE', 'GRADIENT')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK')
 
+    # 查看UserOperators.json文件，取得自定义算子
+    user_operator = []
+    if os.path.exists('UserOperatorName.json'):
+        with open('UserOperatorName.json', 'r') as f:
+            load_dict = json.load(f)
+            user_operator = load_dict.get('name')
+    user_operator = tuple(user_operator)
+
     # 这里要记录求导信息，设requires_grad变量，此变量应记录在Node父类节点中，之后配合解析器修改
     requires_grad = False
     use_reg = '.+(WITH GRAD)?'
@@ -124,12 +135,13 @@ def analyze_expression(expression, x):
             new_expression.append(i)
     expression = new_expression
 
+    cnt = 1
     for i in expression:
 
         # 将分散为多个字符串的算子内部表达式整合为一个字符串
         begin = expression.index(i)
         end = 0
-        if i.startswith(single_operator) or i.startswith(multiple_operator):
+        if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator):
             flag = 1
             count = begin + 1
             while count < len(expression):
@@ -188,7 +200,6 @@ def analyze_expression(expression, x):
     new_stack.push(new_graph)
     current_graph = new_graph
     vallist = []
-
     # 对表达式进行处理
     for i in expression:
 
@@ -286,8 +297,8 @@ def analyze_expression(expression, x):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
-            variable = re.findall(pattern, i)[0].split(',')
-            new_expression = 'DEF ' + X + ' = ' + variable[0]
+            var = re.findall(pattern, i)[0].split(',')
+            new_expression = 'DEF ' + X + ' = ' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
             temp = analyze_expression(new_expression, x)
@@ -308,7 +319,7 @@ def analyze_expression(expression, x):
 
             # 对参数进行解析操作
             if j == 'POW':
-                exp = variable[1]
+                exp = var[1]
                 if re.fullmatch(re.compile('\d+'), exp.strip()):
                     exp_node = nd.InstantiationClass(x, 'Val', value=eval(exp))
                     x += 1
@@ -320,23 +331,23 @@ def analyze_expression(expression, x):
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
             if j == 'QR':
-                mode = variable[1]
-                if variable[1].find('mode') != -1:
-                    mode = variable[1].split('=')[1].strip()
+                mode = var[1]
+                if var[1].find('mode') != -1:
+                    mode = var[1].split('=')[1].strip()
                 current_graph.keynode.set_base(mode)
             if j == 'SVD':
                 count = 1
                 full_matrices = 1
                 compute_uv = 1
                 hermitian = 0
-                while count < len(variable):
-                    if variable[count].find('full_matrices') != -1:
-                        full_matrices = eval(variable[count].split('=')[1].strip())
-                        print(variable[count], full_matrices)
-                    if variable[count].find('compute_uv') != -1:
-                        compute_uv = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('hermitian') != -1:
-                        hermitian = eval(variable[count].split('=')[1].strip())
+                while count < len(var):
+                    if var[count].find('full_matrices') != -1:
+                        full_matrices = eval(var[count].split('=')[1].strip())
+                        print(var[count], full_matrices)
+                    if var[count].find('compute_uv') != -1:
+                        compute_uv = eval(var[count].split('=')[1].strip())
+                    if var[count].find('hermitian') != -1:
+                        hermitian = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(full_matrices, compute_uv, hermitian)
             if j == 'NORM':
@@ -344,21 +355,21 @@ def analyze_expression(expression, x):
                 ord = None
                 axis = None
                 keepdims = 0
-                while count < len(variable):
-                    if variable[count].find('ord') != -1:
-                        ord = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('axis') != -1:
-                        axis = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('keepdims') != -1:
-                        keepdims = eval(variable[count].split('=')[1].strip())
+                while count < len(var):
+                    if var[count].find('ord') != -1:
+                        ord = eval(var[count].split('=')[1].strip())
+                    if var[count].find('axis') != -1:
+                        axis = eval(var[count].split('=')[1].strip())
+                    if var[count].find('keepdims') != -1:
+                        keepdims = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(ord, axis, keepdims)
             if j == 'COND':
                 count = 1
-                p = variable[count].strip()
-                while count < len(variable):
-                    if variable[count].find('p') != -1:
-                        p = variable[count].split('=')[1].strip()
+                p = var[count].strip()
+                while count < len(var):
+                    if var[count].find('p') != -1:
+                        p = var[count].split('=')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(p)
             if j == 'TRACE':
@@ -368,27 +379,27 @@ def analyze_expression(expression, x):
                 axis2 = 1
                 dtype = None
                 out = None
-                while count < len(variable):
-                    if variable[count].find('offset') != -1:
-                        offset = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('axis1') != -1:
-                        axis1 = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('axis2') != -1:
-                        axis2 = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('dtype') != -1:
-                        dtype = eval(variable[count].split('=')[1].strip())
-                    if variable[count].find('out') != -1:
-                        out = eval(variable[count].split('=')[1].strip())
+                while count < len(var):
+                    if var[count].find('offset') != -1:
+                        offset = eval(var[count].split('=')[1].strip())
+                    if var[count].find('axis1') != -1:
+                        axis1 = eval(var[count].split('=')[1].strip())
+                    if var[count].find('axis2') != -1:
+                        axis2 = eval(var[count].split('=')[1].strip())
+                    if var[count].find('dtype') != -1:
+                        dtype = eval(var[count].split('=')[1].strip())
+                    if var[count].find('out') != -1:
+                        out = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(offset, axis1, axis2, dtype, out)
             if j == 'RESHAPE':
                 count = 2
-                newshape = variable[1]
+                newshape = var[1]
                 order = 'C'
-                while count < len(variable):
-                    order = variable[count]
-                    if variable[count].find('order') != -1:
-                        order = variable[count].split(',')[1].strip()
+                while count < len(var):
+                    order = var[count]
+                    if var[count].find('order') != -1:
+                        order = var[count].split(',')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(newshape, order)
             current_graph = new_stack.pop()
@@ -405,20 +416,31 @@ def analyze_expression(expression, x):
 
             # 关于后续是否直接输入张量
             if j == 'TENSORDOT':
-                variable = i[len(j) + 1:-1].strip().split(',', 2)
+                var = i[len(j) + 1:-1].strip().split(',', 2)
             else:
-                variable = i[len(j) + 1:-1].strip().split(',', 1)
+                var = i[len(j) + 1:-1].strip().split(',', 1)
 
-            for v in variable:
+            for v in var:
 
-                if j == 'TENSORDOT' and variable.index(v) == 2:
-                    axes = v.strip()
+                if j == 'TENSORDOT' and var.index(v) == 2:
+                    '''axes = v.strip()
                     if axes.startswith('axes'):
                         axes = v.split('=')[1].strip()
-                    current_graph.keynode.set_axes(axes)
+                    current_graph.keynode.set_axes(axes)'''
+                    axes = var[1]
+                    if re.fullmatch(re.compile('\d+'), axes.strip()):
+                        axes_node = nd.InstantiationClass(x, 'Val', value=eval(axes))
+                        x += 1
+                        G.InsertNode(axes_node)
+                        G.InsertEdge(axes_node, current_graph.keynode)
+                    else:
+                        axes_node = nd.InstantiationClass(x, 'Var', axes.strip())
+                        x += 1
+                        G.InsertNode(axes_node)
+                        G.InsertEdge(axes_node, current_graph.keynode)
                     break
 
-                if j == 'STACK' and variable.index(v) >= 1:
+                if j == 'STACK' and var.index(v) >= 1:
                     axis = v.strip()
                     if v.find('axis') != -1:
                         axis = v.split('=')[1].strip()
@@ -443,8 +465,55 @@ def analyze_expression(expression, x):
                     vallist.append(k)
                 G.nodes = G.nodes + temp[0][0]
                 G.edges = G.edges + temp[0][1]
-                current_graph = new_stack.pop()
             current_graph = new_stack.pop()
+
+        # 自定义算子，通过访问SecondLevelLanguageParser.py文件生成的UserOperatorName.json以及UserOperatorInfo
+        # 获取文件名和对应自定义算子内容，即输入、输出和图，该部分在SecondLevelLanguageParser.py的AddUserOperator函数中实现
+        elif i.startswith(user_operator):
+            for j in user_operator:
+                if i.startswith(j):
+                    with open('UserOperatorInfo', 'rb') as f:
+                        t = pickle.load(f)
+                        while t.get(j) is None:
+                            t = pickle.load(f)
+                        operator_info = t.get(j)
+                    break
+            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]) - 1)
+            pattern = re.compile(r'[(](.*?)[)]', re.S)
+            var = re.findall(pattern, i)[0].split(',')
+
+            # 将算子输入的实际参数变量加入表达式出现的变量列表
+            for e in operator_info[2].edges:
+                # 如果形参出现
+                if e.GetStart() in operator_info[1] or e.GetEnd() in operator_info[1]:
+                    # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，则加入
+                    if [var[operator_info[1].index(e.GetStart())].strip(), e.GetEnd().GetID] not in vallist:
+                        vallist.append([var[operator_info[1].index(e.GetStart()).strip()], e.GetEnd().GetID])
+            # print(operator_info[1])
+
+            # 遍历图中每条边
+            for e in operator_info[2].edges:
+                flag = 0
+                for input in operator_info[1]:
+                    # 比对成功
+                    if e.GetStart() == input[1] or e.GetEnd() == input[1]:
+                        flag = 1
+                # 若不是形参，则添加到图G中
+                if flag == 0:
+                    if e.GetStart() not in G.nodes:
+                        G.nodes.append(e.GetStart())
+                    if e.GetEnd() not in G.nodes:
+                        G.nodes.append(e.GetEnd())
+                    G.InsertEdge(e.GetStart(), e.GetEnd())
+            parent = new_stack.pop()
+            G.InsertEdge(list(operator_info[0])[0], parent.keynode)
+            list(operator_info[0])[0].set_vars('temp' + str(cnt))
+            cnt += 1
+            for v in var:
+                list(operator_info[0])[0].set_vars(v.strip())
+            G.Show()
+            current_graph = parent
+
         # 识别列表切片
         elif re.search(re.compile(r'\[(.*?)\]', re.S), i):
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Slice', with_grad=requires_grad))
@@ -473,22 +542,29 @@ def analyze_expression(expression, x):
             current_graph = parent
 
     # 返回生成解析树上最上层顶点
-    for n in G.nodes:
-        flag = 0
-        for e in G.edges:
-            if e.GetStart() == n.GetId():
-                flag = 1
-                break
-        if flag == 0:
-            top_node = n
-            break
+    top_node = G.GetNoOutNodes().pop()
+    # 对算子节点添加输入输出信息
+    for e in G.edges:
+        if 12 <= e.GetStart().GetType() <= 35:
+            e.GetStart().set_vars('temp' + str(cnt))
+            cnt += 1
+    top_node.set_vars('temp' + str(cnt))
+    cnt += 1
+    for e in G.edges:
+        if 12 <= e.GetEnd().GetType() <= 35:
+            if len(e.GetStart().get_vars()) == 0:
+                e.GetEnd().set_vars(e.GetStart().get_val())
+            else:
+                e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
-    s = "a = x + POW(T , 3) + y / z - x * E"
-    # s = "DEF s = N * TENSORDOT(J , F , ([1,0],[0,1])"
+    # s = "a = x + POW(T , 3) + y / z - x * E"
+    s = "s = N + first(a, b, c)"
     p = analyze_expression(s, 0)
+    # p[3].Show()
     for i in p[0][1]:
         print(i.GetStart(), i.GetEnd())
     print(p[1])
