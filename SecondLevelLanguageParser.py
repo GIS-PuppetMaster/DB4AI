@@ -40,21 +40,29 @@ class Parser:
         for query in self.queries:
             query = query.lstrip()
             if self.CreateTensor(query):
+                print('合法create语句：' + query)
                 pass
             elif self.Loop(query):
+                print('合法loop语句：' + query)
                 pass
             elif self.If(query):
+                print('合法if语句：' + query)
                 pass
             elif self.End(query):
+                print('合法括号：' + query)
                 pass
             elif self.Assignment(query):
+                print('合法赋值：' + query)
                 pass
             elif self.CuOperator(query):
+                print('合法自定义算子语句：' + query)
                 pass
             elif self.end:
                 self.output = self.graph.GetNoOutNodes()
+                print('自定义算子语句解析完成' + query)
                 return self.output, self.input, self.graph, self.operator
             elif query == '$':
+                print('所有语句解析完成')
                 self.EndIf()
             else:
                 raise Exception('非法语句：' + query)
@@ -119,11 +127,11 @@ class Parser:
         v_name = v_name
         var_li = self.var_dict.get(v_name, None)
         if var_li:
-            var_li.append(self.graph.nodes[nd_id])
+            var_li.append(nd_id)
             self.var_dict[v_name] = var_li
         else:
             new_li = list()
-            new_li.append(self.graph.nodes[nd_id])
+            new_li.append(nd_id)
             self.var_dict[v_name] = new_li
 
     def EndIf(self):
@@ -153,7 +161,7 @@ class Parser:
             elif v_name in self.out_var.keys():
                 var_li = self.out_var.get(v_name)
                 last_use = var_li[-1]
-                self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id])
+                self.graph.InsertEdge(self.graph.nodes[last_use], self.graph.nodes[self.loop_or_if_id])
 
     def ConnInVar(self, e_node_id):
         """
@@ -178,7 +186,7 @@ class Parser:
                 if v != 'or' and v != 'and':
                     var_li = self.var_dict.get(v, None)
                     last_use = var_li[-1]
-                    v_li.append([v, last_use])
+                    v_li.append([v, self.graph.nodes[last_use]])
             return v_li
         else:
             return None
@@ -215,14 +223,11 @@ class Parser:
             if self.var_dict.get(T_name, None):
                 return False
             li = query.split(' ')
-            if len(T_name) != len(li[2]):
-                data = re.search(data_list_reg, li[2])
-                if data:
-                    data_shape = data.group()
-                    legal_info.append(T_name)
-                    legal_info.append(data_shape)
-                else:
-                    return False
+            data = re.search(data_list_reg, li[2])
+            if data:
+                data_shape = data.group()
+                legal_info.append(T_name)
+                legal_info.append(data_shape)
             else:
                 return False
             if len(li) > 3:
@@ -246,9 +251,9 @@ class Parser:
                     elif match3:
                         in_random_str = match3.group(1)
                         type_li = re.findall('[a-zA-z]', in_random_str)
-                        if len(re.findall('[(]', in_random_str)) == 2:
-                            in_random_reg = f'^({data_list_reg}),({random_reg})'
-                            ran_matchObj = re.match(in_random_reg, in_random_str)
+                        in_random_reg = f'^({data_list_reg}),({random_reg})'
+                        ran_matchObj = re.match(in_random_reg, in_random_str)
+                        if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
                         else:
@@ -315,9 +320,9 @@ class Parser:
                 condition = int(loop_str)
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Loop', condition=condition, loop_id=self.loop_id)
-            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             self.StateConvert('loop')
             self.EndIf()
             return True
@@ -337,9 +342,9 @@ class Parser:
         if matchObj:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)
-            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             return True
         else:
             return False
@@ -366,9 +371,9 @@ class Parser:
                 return False
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If')
-            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             self.StateConvert('if')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'IfBranch')
@@ -431,9 +436,9 @@ class Parser:
             if self.state == 'loop':
                 self.node_id += 1
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', loop_id=self.loop_id)
-                self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
-                    self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                    self.graph.InsertEdge(l_n, node)
+                self.graph.InsertNode(node)
                 self.ConnInVar(self.node_id)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
             self.StateConvert('end')
@@ -476,7 +481,7 @@ class Parser:
                         var_li = self.var_dict.get(in_v[0], None)
                         if var_li:
                             last_use = var_li[-1]
-                            self.graph.InsertEdge(last_use, in_v[1])
+                            self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
                         else:
                             return False
                     e_node = g_out
@@ -539,14 +544,15 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('test.txt', 'r') as f:
+    with open('create_test.txt', 'r') as f:
         create_test = f.readlines()
+    create_test.append('$')
     testPar = Parser(create_test)
     result = testPar()
-    print(result[0])
-    print(result[1])
-    result[2].Show()
-    print(result[3])
+    # print(result[0])
+    # print(result[1])
+    # result[2].Show()
+    # print(result[3])
     # if语句测试
     # if_test = list()
     # if_test.append('CREATE TENSOR a(-1,3) FROM 287\n')
