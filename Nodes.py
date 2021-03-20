@@ -1,5 +1,5 @@
 from Executor import *
-
+from copy import copy
 
 class Node:
     # 计算图中节点类的父类
@@ -11,6 +11,7 @@ class Node:
         self.out_edges = []
         self.in_edges = []
         self.input_data_edges = []
+        self.branches = kwargs['branches']
 
     def GetId(self):
         return self.id
@@ -479,32 +480,51 @@ class Slice(Node):
     def set_slice(self, slice_info):
         self.slice_info += slice_info
 
+
+def shallow_copy(fun):
+    @wraps(fun)
+    def decorated(*args, **kwargs):
+        list_args = []
+        for para in args:
+            if isinstance(para, list):
+                list_args.append(copy(para))
+            else:
+                list_args.append(para)
+        for key, value in kwargs.items():
+            if isinstance(value, list):
+                kwargs[key] = copy(value)
+        return fun(*list_args, **kwargs)
+
+    return decorated
+
+
 # 通过globals方法，以类名选择类进行实例化
-def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
+@ shallow_copy
+def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
-        node = globals()[nodeType](data_shape, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](data_shape, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
-        node = globals()[nodeType](t_info, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](t_info, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Random':
         boundary = otherField['boundary']
         data_shape = otherField['data_shape']
         type = otherField['type']
-        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
-        node = globals()[nodeType](var_li, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Loop':
         condition = otherField['condition']
         loop_id = otherField['loop_id']
-        node = globals()[nodeType](condition, loop_id, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](condition, loop_id, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
-        node = globals()[nodeType](loop_id, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Symbol':
         value = otherField['value']
-        node = globals()[nodeType](value, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](value, id=nodeId, branches=branches, with_grad=with_grad)
     else:
-        node = globals()[nodeType](id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
     return node
