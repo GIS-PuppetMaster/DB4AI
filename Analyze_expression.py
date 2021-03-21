@@ -563,8 +563,8 @@ def analyze_expression(expression, x, branches: list):
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
     s = "s = N + first(a, b, c)"
+    # s = "s = (N + Y) * Z"
     p = analyze_expression(s, 0, [])
-    # p[3].Show()
-    for i in p[0][1]:
-        print(i.GetStart(), i.GetEnd())
+    p[0].Show()
     print(p[1])
+    print(p[2])

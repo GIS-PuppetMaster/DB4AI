@@ -518,6 +518,8 @@ def shallow_copy(fun):
                 kwargs[key] = copy(value)
         return fun(*list_args, **kwargs)
 
+    return decorated
+
 
 # 通过globals方法，以类名选择类进行实例化
 @ shallow_copy
