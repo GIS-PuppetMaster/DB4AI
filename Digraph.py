@@ -57,7 +57,7 @@ class Graph:
         else:
             edge = Edge(start, end, condition, **kwargs)
             self.edges.append(edge)
-            end_dict = {end.id:1}
+            end_dict = {end.id: 1}
             self.exist_edge[start.id] = end_dict
             if start in self.without_out:
                 self.without_out.remove(start)
@@ -95,17 +95,17 @@ class Graph:
     def Show(self):
         dot = Digraph(name="computation graph", format="png")
         for node in self.nodes:
-            id = node.GetId()
-            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__))
+            id = node.id
+            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + str(node.branches))
         for edge in self.edges:
             if edge.GetCondition()[1] == 'no':
-                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),
                          label=edge.GetCondition()[1], color='green')
             elif edge.GetCondition()[0]:
-                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),
                          label='!' + edge.GetCondition()[1], color='red')
             else:
-                dot.edge(str(edge.GetStart().GetId()), str(edge.GetEnd().GetId()),
+                dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),
                          label=edge.GetCondition()[1], color='yellow')
         dot.view(filename="my picture")
 
@@ -114,7 +114,7 @@ class Graph:
         self.edges = self.edges + m_set[1]
 
     def ConvertToMatrix(self):
-        matrix = np.zeros((1, len(self.nodes)+1, len(self.nodes)+1))
+        matrix = np.zeros((1, len(self.nodes) + 1, len(self.nodes) + 1))
         for e in self.edges:
             matrix[0][e.start.GetId()][e.end.GetId()] = 1
         return matrix
@@ -125,6 +125,7 @@ class Graph:
     def ReplaceNodeId(self, s_id):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
+
 
 if __name__ == '__main__':
     G = Graph()

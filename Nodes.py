@@ -1,6 +1,7 @@
 from Executor import *
 from copy import copy
 
+
 class Node:
     # 计算图中节点类的父类
     def __init__(self, type_id, physic_algorithm='relational', **kwargs):
@@ -12,9 +13,7 @@ class Node:
         self.in_edges = []
         self.input_data_edges = []
         self.branches = kwargs['branches']
-
-    def GetId(self):
-        return self.id
+        self.vars = []
 
     def generate_data_edges(self):
         for in_edge in self.in_edges:
@@ -24,9 +23,6 @@ class Node:
                         self.input_data_edges.append(data_edge)
             else:
                 self.input_data_edges.append(in_edge)
-
-    def GetType(self):
-        return self.type_id
 
     def __eq__(self, other):
         if isinstance(other, Node):
@@ -45,8 +41,12 @@ class Node:
 
     def infer_data(self):
         pass
-    # def GetType(self):
-    #     return self.type_id
+
+    def set_vars(self, input):
+        self.vars.append(input)
+
+    def get_vars(self):
+        return self.vars
 
 
 # 通过继承实现的其它节点类
@@ -137,14 +137,6 @@ class Random(Node):
         for edge in self.out_edges:
             edge.data_type = 'ndarray'
             edge.data_shape = self.data_shape
-
-
-# 算术表达式所用节点
-# TODO: 拆分
-class Symbol(Node):
-    def __init__(self, value, **kwargs):
-        super().__init__(5, **kwargs)
-        self.value = value
 
 
 # 逻辑控制所用节点
@@ -297,6 +289,7 @@ class Assignment(Node):
     def next_nodes(self, executor: Executor):
         return [edge.end for edge in self.out_edges]
 
+
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
@@ -325,10 +318,6 @@ class LOG(Node):
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(17, **kwargs)
-        self.base = 0
-
-    def set_base(self, base):
-        self.base = base
 
 
 class SQRT(Node):
@@ -359,10 +348,7 @@ class OUTER(Node):
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(23, **kwargs)
-        self.axes = 2
 
-    def set_axes(self, axes):
-        self.axes = axes
 
 class KRON(Node):
     def __init__(self, **kwargs):
@@ -481,6 +467,19 @@ class Slice(Node):
         self.slice_info += slice_info
 
 
+# 该类用来存储参数变量，如x，y
+class Var(Node):
+    def __init__(self, **kwargs):
+        super().__init__(38, **kwargs)
+        self.var = 0
+
+    def set_val(self, var):
+        self.var = var
+
+    def get_val(self):
+        return self.var
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
@@ -522,9 +521,6 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
-    elif nodeType == 'Symbol':
-        value = otherField['value']
-        node = globals()[nodeType](value, id=nodeId, branches=branches, with_grad=with_grad)
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
     return node
