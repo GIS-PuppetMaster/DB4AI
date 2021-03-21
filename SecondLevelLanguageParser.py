@@ -498,7 +498,7 @@ class Parser:
                 self.UpdateVarList(r_var, e_node.id)
             else:
                 self.node_id += 1
-                p = A_e.analyze_expression(exp, self.node_id)
+                p = A_e.analyze_expression(exp, self.node_id, self.branches)
                 g = p[0]
                 g_in = p[1]
                 g_out = p[2]
@@ -597,7 +597,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('create_test.txt', 'r') as f:
+    with open('test.txt', 'r') as f:
         create_test = f.readlines()
     create_test.append('$')
     testPar = Parser(create_test)

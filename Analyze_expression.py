@@ -557,13 +557,14 @@ def analyze_expression(expression, x, branches: list):
             else:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
 
-    return G, vallist, top_node
+    return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    s = "s = N + first(a, b, c)"
+    # s = "s = N + first(a, b, c)"
     # s = "s = (N + Y) * Z"
+    s = "x = x + y"
     p = analyze_expression(s, 0, [])
     p[0].Show()
     print(p[1])
