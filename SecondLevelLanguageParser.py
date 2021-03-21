@@ -1,7 +1,6 @@
 import json
 import os
 import pickle
-
 import Digraph as DG
 import Nodes as Nd
 import re
@@ -27,19 +26,21 @@ class Parser:
         self.in_var = list()
         self.oth_branch = 0
         self.exist_edge = dict(dict())
+        self.branches = list()
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.output = None
         self.operator = ''
         self.isCu = False
         self.end = False
+        self.flag = False
 
     def __call__(self, **kwargs):
         """
         类的call方法，使用类中的语句解析方法解析语句列表，进行建图
         :param kwargs: 暂时未使用
         """
-        root = Nd.InstantiationClass(self.node_id, 'Root')
+        root = Nd.InstantiationClass(self.node_id, 'Root', self.branches)
         self.graph.InsertNode(root)
         flag = 0
         for query in self.queries:
@@ -66,6 +67,7 @@ class Parser:
             elif query == '$':
                 self.EndIf()
             else:
+                self.graph.Show()
                 raise Exception('非法语句：' + query)
         self.graph.Show()
 
@@ -83,12 +85,16 @@ class Parser:
             self.loop_or_if_id = self.node_id
             if c_state == 'loop':
                 self.loop_id = self.root_id
+                self.branches.append(self.root_id)
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             if c_state == 'if':
-                self.state_stack.append([self.loop_or_if_id, self.state, self.out_var, self.in_var, self.oth_branch])
+                self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
+                                         self.in_var.copy(), self.branches.copy(), self.oth_branch])
             elif c_state == 'loop':
-                self.state_stack.append([self.loop_or_if_id, self.state, self.out_var, self.in_var, self.loop_id])
+                self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
+                                         self.in_var.copy(), self.branches.copy(), self.loop_id])
                 self.loop_id = self.node_id
+                self.branches.append(self.root_id)
             self.root_id = self.node_id
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_dict)
@@ -96,22 +102,27 @@ class Parser:
         elif self.state == 'if' and c_state == 'if_branch':
             self.root_id = self.node_id
             self.state = c_state
+            self.branches.append(self.root_id)
         elif self.state == 'if_branch' and c_state == 'end':
             self.state = 'if'
+            del self.branches[-1]
         elif (self.state == 'if' or self.state == 'loop') and c_state == 'end':
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
                 self.state = ''
+                self.branches.pop(-1)
             else:
-                state_li = self.state_stack[-1]
+                state_li = self.state_stack.pop(-1)
                 if state_li[1] == 'if_branch' and self.state == 'if':
-                    self.oth_branch = state_li[4]
+                    self.oth_branch = state_li[-1]
                 elif state_li[1] == 'loop' and self.state == 'loop':
-                    self.loop_id = state_li[4]
-                self.in_var = state_li[3]
-                self.out_var = state_li[2]
-                self.state = state_li[1]
-                self.loop_or_if_id = state_li[0]
+                    self.loop_id = state_li[-1]
+                self.branches = state_li[-2]
+                self.in_var = state_li[-3]
+                self.out_var = state_li[-4]
+                self.state = state_li[-5]
+                self.loop_or_if_id = state_li[-6]
+                print(self.loop_id)
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
                 self.end = True
@@ -128,11 +139,11 @@ class Parser:
         v_name = v_name
         var_li = self.var_dict.get(v_name, None)
         if var_li:
-            var_li.append(self.graph.nodes[nd_id])
+            var_li.append(nd_id)
             self.var_dict[v_name] = var_li
         else:
             new_li = list()
-            new_li.append(self.graph.nodes[nd_id])
+            new_li.append(nd_id)
             self.var_dict[v_name] = new_li
 
     def EndIf(self):
@@ -142,12 +153,12 @@ class Parser:
         """
         if self.state == 'if':
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'IfEnd')
+            self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
+            node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
                 self.graph.InsertEdge(l_n, node)
             self.graph.InsertNode(node)
             self.ConnInVar(self.node_id)
-            self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
 
     def DealInVar(self, v_name, is_new=False):
         """
@@ -162,7 +173,8 @@ class Parser:
             elif v_name in self.out_var.keys():
                 var_li = self.out_var.get(v_name)
                 last_use = var_li[-1]
-                self.graph.InsertEdge(last_use, self.graph.nodes[self.loop_or_if_id])
+                if self.graph.nodes[last_use].branches == self.graph.nodes[self.loop_or_if_id].branches:
+                    self.graph.InsertEdge(self.graph.nodes[last_use], self.graph.nodes[self.loop_or_if_id])
 
     def ConnInVar(self, e_node_id):
         """
@@ -187,7 +199,7 @@ class Parser:
                 if v != 'or' and v != 'and':
                     var_li = self.var_dict.get(v, None)
                     last_use = var_li[-1]
-                    v_li.append([v, last_use])
+                    v_li.append([v, self.graph.nodes[last_use]])
             return v_li
         else:
             return None
@@ -207,7 +219,7 @@ class Parser:
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
         create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?\n$' \
                             f'|create tensor {variable_name_reg}[^ ]*( from [^ ]+)?( with grad)?\n$'
-        val_info_reg1 = '[1-9]+[.][0-9]+|0[.][0-9]+|[1-9]+[0-9]*|0'
+        val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = 'SQL[(](.+)[)]|sql[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = 'RANDOM[(](.+)[)]|random[(](.+)[)]'
 
@@ -224,14 +236,11 @@ class Parser:
             if self.var_dict.get(T_name, None):
                 return False
             li = query.split(' ')
-            if len(T_name) != len(li[2]):
-                data = re.search(data_list_reg, li[2])
-                if data:
-                    data_shape = data.group()
-                    legal_info.append(T_name)
-                    legal_info.append(data_shape)
-                else:
-                    return False
+            data = re.search(data_list_reg, li[2])
+            if data:
+                data_shape = data.group()
+                legal_info.append(T_name)
+                legal_info.append(data_shape)
             else:
                 return False
             if len(li) > 3:
@@ -255,9 +264,9 @@ class Parser:
                     elif match3:
                         in_random_str = match3.group(1)
                         type_li = re.findall('[a-zA-z]', in_random_str)
-                        if len(re.findall('[(]', in_random_str)) == 2:
-                            in_random_reg = f'^({data_list_reg}),({random_reg})'
-                            ran_matchObj = re.match(in_random_reg, in_random_str)
+                        in_random_reg = f'^({data_list_reg}),({random_reg})'
+                        ran_matchObj = re.match(in_random_reg, in_random_str)
+                        if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
                         else:
@@ -279,31 +288,33 @@ class Parser:
         else:
             with_grad = False
         self.node_id += 1
-        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', with_grad, data_shape=legal_info[1])
+        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1])
         self.graph.InsertNode(node1)
-        self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
+        if not self.flag and self.root_id == 0:
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
         if hasFrom != 0:
             from_info = legal_info[2]
             node1_id = self.node_id
             self.node_id += 1
             if hasFrom == 1:
-                node2 = Nd.InstantiationClass(self.node_id, 'Val', with_grad)
+                node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad)
                 node2.set_val(legal_info[0])
             elif hasFrom == 2:
-                node2 = Nd.InstantiationClass(self.node_id, 'Sql', with_grad, t_info=from_info)
+                node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info)
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Random', with_grad,
+                node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad,
                                               data_shape=from_info[0], boundary=from_info[1], type=from_info[2])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
-            self.UpdateVarList('@'+str(self.node_id), self.node_id)
+            self.UpdateVarList('@' + str(self.node_id), self.node_id)
             self.node_id += 1
-            node3 = Nd.InstantiationClass(self.node_id, 'Assignment', with_grad,
-                                          var_li=[legal_info[0], '@'+str(node2_id)])
+            node3 = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, with_grad,
+                                          var_li=[legal_info[0], '@' + str(node2_id)])
             self.graph.InsertNode(node3)
             self.graph.InsertEdge(self.graph.nodes[node1_id], self.graph.nodes[self.node_id])
             self.graph.InsertEdge(self.graph.nodes[node2_id], self.graph.nodes[self.node_id])
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
+            if not self.flag and self.root_id == 0:
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
             self.DealInVar(legal_info[0], True)
         self.UpdateVarList(legal_info[0], self.node_id)
         return True
@@ -317,18 +328,18 @@ class Parser:
         loop_reg = 'LOOP ([1-9][0-9]*|TRUE){\n$|loop ([1-9][0-9]*|true){\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
+            self.EndIf()
             loop_str = matchObj.group(1)
             if loop_str == 'true' or loop_str == 'TRUE':
                 condition = True
             else:
                 condition = int(loop_str)
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'Loop', condition=condition, loop_id=self.loop_id)
-            self.graph.InsertNode(node)
+            node = Nd.InstantiationClass(self.node_id, 'Loop', self.branches, condition=condition, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             self.StateConvert('loop')
-            self.EndIf()
             return True
         else:
             return False
@@ -345,10 +356,10 @@ class Parser:
         matchObj = re.match(break_reg, query)
         if matchObj:
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'Break', loop_id=self.loop_id)
-            self.graph.InsertNode(node)
+            node = Nd.InstantiationClass(self.node_id, 'Break', self.branches, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             return True
         else:
             return False
@@ -374,19 +385,20 @@ class Parser:
             if not var_li:
                 return False
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'If')
-            self.graph.InsertNode(node)
+            node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
-                self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                self.graph.InsertEdge(l_n, node)
+            self.graph.InsertNode(node)
             self.StateConvert('if')
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'IfBranch')
+            node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
             self.graph.InsertNode(node)
             self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id],
                                   condition, need_var=var_li)
+            branches = self.branches.copy()
             self.StateConvert('if_branch')
             self.node_id += 1
-            node = Nd.InstantiationClass(self.node_id, 'IfBranch')
+            node = Nd.InstantiationClass(self.node_id, 'IfBranch', branches)
             self.graph.InsertNode(node)
             self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id],
                                   'T' + '$' + condition, need_var=var_li)
@@ -400,13 +412,15 @@ class Parser:
                 if not var_li:
                     return False
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
+                self.branches.append(self.oth_branch)
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       condition, need_var=var_li)
                 self.StateConvert('if_branch')
+                branches = self.branches.copy()
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch', branches)
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       'T' + '$' + condition, need_var=var_li)
@@ -417,7 +431,8 @@ class Parser:
         elif matchObj_else:
             if self.state == 'if':
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'IfBranch')
+                self.branches.append(self.oth_branch)
+                node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
                 self.StateConvert('if_branch')
@@ -439,13 +454,15 @@ class Parser:
             self.EndIf()
             if self.state == 'loop':
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'LoopEnd', loop_id=self.loop_id)
-                self.graph.InsertNode(node)
+                self.StateConvert('end')
+                node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
                 for l_n in self.graph.GetNoOutNodes().copy():
-                    self.graph.InsertEdge(l_n, self.graph.nodes[self.node_id])
+                    self.graph.InsertEdge(l_n, node)
+                self.graph.InsertNode(node)
                 self.ConnInVar(self.node_id)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
-            self.StateConvert('end')
+            else:
+                self.StateConvert('end')
             return True
         else:
             return False
@@ -461,6 +478,7 @@ class Parser:
         sql_reg = 'SQL[(](.+)[)]|sql[(](.+)[)]'
         matchObj = re.match(ass_reg, query)
         if matchObj:
+            self.EndIf()
             exp = matchObj.group()
             v_name = matchObj.group(1)
             ass_exp = matchObj.group(2)
@@ -468,7 +486,7 @@ class Parser:
             if sql_matchObj:
                 t_info = sql_matchObj.group(1)
                 self.node_id += 1
-                e_node = Nd.InstantiationClass(self.node_id, 'Sql', t_info=t_info)
+                e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=t_info)
                 self.graph.InsertNode(e_node)
                 self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
                 r_var = '@' + str(e_node.id)
@@ -485,12 +503,12 @@ class Parser:
                         var_li = self.var_dict.get(in_v[0], None)
                         if var_li:
                             last_use = var_li[-1]
-                            self.graph.InsertEdge(last_use, in_v[1])
+                            self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
                         else:
                             return False
                     e_node = g_out
                     self.node_id = e_node.id
-                    r_var = '@temp'+str(e_node.id)
+                    r_var = '@temp' + str(e_node.id)
                     self.UpdateVarList(r_var, e_node.id)
                 else:
                     return False
@@ -499,18 +517,19 @@ class Parser:
         var_li = self.var_dict.get(v_name, None)
         if var_li:
             self.node_id += 1
-            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', var_li=[v_name, r_var])
+            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
             self.graph.InsertNode(ass_n)
             self.DealInVar(v_name, False)
         else:
             self.node_id += 1
-            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', data_shape=None)
+            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
             self.graph.InsertNode(node_l)
             self.UpdateVarList(v_name, self.node_id)
             self.node_id += 1
-            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', var_li=[v_name, r_var])
+            ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
             self.graph.InsertNode(ass_n)
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
+            if not self.flag and self.root_id == 0:
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
             self.DealInVar(v_name, True)
             self.graph.InsertEdge(node_l, ass_n)
         self.UpdateVarList(v_name, self.node_id)
@@ -535,11 +554,13 @@ class Parser:
             self.operator = matchObj.group(1)
             parameter_str = re.search(para_reg, matchObj.group(2)).group()
             parameter_li = parameter_str.split(', ')
+            root = self.graph.nodes.pop(0)
+            self.graph.without_out.remove(root)
+            self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'CreateTensor', data_shape=None)
+                node = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
                 self.graph.InsertNode(node)
-                self.graph.InsertEdge(self.graph.nodes[0], node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])
             return True
@@ -571,12 +592,13 @@ def AddUserOperator(output, input, graph, operator):
 if __name__ == '__main__':
     with open('create_test.txt', 'r') as f:
         create_test = f.readlines()
+    create_test.append('$')
     testPar = Parser(create_test)
     result = testPar()
-    # print(result[0])
-    # print(result[1])
+    print(result[0])
+    print(result[1])
     result[2].Show()
-    # print(result[3])
+    print(result[3])
     # if语句测试
     # if_test = list()
     # if_test.append('CREATE TENSOR a(-1,3) FROM 287\n')

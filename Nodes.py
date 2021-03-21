@@ -1,5 +1,5 @@
 from Executor import *
-
+from copy import copy
 
 class Node:
     # 计算图中节点类的父类
@@ -11,16 +11,10 @@ class Node:
         self.out_edges = []
         self.in_edges = []
         self.input_data_edges = []
-        self.vars = []
+        self.branches = kwargs['branches']
 
     def GetId(self):
         return self.id
-
-    def SetId(self, new_id):
-        self.id += new_id
-
-    def GetType(self):
-        return self.type_id
 
     def generate_data_edges(self):
         for in_edge in self.in_edges:
@@ -51,12 +45,8 @@ class Node:
 
     def infer_data(self):
         pass
-
-    def set_vars(self, input):
-        self.vars.append(input)
-
-    def get_vars(self):
-        return self.vars
+    # def GetType(self):
+    #     return self.type_id
 
 
 # 通过继承实现的其它节点类
@@ -86,7 +76,6 @@ class CreateTensor(Node):
                 edge.data_type = 'ndarray'
 
 
-# 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, **kwargs):
         super().__init__(2, **kwargs)
@@ -95,11 +84,8 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
-    def get_val(self):
-        return self.value
-
     def __call__(self, executor: Executor):
-        tensor = Executor.Tensor(shape=(1,))
+        tensor = Tensor(shape=(1,))
         executor.graph.output_of_nodes[self] = tensor.handle = self.value
 
     def infer_data(self):
@@ -153,10 +139,18 @@ class Random(Node):
             edge.data_shape = self.data_shape
 
 
+# 算术表达式所用节点
+# TODO: 拆分
+class Symbol(Node):
+    def __init__(self, value, **kwargs):
+        super().__init__(5, **kwargs)
+        self.value = value
+
+
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(5, **kwargs)
+        super().__init__(6, **kwargs)
         if condition:
             self.dead_cycle = condition
             self.times = 0
@@ -194,7 +188,7 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(7, **kwargs)
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
@@ -220,7 +214,7 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(8, **kwargs)
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
@@ -240,7 +234,7 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(9, **kwargs)
 
     def __call__(self, executor: Executor):
         pass
@@ -260,7 +254,7 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
+        super().__init__(10, **kwargs)
 
     def __call__(self, executor: Executor):
         pass
@@ -280,7 +274,7 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(11, **kwargs)
 
     def __call__(self, executor: Executor):
         pass
@@ -291,7 +285,7 @@ class IfEnd(Node):
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(11, **kwargs)
+        super().__init__(12, **kwargs)
         self.var_li = var_li
 
     def __call__(self, executor: Executor):
@@ -302,7 +296,6 @@ class Assignment(Node):
 
     def next_nodes(self, executor: Executor):
         return [edge.end for edge in self.out_edges]
-
 
 class Add(Node):
     def __init__(self, **kwargs):
@@ -332,6 +325,10 @@ class LOG(Node):
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(17, **kwargs)
+        self.base = 0
+
+    def set_base(self, base):
+        self.base = base
 
 
 class SQRT(Node):
@@ -362,7 +359,10 @@ class OUTER(Node):
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(23, **kwargs)
+        self.axes = 2
 
+    def set_axes(self, axes):
+        self.axes = axes
 
 class KRON(Node):
     def __init__(self, **kwargs):
@@ -481,45 +481,50 @@ class Slice(Node):
         self.slice_info += slice_info
 
 
-# 该类用来存储参数变量，如x，y
-class Var(Node):
-    def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
-        self.var = 0
+def shallow_copy(fun):
+    @wraps(fun)
+    def decorated(*args, **kwargs):
+        list_args = []
+        for para in args:
+            if isinstance(para, list):
+                list_args.append(copy(para))
+            else:
+                list_args.append(para)
+        for key, value in kwargs.items():
+            if isinstance(value, list):
+                kwargs[key] = copy(value)
+        return fun(*list_args, **kwargs)
 
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
+    return decorated
 
 
 # 通过globals方法，以类名选择类进行实例化
-def InstantiationClass(nodeId, nodeType, with_grad=False, **otherField):
+@ shallow_copy
+def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
-        node = globals()[nodeType](data_shape, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](data_shape, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
-        node = globals()[nodeType](t_info, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](t_info, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Random':
         boundary = otherField['boundary']
         data_shape = otherField['data_shape']
         type = otherField['type']
-        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
-        node = globals()[nodeType](var_li, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Loop':
         condition = otherField['condition']
         loop_id = otherField['loop_id']
-        node = globals()[nodeType](condition, loop_id, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](condition, loop_id, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
-        node = globals()[nodeType](loop_id, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Symbol':
         value = otherField['value']
-        node = globals()[nodeType](value, id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](value, id=nodeId, branches=branches, with_grad=with_grad)
     else:
-        node = globals()[nodeType](id=nodeId, with_grad=with_grad)
+        node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
     return node
