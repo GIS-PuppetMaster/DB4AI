@@ -173,20 +173,20 @@ class Executor:
         self.graph = graph
         # 存放每个完整Tensor的dict, key=变量名, value=ndarray
         self.var_dict = dict()
-        # 存放流水线队列的dict, key=变量名, value=Queue(BatchedTensor)，表示node输出该变量的节点
-        self.pipeline = dict()
+        # # 存放流水线队列的dict, key=变量名, value=Queue(BatchedTensor)，表示node输出该变量的节点
+        # self.pipeline = dict()
         self.finished_loop_id = set()
         self.init_nodes()
-        self.init_branches(self.graph.nodes[0], None)
+        # self.init_branches(self.graph.nodes[0], None)
 
     @bfs
     def init_nodes(self, current_node):
         current_node.generate_data_edges()
         current_node.infer_data()
         self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
-        self.pipeline[current_node.vars[0]] = Queue()
+        # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
-        current_node.default_batch_size = self.default_batch_size
+        # current_node.default_batch_size = self.default_batch_size
 
     def init_branches(self, node, current_branch):
         if isinstance(node, IfBranch):
@@ -202,7 +202,7 @@ class Executor:
 
     @bfs
     def execute(self, current_node):
-        current_node.start()
+        current_node.run()
 
     def run(self):
         self.execute()

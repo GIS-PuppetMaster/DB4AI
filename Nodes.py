@@ -1,16 +1,15 @@
 from Executor import *
 from threading import Thread
 import numpy as np
-
+import torch
 from Executor import BatchedTensor
 from copy import copy
 
 
-class Node(Thread):
+class Node:
     # 计算图中节点类的父类
     def __init__(self, id, physic_algorithm='relational', **kwargs):
         self.id = id
-        super().__init__()
         self.physic_algorithm = physic_algorithm
         self.type_id = None
         self.with_grad = kwargs['with_grad']
@@ -96,7 +95,7 @@ class CreateTensor(Node):
         self.use_batch = False
 
     def run(self, **kwargs):
-        self.executor.pipeline[self.vars[0]].put(BatchedTensor(self.executor.var_dict[self.vars[0]], self.next_nodes(), batch_size=self.batch_size, start_index=0))
+        self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -113,9 +112,7 @@ class Val(Node):
         self.value = value
 
     def run(self, **kwargs):
-        self.executor.graph.var_dict[self.vars[0]][...] = self.value
-        data = self.executor.var_dict[self.vars[0]]
-        self.executor.pipeline[self.vars[0]].put(BatchedTensor(data, self.next_nodes(), batch_size=self.batch_size, start_index=0))
+        self.executor.graph.var_dict[self.vars[0]] = torch.tensor(self.value)
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -127,14 +124,10 @@ class Sql(Node):
         super().__init__(**kwargs)
         self.t_search_sentences = t_info
         self.shape = None
-        self.batch_size = None  # TODO: 自动选择batch_size
+        # self.batch_size = None  # TODO: 自动选择batch_size
 
     def run(self, **kwargs):
-        # 根据batch size划分
-        for idx in range(0, np.prod(self.shape), self.batch_size):
-            self.executor.var_dict[self.vars[0]][idx:idx + self.batch_size] = None  # TODO:get data
-            for var_name in self.vars[1:]:
-                self.executor.pipeline[var_name].put(BatchedTensor(self.executor.var_dict[self.vars[0]], self.next_nodes(), batch_size=self.batch_size, start_index=idx))
+        self.executor.var_dict[self.vars[0]] = None  # TODO:get data
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -157,15 +150,13 @@ class Random(Node):
     def run(self, **kwargs):
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
-            tensor = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
+            tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
-            tensor = np.random.randn() * self.boundary[1] + self.boundary[0]
+            tensor = torch.randn() * self.boundary[1] + self.boundary[0]
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         self.executor.graph.var_dict[self.vars[0]] = tensor
-        data = self.executor.var_dict[self.vars[0]]
-        self.executor.pipeline[self.vars[0]].put(BatchedTensor(data, self.next_nodes(), batch_size=self.batch_size, start_index=0))
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -287,131 +278,105 @@ class Assignment(Node):
         super().__init__(**kwargs)
         self.var_li = var_li
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]()
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
 
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]() + input_buffer[1]()
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[self.vars[2]]
 
 
 class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]() - input_buffer[1]()
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[self.vars[2]]
 
 
 class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]() * input_buffer[1]()
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[self.vars[2]]
 
 
 class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]() / input_buffer[1]()
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[self.vars[2]]
 
 
 class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.log(input_buffer[0]())
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
 
 
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.power(input_buffer[0](), input_buffer[1]())
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.sqrt(input_buffer[0]())
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.sqrt(self.executor.var_dict[self.vars[1]])
 
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        # TODO
-        pass
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.matmul(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.dot(input_buffer[0](), input_buffer[1]())
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.dot(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.inner(input_buffer[0](), input_buffer[1]())
+    def run(self, **kwargs):
+        # self.executor.var_dict[self.vars[0]] = torch.inn(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
+        raise Exception('暂不支持inner')
 
 
 class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.outer(input_buffer[0](), input_buffer[1]())
+    def run(self, **kwargs):
+        raise Exception('暂不支持outer')
 
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return np.tensordot(input_buffer[0](), input_buffer[1](), input_buffer[2]())
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensordot(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class KRON(Node):
@@ -436,13 +401,18 @@ class QR(Node):
 class SVD(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.parameter_dict = {'full_matrices': 1, 'compute_uv': 1, 'hermitian': 0}
+        self.full_matrices = True
+        self.compute_uv = True
+        self.hermitian = False
+
 
     def set_param(self, full_matrices, compute_uv, hermitian):
-        self.parameter_dict['full_matrices'] = full_matrices
-        self.parameter_dict['compute_uv'] = compute_uv
-        self.parameter_dict['hermitian'] = hermitian
+        self.full_matrices = bool(full_matrices)
+        self.compute_uv = bool(compute_uv)
+        self.hermitian = bool(hermitian)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.linalg.svd(self.executor.var_dict[self.vars[1]], full_matrices=self.full_matrices,compute_uv=self.compute_uv)
 
 class NORM(Node):
     def __init__(self, **kwargs):
@@ -468,10 +438,17 @@ class DET(Node):
     def __init__(self, **kwargs):
         super().__init__(30, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.det(self.executor.var_dict[self.vars[1]])
+
 
 class RANK(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def run(self, **kwargs):
+        # self.executor.var_dict[self.vars[0]] = torch.rank(self.executor.var_dict[self.vars[1]])
+        raise Exception('暂不支持rank')
 
 
 class TRACE(Node):
@@ -486,15 +463,22 @@ class TRACE(Node):
         self.parameter_dict['dtype'] = dtype
         self.parameter_dict['out'] = out
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.trace(self.executor.var_dict[self.vars[1]])
+
 
 class RESHAPE(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.parameter_dict = {'newshape': None, 'order': 'C'}
+        self.new_shape = None
+        self.order = 'C'
 
     def set_param(self, newshape, order):
-        self.parameter_dict['newshape'] = newshape
-        self.parameter_dict['order'] = order
+        self.new_shape = newshape
+        self.order = order
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.reshape(self.executor.var_dict[self.vars[1]], self.new_shape)
 
 
 class TRANSPOSE(Node):
@@ -533,15 +517,13 @@ class Slice(Node):
         total_slice = []
         for idx in self.slice_info:
             if ':' in idx:
-                total_slice.append(slice(*list(map(lambda x:None if x=='' else int(x), idx.split(':')))))
+                total_slice.append(slice(*list(map(lambda x: None if x == '' else int(x), idx.split(':')))))
             else:
                 total_slice.append(int(idx))
         self.slice_index = total_slice
 
-    @batch_stream
-    @operator_wrapper
-    def run(self, input_buffer):
-        return input_buffer[0]().__getitem__(self.slice_index)
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
 
 
 
@@ -563,7 +545,7 @@ def shallow_copy(fun):
 
 
 # 通过globals方法，以类名选择类进行实例化
-@ shallow_copy
+@shallow_copy
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']

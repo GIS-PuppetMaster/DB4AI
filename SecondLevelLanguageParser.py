@@ -562,7 +562,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('create_test.txt', 'r') as f:
+    with open('test.txt', 'r') as f:
         create_test = f.readlines()
     create_test.append('$')
     testPar = Parser(create_test)
