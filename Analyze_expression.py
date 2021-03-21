@@ -29,13 +29,13 @@ class Stack:
 
 
 class BuildGraph:
-    def __init__(self, node_id, nodeType, **otherField):
-        node = nd.InstantiationClass(node_id, nodeType, **otherField)
+    def __init__(self, node_id, nodeType, branches, **otherField):
+        node = nd.InstantiationClass(node_id, nodeType, branches, **otherField)
         self.keynode = node
         self.children = []
 
-    def insert(self, node_id, nodeType, **otherField):
-        child = BuildGraph(node_id, nodeType, **otherField)
+    def insert(self, node_id, nodeType, branches, **otherField):
+        child = BuildGraph(node_id, nodeType, branches, **otherField)
         self.children.append(child)
 
     def get_child(self):
@@ -91,7 +91,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x):
+def analyze_expression(expression, x, branches: list):
 
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
@@ -195,7 +195,7 @@ def analyze_expression(expression, x):
     # 初始化
     new_stack = Stack()
     G = Digraph.Graph()
-    new_graph = BuildGraph(x, 'Blank', with_grad=requires_grad)
+    new_graph = BuildGraph(x, 'Blank', branches, with_grad=requires_grad)
     x += 1
     new_stack.push(new_graph)
     current_graph = new_graph
@@ -205,7 +205,7 @@ def analyze_expression(expression, x):
 
         # 对当前节点添加子节点，操作节点转移到子节点
         if i == '(':
-            current_graph.insert(x, 'Blank', with_grad=requires_grad)
+            current_graph.insert(x, 'Blank', branches, with_grad=requires_grad)
             x += 1
             new_stack.push(current_graph)
             current_graph = current_graph.get_child()
@@ -220,68 +220,68 @@ def analyze_expression(expression, x):
             label = 1
             while count < len(simple_operator):
                 if count == 0 and i == simple_operator[count]:
-                    if current_graph.keynode.GetType() == 36:
-                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Add', with_grad=requires_grad))
+                    if current_graph.keynode.type_id == 36:
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Add', branches, with_grad=requires_grad))
                     else:
                         label = 0
-                        temp_graph = BuildGraph(x, 'Add', with_grad=requires_grad)
+                        temp_graph = BuildGraph(x, 'Add', branches, with_grad=requires_grad)
                         x += 1
                         temp_graph.get_children().append(current_graph)
                         current_graph = temp_graph
                 if count == 1 and i == simple_operator[count]:
-                    if current_graph.keynode.GetType() == 36:
-                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Sub', with_grad=requires_grad))
+                    if current_graph.keynode.type_id == 36:
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Sub', branches, with_grad=requires_grad))
                     else:
                         label = 0
-                        temp_graph = BuildGraph(x, 'Sub', with_grad=requires_grad)
+                        temp_graph = BuildGraph(x, 'Sub', branches, with_grad=requires_grad)
                         x += 1
                         temp_graph.get_children().append(current_graph)
                         current_graph = temp_graph
                 if count == 2 and i == simple_operator[count]:
-                    if current_graph.keynode.GetType() == 36:
-                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Mul', with_grad=requires_grad))
+                    if current_graph.keynode.type_id == 36:
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Mul', branches, with_grad=requires_grad))
                     else:
                         label = 0
-                        temp_graph = BuildGraph(x, 'Mul', with_grad=requires_grad)
+                        temp_graph = BuildGraph(x, 'Mul', branches, with_grad=requires_grad)
                         x += 1
                         temp_graph.get_children().append(current_graph)
                         current_graph = temp_graph
                 if count == 3 and i == simple_operator[count]:
-                    if current_graph.keynode.GetType() == 36:
-                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Div', with_grad=requires_grad))
+                    if current_graph.keynode.type_id == 36:
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Div', branches, with_grad=requires_grad))
                     else:
                         label = 0
-                        temp_graph = BuildGraph(x, 'Div', with_grad=requires_grad)
+                        temp_graph = BuildGraph(x, 'Div', branches, with_grad=requires_grad)
                         x += 1
                         temp_graph.get_children().append(current_graph)
                         current_graph = temp_graph
                 count += 1
             if len(new_stack.items) != 0 and label == 1:
                 parent = new_stack.pop()
-                if current_graph != parent and parent.keynode.GetType() != 36:
+                if current_graph != parent and parent.keynode.type_id != 36:
                     G.InsertEdge(current_graph.keynode, parent.keynode)
                 new_stack.push(parent)
             G.InsertNode(current_graph.keynode)
             G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
 
-            current_graph.insert(x, 'Blank', grad=requires_grad)
+            current_graph.insert(x, 'Blank', branches,  grad=requires_grad)
             x += 1
             new_stack.push(current_graph)
             current_graph = current_graph.get_child()
 
         # 对于constant.PI和constant.E，节点值为对应张量，操作节点转移到父节点
         elif i == 'PI':
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', value=math.pi, with_grad=requires_grad))
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=math.pi, with_grad=requires_grad))
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
         elif i == 'E':
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Val', value=math.e, with_grad=requires_grad))
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=math.e, with_grad=requires_grad))
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
@@ -289,11 +289,11 @@ def analyze_expression(expression, x):
         elif i.startswith(single_operator):
             for j in single_operator:
                 if i.startswith(j):
-                    current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), j, with_grad=requires_grad))
+                    current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, j, branches, with_grad=requires_grad))
                     break
             G.InsertNode(current_graph.keynode)
             parent = new_stack.pop()
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
@@ -321,12 +321,12 @@ def analyze_expression(expression, x):
             if j == 'POW':
                 exp = var[1]
                 if re.fullmatch(re.compile('\d+'), exp.strip()):
-                    exp_node = nd.InstantiationClass(x, 'Val', value=eval(exp))
+                    exp_node = nd.InstantiationClass(x, 'Val', branches, value=eval(exp))
                     x += 1
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
                 else:
-                    exp_node = nd.InstantiationClass(x, 'Var', exp.strip())
+                    exp_node = nd.InstantiationClass(x, 'Var', branches, exp.strip())
                     x += 1
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
@@ -406,11 +406,11 @@ def analyze_expression(expression, x):
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
                 if i.startswith(j):
-                    current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), j, with_grad=requires_grad))
+                    current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, j, branches, with_grad=requires_grad))
                     break
             G.InsertNode(current_graph.keynode)
             parent = new_stack.pop()
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
 
@@ -429,12 +429,12 @@ def analyze_expression(expression, x):
                     current_graph.keynode.set_axes(axes)'''
                     axes = var[1]
                     if re.fullmatch(re.compile('\d+'), axes.strip()):
-                        axes_node = nd.InstantiationClass(x, 'Val', value=eval(axes))
+                        axes_node = nd.InstantiationClass(x, 'Val', branches, value=eval(axes))
                         x += 1
                         G.InsertNode(axes_node)
                         G.InsertEdge(axes_node, current_graph.keynode)
                     else:
-                        axes_node = nd.InstantiationClass(x, 'Var', axes.strip())
+                        axes_node = nd.InstantiationClass(x, 'Var', branches, axes.strip())
                         x += 1
                         G.InsertNode(axes_node)
                         G.InsertEdge(axes_node, current_graph.keynode)
@@ -488,7 +488,7 @@ def analyze_expression(expression, x):
                 if e.GetStart() in operator_info[1] or e.GetEnd() in operator_info[1]:
                     # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，则加入
                     if [var[operator_info[1].index(e.GetStart())].strip(), e.GetEnd().GetID] not in vallist:
-                        vallist.append([var[operator_info[1].index(e.GetStart()).strip()], e.GetEnd().GetID])
+                        vallist.append([var[operator_info[1].index(e.GetStart()).strip()], e.GetEnd()])
             # print(operator_info[1])
 
             # 遍历图中每条边
@@ -516,7 +516,7 @@ def analyze_expression(expression, x):
 
         # 识别列表切片
         elif re.search(re.compile(r'\[(.*?)\]', re.S), i):
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Slice', with_grad=requires_grad))
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Slice', branches, with_grad=requires_grad))
             current_graph.keynode.set_name(i[:i.index('[')])
             slice_info = re.findall(re.compile(r'\[(.*?)\]', re.S), i)
             new_slice_info = []
@@ -526,18 +526,18 @@ def analyze_expression(expression, x):
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
         # 对于未识别字符设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
-            vallist.append([i, x - 1])
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.GetId(), 'Var', with_grad=requires_grad))
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
             current_graph.keynode.set_val(i)
+            vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.GetType() != 36:
+            if current_graph != parent and parent.keynode.type_id != 36:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
@@ -545,25 +545,25 @@ def analyze_expression(expression, x):
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
     for e in G.edges:
-        if 12 <= e.GetStart().GetType() <= 35:
+        if 12 <= e.GetStart().type_id <= 35:
             e.GetStart().set_vars('temp' + str(cnt))
             cnt += 1
     top_node.set_vars('temp' + str(cnt))
     cnt += 1
     for e in G.edges:
-        if 12 <= e.GetEnd().GetType() <= 35:
+        if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetEnd().set_vars(e.GetStart().get_val())
             else:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
 
-    return G.GetSet(), vallist, top_node
+    return G, vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
     s = "s = N + first(a, b, c)"
-    p = analyze_expression(s, 0)
+    p = analyze_expression(s, 0, [])
     # p[3].Show()
     for i in p[0][1]:
         print(i.GetStart(), i.GetEnd())
