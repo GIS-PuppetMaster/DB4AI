@@ -444,7 +444,7 @@ def analyze_expression(expression, x, branches: list):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]))
+            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]), branches)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
