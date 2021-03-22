@@ -25,15 +25,12 @@ class Parser:
         self.out_var = dict()
         self.in_var = list()
         self.oth_branch = 0
-        self.exist_edge = dict(dict())
         self.branches = list()
         #  用于自定义算子使用的特殊域
         self.input = list()
-        self.output = None
         self.operator = ''
         self.isCu = False
         self.end = False
-        self.flag = False
 
     def __call__(self, **kwargs):
         """
@@ -109,7 +106,9 @@ class Parser:
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
                 self.state = ''
-                self.branches.pop(-1)
+                if self.state == 'loop':
+                    self.branches.pop(-1)
+                self.branches.append(self.root_id)
             else:
                 state_li = self.state_stack.pop(-1)
                 if state_li[1] == 'if_branch' and self.state == 'if':
@@ -286,7 +285,8 @@ class Parser:
         else:
             with_grad = False
         self.node_id += 1
-        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1])
+        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
+                                      var=legal_info[0])
         self.graph.InsertNode(node1)
         if self.isCu and self.root_id == 0:
             pass
@@ -441,6 +441,7 @@ class Parser:
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
+                self.EndIf()
                 return True
             else:
                 return False
@@ -498,7 +499,8 @@ class Parser:
                 self.UpdateVarList(r_var, e_node.id)
             else:
                 self.node_id += 1
-                p = A_e.analyze_expression(exp, self.node_id, self.branches)
+                branches = self.branches.copy()
+                p = A_e.analyze_expression(exp, self.node_id, branches)
                 g = p[0]
                 g_in = p[1]
                 g_out = p[2]
@@ -508,11 +510,14 @@ class Parser:
                         var_li = self.var_dict.get(in_v[0], None)
                         if var_li:
                             last_use = var_li[-1]
-                            self.graph.InsertEdge(self.graph.nodes[last_use],in_v[1])
+                            if self.graph.nodes[last_use].branches == in_v[1].branches:
+                                self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                            else:
+                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                         else:
                             return False
                     e_node = g_out
-                    self.node_id = e_node.id
+                    self.node_id = self.node_id + len(g[0]) - 1
                     r_var = '@temp' + str(e_node.id)
                     self.UpdateVarList(r_var, e_node.id)
                 else:
@@ -522,12 +527,13 @@ class Parser:
         var_li = self.var_dict.get(v_name, None)
         if var_li:
             self.node_id += 1
+            # print(self.node_id)
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
             self.graph.InsertNode(ass_n)
             self.DealInVar(v_name, False)
         else:
             self.node_id += 1
-            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
+            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
             self.graph.InsertNode(node_l)
             self.UpdateVarList(v_name, self.node_id)
             self.node_id += 1
@@ -566,7 +572,7 @@ class Parser:
             self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
+                node = Nd.InstantiationClass(self.node_id, 'Var', self.branches)
                 self.graph.InsertNode(node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])

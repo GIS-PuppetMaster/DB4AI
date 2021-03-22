@@ -49,13 +49,9 @@ class BuildGraph:
 
 
 '''
-
 analyze_expression()负责处理输入和输出
-
 输入包括输入语句和所期望的节点初始序号，如0, 1
-
 其中输入语句是符合规定的DEF表达式语句，即输入中所有符号彼此间由单个空格隔开，括号、参数、矩阵内部符号和切片符号除外，示例如下:
-
 A = B + C * D
 X = Y + LOG(Z + Q)
 M = N * POW(J , 3) WITH GRAD
@@ -63,19 +59,12 @@ A = (B + C) * D WITH GRAD
 M = N * TENSORDOT(J , F , ([1,0],[0,1]) WITH GRAD
 A = B / NORM(c , ord=1 , axis=0) WITH GRAD
 A = a[4:-3,5:-7]
-
 输出图G，变量列表(包括表达式中出现的变量和其生成Val节点对应序号），图G顶端的最上层顶点；
-
 图G叶节点全部为张量或张量切片，非叶节点全部为算子，叶节点通过非叶节点相连，张量因此可以通过连接彼此的算子进行计算
-
 在该函数中，第一步是对给定表达式进行初步解析，提取定义变量，提取表达式'='后内容，记录求导信息
-
 第二步是对表达式进行分割，对算子进行组合并确定算子优先级顺序
-
 第三步是具体解析包括生成节点和图，处理节点参数等
-
 关于节点的参数选择和输入，我们将每类节点提供参数提供如下：
-
 LOG : base
 QR : mode
 SVD : full_matrices, compute_uv, hermitian
@@ -85,7 +74,6 @@ TRACE : offset, axis1, axis2, dtype, out
 RESHAPE : order
 TENSORDOT : axes
 STACK : axis
-
 其中节点存在多个参数时输入参数需要提供参数名，如： DEF A = B / NORM(C , ord=1 , axis=0) WITH GRAD
 当某一参数输入值包括多种类型，如COND类中p参数可以为int值或"inf"值等，统一按字符串存储
 '''
@@ -516,6 +504,7 @@ def analyze_expression(expression, x, branches: list):
             current_graph = parent
 
     # 返回生成解析树上最上层顶点
+    G.Show()
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
     for e in G.edges:
@@ -531,17 +520,15 @@ def analyze_expression(expression, x, branches: list):
                 e.GetEnd().set_vars(e.GetStart().get_val())
             else:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    s = "s = first(a, b, c) * POW(t , 3)"
-    # s = "s = (N + Y) * Z"
-    # s = "d = x * 2"
-    # s = "X = Y + LOG(Z + Q)"
-    s = "y = (x * w + POW(z,3)) / 4"
-    p = analyze_expression(s, 0, [])
-    # p[0].Show()
+    s = "s = N + first(a, b, c)"
+    p = analyze_expression(s, 0)
+    # p[3].Show()
+    for i in p[0][1]:
+        print(i.GetStart(), i.GetEnd())
     print(p[1])
-    print(p[2])

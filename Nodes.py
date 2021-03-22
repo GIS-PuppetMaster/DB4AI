@@ -12,7 +12,6 @@ class Node:
         self.out_edges = []
         self.in_edges = []
         self.input_data_edges = []
-
         self.branches = kwargs['branches']
         self.vars = []
 
@@ -58,12 +57,13 @@ class Root(Node):
 
 # 创建张量所用节点
 class CreateTensor(Node):
-    def __init__(self, data_shape, **kwargs):
+    def __init__(self, data_shape, var,**kwargs):
         super().__init__(1, **kwargs)
         if data_shape:
             self.data_shape = eval(data_shape)
         else:
             self.data_shape = None
+        self.var = var
 
     def __call__(self, executor: Executor):
         executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
@@ -76,8 +76,9 @@ class CreateTensor(Node):
             else:
                 edge.data_type = 'ndarray'
 
+    def get_val(self):
+        return self.var
 
-# 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, **kwargs):
         super().__init__(2, **kwargs)
@@ -86,11 +87,8 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
-    def get_val(self):
-        return self.value
-
     def __call__(self, executor: Executor):
-        tensor = Executor.Tensor(shape=(1,))
+        tensor = Tensor(shape=(1,))
         executor.graph.output_of_nodes[self] = tensor.handle = self.value
 
     def infer_data(self):
@@ -147,7 +145,7 @@ class Random(Node):
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(5, **kwargs)
+        super().__init__(6, **kwargs)
         if condition:
             self.dead_cycle = condition
             self.times = 0
@@ -185,7 +183,7 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(7, **kwargs)
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
@@ -211,7 +209,7 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(8, **kwargs)
         self.loop_id = loop_id
 
     def __call__(self, executor: Executor):
@@ -231,7 +229,7 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(9, **kwargs)
 
     def __call__(self, executor: Executor):
         pass
@@ -271,7 +269,7 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(11, **kwargs)
 
     def __call__(self, executor: Executor):
         pass
@@ -282,7 +280,7 @@ class IfEnd(Node):
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(11, **kwargs)
+        super().__init__(12, **kwargs)
         self.var_li = var_li
 
     def __call__(self, executor: Executor):
@@ -485,25 +483,6 @@ class Var(Node):
         return self.var
 
 
-# 该类用来存储参数变量，如x，y
-class Var(Node):
-    def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
-        self.var = 0
-
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
-
-
-# 用来计算梯度
-class Gradient(Node):
-    def __init__(self, **kwargs):
-        super().__init__(39, **kwargs)
-
-
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
@@ -526,7 +505,8 @@ def shallow_copy(fun):
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
-        node = globals()[nodeType](data_shape, id=nodeId, branches=branches, with_grad=with_grad)
+        var = otherField['var']
+        node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
         node = globals()[nodeType](t_info, id=nodeId, branches=branches, with_grad=with_grad)
