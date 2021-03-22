@@ -49,13 +49,9 @@ class BuildGraph:
 
 
 '''
-
 analyze_expression()负责处理输入和输出
-
 输入包括输入语句和所期望的节点初始序号，如0, 1
-
 其中输入语句是符合规定的DEF表达式语句，即输入中所有符号彼此间由单个空格隔开，括号、参数、矩阵内部符号和切片符号除外，示例如下:
-
 A = B + C * D
 X = Y + LOG(Z + Q)
 M = N * POW(J , 3) WITH GRAD
