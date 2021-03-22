@@ -285,7 +285,8 @@ class Parser:
         else:
             with_grad = False
         self.node_id += 1
-        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1])
+        node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
+                                      var=legal_info[0])
         self.graph.InsertNode(node1)
         if self.isCu and self.root_id == 0:
             pass
@@ -532,7 +533,7 @@ class Parser:
             self.DealInVar(v_name, False)
         else:
             self.node_id += 1
-            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
+            node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
             self.graph.InsertNode(node_l)
             self.UpdateVarList(v_name, self.node_id)
             self.node_id += 1
@@ -571,7 +572,7 @@ class Parser:
             self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None)
+                node = Nd.InstantiationClass(self.node_id, 'Var', self.branches)
                 self.graph.InsertNode(node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])

@@ -57,12 +57,13 @@ class Root(Node):
 
 # 创建张量所用节点
 class CreateTensor(Node):
-    def __init__(self, data_shape, **kwargs):
+    def __init__(self, data_shape, var,**kwargs):
         super().__init__(1, **kwargs)
         if data_shape:
             self.data_shape = eval(data_shape)
         else:
             self.data_shape = None
+        self.var = var
 
     def __call__(self, executor: Executor):
         executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
@@ -75,6 +76,8 @@ class CreateTensor(Node):
             else:
                 edge.data_type = 'ndarray'
 
+    def get_val(self):
+        return self.var
 
 class Val(Node):
     def __init__(self, **kwargs):
@@ -502,7 +505,8 @@ def shallow_copy(fun):
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']
-        node = globals()[nodeType](data_shape, id=nodeId, branches=branches, with_grad=with_grad)
+        var = otherField['var']
+        node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
         node = globals()[nodeType](t_info, id=nodeId, branches=branches, with_grad=with_grad)
