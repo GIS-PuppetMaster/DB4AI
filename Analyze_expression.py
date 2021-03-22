@@ -301,7 +301,7 @@ def analyze_expression(expression, x, branches: list):
             new_expression = 'DEF ' + X + ' = ' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
-            temp = analyze_expression(new_expression, x)
+            temp = analyze_expression(new_expression, x, branches)
             x += 1
             # 对单变量进行解析操作,找到顶点
             for k in temp[0][0]:
@@ -450,7 +450,7 @@ def analyze_expression(expression, x, branches: list):
                 new_expression = 'DEF ' + X + ' = ' + v.strip()
                 if requires_grad:
                     new_expression = new_expression + ' WITH GRAD'
-                temp = analyze_expression(new_expression, x)
+                temp = analyze_expression(new_expression, x, branches)
                 x += len(temp[0][0])
 
                 for k in temp[0][0]:
