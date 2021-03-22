@@ -508,7 +508,7 @@ class Parser:
                         var_li = self.var_dict.get(in_v[0], None)
                         if var_li:
                             last_use = var_li[-1]
-                            self.graph.InsertEdge(self.graph.nodes[last_use], self.graph.nodes[in_v[1]])
+                            self.graph.InsertEdge(self.graph.nodes[last_use],in_v[1])
                         else:
                             return False
                     e_node = g_out
