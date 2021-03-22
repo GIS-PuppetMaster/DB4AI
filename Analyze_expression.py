@@ -142,7 +142,7 @@ def analyze_expression(expression, x, branches: list):
         begin = expression.index(i)
         end = 0
         if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator):
-            flag = 1
+            flag = 0
             count = begin + 1
             while count < len(expression):
                 flag += expression[count].count('(')
@@ -274,7 +274,7 @@ def analyze_expression(expression, x, branches: list):
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
-            new_expression = 'DEF ' + X + ' = ' + var[0]
+            new_expression = X + ' = ' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
             temp = analyze_expression(new_expression, x, branches)
@@ -540,6 +540,7 @@ if __name__ == '__main__':
     # s = "s = (N + Y) * Z"
     # s = "d = x * 2"
     # s = "X = Y + LOG(Z + Q)"
+    s = "y = (x * w + POW(z,3)) / 4"
     p = analyze_expression(s, 0, [])
     # p[0].Show()
     print(p[1])
