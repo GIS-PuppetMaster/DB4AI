@@ -131,7 +131,7 @@ def analyze_expression(expression, x, branches: list):
         end = 0
         if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator):
             flag = 0
-            count = begin + 1
+            count = begin
             while count < len(expression):
                 flag += expression[count].count('(')
                 flag -= expression[count].count(')')
@@ -421,7 +421,7 @@ def analyze_expression(expression, x, branches: list):
                 for k in temp[1]:
                     vallist.append(k)
                 for k in temp[0][0]:
-                   G.InsertNode(k)
+                    G.InsertNode(k)
                 for k in temp[0][1]:
                     G.InsertEdge(k)
             current_graph = new_stack.pop()
@@ -436,7 +436,7 @@ def analyze_expression(expression, x, branches: list):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]))
+            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]), branches)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
@@ -445,8 +445,8 @@ def analyze_expression(expression, x, branches: list):
                 # 如果形参出现
                 for op in operator_info[1]:
                     if e.GetStart() in op:
-                    # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
-                    # 则加入
+                        # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
+                        # 则加入
                         if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
                             vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
             # print(operator_info[1])
@@ -504,7 +504,6 @@ def analyze_expression(expression, x, branches: list):
             current_graph = parent
 
     # 返回生成解析树上最上层顶点
-    G.Show()
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
     for e in G.edges:
@@ -513,22 +512,24 @@ def analyze_expression(expression, x, branches: list):
             cnt += 1
     top_node.set_vars('temp' + str(cnt))
     cnt += 1
-    G.Show()
+    # G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetEnd().set_vars(e.GetStart().get_val())
             else:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    s = "s = N + first(a, b, c)"
-    p = analyze_expression(s, 0)
-    # p[3].Show()
-    for i in p[0][1]:
-        print(i.GetStart(), i.GetEnd())
+    # s = "s = first(a, b, c) * POW(t , 3)"
+    # s = "s = (N + Y) * Z"
+    # s = "d = x * 2"
+    # s = "X = Y + LOG(Z + Q)"
+    s = "y = (x * w + POW(z,3)) / 4"
+    p = analyze_expression(s, 0, [])
+    # p[0].Show()
     print(p[1])
+    print(p[2])
