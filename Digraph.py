@@ -125,7 +125,7 @@ class Graph:
     def ReplaceNodeId(self, s_id, branches):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
-            self.nodes[i].brances = branches + self.nodes[i].brances
+            self.nodes[i].branches = branches + self.nodes[i].branches
 
 
 if __name__ == '__main__':

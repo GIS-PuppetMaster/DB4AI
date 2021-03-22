@@ -106,7 +106,8 @@ class Parser:
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
                 self.state = ''
-                self.branches.pop(-1)
+                if self.state == 'loop':
+                    self.branches.pop(-1)
                 self.branches.append(self.root_id)
             else:
                 state_li = self.state_stack.pop(-1)
