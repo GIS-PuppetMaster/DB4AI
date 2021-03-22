@@ -218,48 +218,18 @@ def analyze_expression(expression, x, branches: list):
         elif i in simple_operator:
             count = 0
             label = 1
-            while count < len(simple_operator):
-                if count == 0 and i == simple_operator[count]:
+            simple_operator_class = ['Add', 'Sub', 'Mul', 'Div']
+            for count in range(len(simple_operator)):
+                if i == simple_operator[count]:
                     if current_graph.keynode.type_id == 36:
-                        current_graph.set_val(nd.InstantiationClass(x, 'Add', branches, with_grad=requires_grad))
+                        current_graph.set_val(nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
                         x += 1
                     else:
                         label = 0
-                        temp_graph = BuildGraph(x, 'Add', branches, with_grad=requires_grad)
+                        temp_graph = BuildGraph(x, simple_operator_class[count], branches, with_grad=requires_grad)
                         x += 1
                         temp_graph.get_children().append(current_graph)
                         current_graph = temp_graph
-                if count == 1 and i == simple_operator[count]:
-                    if current_graph.keynode.type_id == 36:
-                        current_graph.set_val(nd.InstantiationClass(x, 'Sub', branches, with_grad=requires_grad))
-                        x += 1
-                    else:
-                        label = 0
-                        temp_graph = BuildGraph(x, 'Sub', branches, with_grad=requires_grad)
-                        x += 1
-                        temp_graph.get_children().append(current_graph)
-                        current_graph = temp_graph
-                if count == 2 and i == simple_operator[count]:
-                    if current_graph.keynode.type_id == 36:
-                        current_graph.set_val(nd.InstantiationClass(x, 'Mul', branches, with_grad=requires_grad))
-                        x += 1
-                    else:
-                        label = 0
-                        temp_graph = BuildGraph(x, 'Mul', branches, with_grad=requires_grad)
-                        x += 1
-                        temp_graph.get_children().append(current_graph)
-                        current_graph = temp_graph
-                if count == 3 and i == simple_operator[count]:
-                    if current_graph.keynode.type_id == 36:
-                        current_graph.set_val(nd.InstantiationClass(x, 'Div', branches, with_grad=requires_grad))
-                        x += 1
-                    else:
-                        label = 0
-                        temp_graph = BuildGraph(x, 'Div', branches, with_grad=requires_grad)
-                        x += 1
-                        temp_graph.get_children().append(current_graph)
-                        current_graph = temp_graph
-                count += 1
             if len(new_stack.items) != 0 and label == 1:
                 parent = new_stack.pop()
                 if current_graph != parent and parent.keynode.type_id != 36:
@@ -462,8 +432,10 @@ def analyze_expression(expression, x, branches: list):
                         G.InsertEdge(k, current_graph.keynode)
                 for k in temp[1]:
                     vallist.append(k)
-                G.nodes = G.nodes + temp[0][0]
-                G.edges = G.edges + temp[0][1]
+                for k in temp[0][0]:
+                   G.InsertNode(k)
+                for k in temp[0][1]:
+                    G.InsertEdge(k)
             current_graph = new_stack.pop()
 
         # 自定义算子，通过访问SecondLevelLanguageParser.py文件生成的UserOperatorName.json以及UserOperatorInfo
@@ -473,10 +445,9 @@ def analyze_expression(expression, x, branches: list):
                 if i.startswith(j):
                     with open('UserOperatorInfo', 'rb') as f:
                         t = pickle.load(f)
-                        while t.get(j) is None:
-                            t = pickle.load(f)
                         operator_info = t.get(j)
                     break
+            # operator_info[2].Show()
             operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]))
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
@@ -484,12 +455,16 @@ def analyze_expression(expression, x, branches: list):
             # 将算子输入的实际参数变量加入表达式出现的变量列表
             for e in operator_info[2].edges:
                 # 如果形参出现
-                if e.GetStart() in operator_info[1]:
-                    # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，则加入
-                    if [var[operator_info[1].index(e.GetStart())].strip(), e.GetEnd().GetID] not in vallist:
-                        vallist.append([var[operator_info[1].index(e.GetStart()).strip()], e.GetEnd()])
+                for op in operator_info[1]:
+                    if e.GetStart() in op:
+                    # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
+                    # 则加入
+                        if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
+                            vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
             # print(operator_info[1])
-            G.nodes += operator_info[2].nodes[len(operator_info[1]):]
+            for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
+                G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
+            x += len(operator_info[2].nodes) - len(operator_info[1])
             # 遍历图中每条边
             for e in operator_info[2].edges:
                 flag = 0
@@ -501,12 +476,14 @@ def analyze_expression(expression, x, branches: list):
                 if flag == 0:
                     G.InsertEdge(e.GetStart(), e.GetEnd())
             parent = new_stack.pop()
-            G.InsertEdge(list(operator_info[0])[0], parent.keynode)
+            if parent.keynode.type_id != 36:
+                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             list(operator_info[0])[0].set_vars('temp' + str(cnt))
             cnt += 1
             for v in var:
                 list(operator_info[0])[0].set_vars(v.strip())
-            G.Show()
+            # G.Show()
+            current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
 
         # 识别列表切片
@@ -547,21 +524,21 @@ def analyze_expression(expression, x, branches: list):
             cnt += 1
     top_node.set_vars('temp' + str(cnt))
     cnt += 1
+    G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetEnd().set_vars(e.GetStart().get_val())
             else:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    # s = "s = N + first(a, b, c)"
+    s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
-    s = "x = x + y"
+    # s = "d = x * 2"
     # s = "X = Y + LOG(Z + Q)"
     p = analyze_expression(s, 0, [])
     # p[0].Show()
