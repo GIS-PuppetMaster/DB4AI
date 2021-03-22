@@ -87,6 +87,9 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
+    def get_val(self):
+        return self.value
+
     def __call__(self, executor: Executor):
         tensor = Tensor(shape=(1,))
         executor.graph.output_of_nodes[self] = tensor.handle = self.value

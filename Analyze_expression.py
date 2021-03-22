@@ -59,19 +59,12 @@ A = (B + C) * D WITH GRAD
 M = N * TENSORDOT(J , F , ([1,0],[0,1]) WITH GRAD
 A = B / NORM(c , ord=1 , axis=0) WITH GRAD
 A = a[4:-3,5:-7]
-
 输出图G，变量列表(包括表达式中出现的变量和其生成Val节点对应序号），图G顶端的最上层顶点；
-
 图G叶节点全部为张量或张量切片，非叶节点全部为算子，叶节点通过非叶节点相连，张量因此可以通过连接彼此的算子进行计算
-
 在该函数中，第一步是对给定表达式进行初步解析，提取定义变量，提取表达式'='后内容，记录求导信息
-
 第二步是对表达式进行分割，对算子进行组合并确定算子优先级顺序
-
 第三步是具体解析包括生成节点和图，处理节点参数等
-
 关于节点的参数选择和输入，我们将每类节点提供参数提供如下：
-
 LOG : base
 QR : mode
 SVD : full_matrices, compute_uv, hermitian
@@ -81,7 +74,6 @@ TRACE : offset, axis1, axis2, dtype, out
 RESHAPE : order
 TENSORDOT : axes
 STACK : axis
-
 其中节点存在多个参数时输入参数需要提供参数名，如： DEF A = B / NORM(C , ord=1 , axis=0) WITH GRAD
 当某一参数输入值包括多种类型，如COND类中p参数可以为int值或"inf"值等，统一按字符串存储
 '''
@@ -139,7 +131,7 @@ def analyze_expression(expression, x, branches: list):
         end = 0
         if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator):
             flag = 0
-            count = begin + 1
+            count = begin
             while count < len(expression):
                 flag += expression[count].count('(')
                 flag -= expression[count].count(')')
@@ -429,7 +421,7 @@ def analyze_expression(expression, x, branches: list):
                 for k in temp[1]:
                     vallist.append(k)
                 for k in temp[0][0]:
-                   G.InsertNode(k)
+                    G.InsertNode(k)
                 for k in temp[0][1]:
                     G.InsertEdge(k)
             current_graph = new_stack.pop()
@@ -453,8 +445,8 @@ def analyze_expression(expression, x, branches: list):
                 # 如果形参出现
                 for op in operator_info[1]:
                     if e.GetStart() in op:
-                    # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
-                    # 则加入
+                        # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
+                        # 则加入
                         if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
                             vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
             # print(operator_info[1])
@@ -520,7 +512,7 @@ def analyze_expression(expression, x, branches: list):
             cnt += 1
     top_node.set_vars('temp' + str(cnt))
     cnt += 1
-    G.Show()
+    # G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) == 0:
@@ -532,7 +524,7 @@ def analyze_expression(expression, x, branches: list):
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    s = "s = first(a, b, c) * POW(t , 3)"
+    # s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
     # s = "d = x * 2"
     # s = "X = Y + LOG(Z + Q)"
