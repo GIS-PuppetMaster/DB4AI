@@ -7,6 +7,8 @@ import json
 import os
 import pickle
 
+from Executor import Executor
+
 
 class Parser:
     def __init__(self, queries: list):
@@ -66,6 +68,7 @@ class Parser:
                 self.graph.Show()
                 raise Exception('非法语句：' + query)
         self.graph.Show()
+        return self.graph
 
     #  用于解析语句时维护解析器或计算图数据的主要函数
     def StateConvert(self, c_state):
@@ -608,3 +611,5 @@ if __name__ == '__main__':
     create_test.append('$')
     testPar = Parser(create_test)
     result = testPar()
+    executor = Executor(result)
+    executor.run()

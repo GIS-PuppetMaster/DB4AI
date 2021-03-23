@@ -16,7 +16,7 @@ def bfs(fun):
             current_node = queue.get()
             visited.add(current_node)
             fun(executor, current_node)
-            next_nodes = current_node.next_nodes(executor)
+            next_nodes = current_node.next_nodes()
             for node in next_nodes:
                 if node not in visited:
                     queue.put(node)

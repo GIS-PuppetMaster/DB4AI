@@ -169,7 +169,7 @@ class Executor:
         with open('./config.yaml', encoding='utf-8') as f:
             config = yaml.load_all(f)
         self.config = config
-        self.default_batch_size = config['default_batch_size']
+        # self.default_batch_size = config['default_batch_size']
         self.graph = graph
         # 存放每个完整Tensor的dict, key=变量名, value=ndarray
         self.var_dict = dict()
@@ -183,9 +183,12 @@ class Executor:
     def init_nodes(self, current_node):
         current_node.generate_data_edges()
         current_node.infer_data()
-        self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
+        if len(current_node.vars)>0:
+            self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
         # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
+        current_node.fathers = [edge.start for edge in current_node.in_edges]
+        current_node.sons = [edge.end for edge in current_node.out_edges]
         # current_node.default_batch_size = self.default_batch_size
 
     def init_branches(self, node, current_branch):

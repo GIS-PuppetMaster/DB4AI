@@ -23,8 +23,8 @@ class Node:
         self._default_batch_size = 0
         self.batch_size = 0
         self.use_batch = True
-        self.fathers = [edge.start for edge in self.in_edges]
-        self.sons = [edge.end for edge in self.out_edges]
+        self.fathers = []
+        self.sons = []
         self.branches = kwargs['branches']
 
     @property
@@ -55,10 +55,8 @@ class Node:
             else:
                 self.input_data_edges.append(in_edge)
 
-    @batch_stream
-    def run(self, input_buffer):
-        # 默认转发经过的数据
-        return input_buffer
+    def run(self):
+        pass
 
     def next_nodes(self):
         return self.sons
@@ -290,7 +288,7 @@ class IfEnd(Node):
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
         super().__init__(12, **kwargs)
-        self.var_li = var_li
+        self.vars = var_li
 
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
