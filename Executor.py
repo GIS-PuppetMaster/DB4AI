@@ -209,9 +209,10 @@ class Executor:
         # 确保父节点都执行完了再执行他
         for father in current_node.fathers:
             if father not in self.finished_nodes:
-                return
+                return False
         current_node.run()
         self.finished_nodes.add(current_node)
+        return True
 
     def run(self):
         self.execute()
