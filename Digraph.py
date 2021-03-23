@@ -96,7 +96,7 @@ class Graph:
         dot = Digraph(name="computation graph", format="png")
         for node in self.nodes:
             id = node.id
-            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + str(node.branches))
+            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + '\n' + str(node.branches) + '\n' + str(node.vars))
         for edge in self.edges:
             if edge.GetCondition()[1] == 'no':
                 dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),

@@ -480,48 +480,48 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        ass_reg = f'^{variable_name_reg} = (.+)\n$'
-        sql_reg = 'SQL[(](.+)[)]|sql[(](.+)[)]'
-        matchObj = re.match(ass_reg, query)
-        if matchObj:
+        ass_reg1 = f'^{variable_name_reg} = SQL[(](.+)[)]\n$'
+        ass_reg2 = f'^SELECT (.+) AS {variable_name_reg} FROM ([a-zA-Z_]+[a-zA-Z0-9_]*, )*[a-zA-Z_]+[a-zA-Z0-9_]*'
+        matchObj1 = re.match(ass_reg1, query)
+        matchObj2 = re.match(ass_reg2, query)
+        if matchObj1:
             self.EndIf()
-            exp = matchObj.group()
-            v_name = matchObj.group(1)
-            ass_exp = matchObj.group(2)
-            sql_matchObj = re.match(sql_reg, ass_exp)
-            if sql_matchObj:
-                t_info = sql_matchObj.group(1)
-                self.node_id += 1
-                e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=t_info)
-                self.graph.InsertNode(e_node)
-                self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
-                r_var = '@' + str(e_node.id)
+            v_name = matchObj1.group(1)
+            search_exp = matchObj1.group(2)
+            self.node_id += 1
+            e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp)
+            self.graph.InsertNode(e_node)
+            self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
+            r_var = '@' + str(e_node.id)
+            self.UpdateVarList(r_var, e_node.id)
+        elif matchObj2:
+            self.EndIf()
+            v_name = matchObj2.group(2)
+            exp = matchObj2.group(1)
+            self.node_id += 1
+            branches = self.branches.copy()
+            p = A_e.analyze_expression(exp, self.node_id, branches)
+            g = p[0]
+            g_in = p[1]
+            g_out = p[2]
+            if p[0] and p[1] and p[2]:
+                self.graph.Merge([g[0], g[1]])
+                for in_v in g_in:
+                    var_li = self.var_dict.get(in_v[0], None)
+                    if var_li:
+                        last_use = var_li[-1]
+                        if self.graph.nodes[last_use].branches == in_v[1].branches:
+                            self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                        else:
+                            self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                    else:
+                        return False
+                e_node = g_out
+                self.node_id = self.node_id + len(g[0]) - 1
+                r_var = e_node.get_vars()[0]
                 self.UpdateVarList(r_var, e_node.id)
             else:
-                self.node_id += 1
-                branches = self.branches.copy()
-                p = A_e.analyze_expression(exp, self.node_id, branches)
-                g = p[0]
-                g_in = p[1]
-                g_out = p[2]
-                if p[0] and p[1] and p[2]:
-                    self.graph.Merge([g[0], g[1]])
-                    for in_v in g_in:
-                        var_li = self.var_dict.get(in_v[0], None)
-                        if var_li:
-                            last_use = var_li[-1]
-                            if self.graph.nodes[last_use].branches == in_v[1].branches:
-                                self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
-                            else:
-                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                        else:
-                            return False
-                    e_node = g_out
-                    self.node_id = self.node_id + len(g[0]) - 1
-                    r_var = '@temp' + str(e_node.id)
-                    self.UpdateVarList(r_var, e_node.id)
-                else:
-                    return False
+                return False
         else:
             return False
         var_li = self.var_dict.get(v_name, None)

@@ -9,12 +9,6 @@ y = SQL('select')
 ELSE {
 CREATE TENSOR d(4,10)
 CREATE TENSOR e(4,10)
-y = square_sum(d, e, x)
+y = d + e
 }
 x = x + y
-LOOP TRUE{
-z = MATMUL(x,w)
-IF (z>27){
-BREAK
-}
-}

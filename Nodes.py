@@ -284,7 +284,7 @@ class IfEnd(Node):
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
         super().__init__(12, **kwargs)
-        self.var_li = var_li
+        self.vars = var_li
 
     def __call__(self, executor: Executor):
         assert len(self.input_data_edges) == 2, f'the number of assignment node\'s in_edges not equal to 2, {self.in_edges}'
