@@ -57,7 +57,7 @@ class Root(Node):
 
 # 创建张量所用节点
 class CreateTensor(Node):
-    def __init__(self, data_shape, var,**kwargs):
+    def __init__(self, data_shape, var, **kwargs):
         super().__init__(1, **kwargs)
         if data_shape:
             self.data_shape = eval(data_shape)
