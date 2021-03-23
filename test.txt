@@ -9,6 +9,6 @@ y = SQL('select')
 ELSE {
 CREATE TENSOR d(4,10)
 CREATE TENSOR e(4,10)
-y = d + e
+CREATE TENSOR f(4,10)
 }
-x = x + y
+CREATE TENSOR g(4,10)

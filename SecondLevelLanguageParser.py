@@ -39,6 +39,7 @@ class Parser:
         """
         root = Nd.InstantiationClass(self.node_id, 'Root', self.branches)
         self.graph.InsertNode(root)
+        self.branches.append(0)
         for query in self.queries:
             query = query.lstrip()
             if self.CreateTensor(query):
@@ -106,7 +107,7 @@ class Parser:
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
                 self.state = ''
-                if self.state == 'loop':
+                while self.branches[-1] != 0:
                     self.branches.pop(-1)
                 self.branches.append(self.root_id)
             else:
