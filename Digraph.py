@@ -82,7 +82,7 @@ class Graph:
     def GetNode(self, id):
         if len(self.nodes):
             for node in self.nodes:
-                if id == node.GetId():
+                if id == node.id:
                     return node
             else:
                 return False
@@ -117,17 +117,16 @@ class Graph:
     def ConvertToMatrix(self):
         matrix = np.zeros((1, len(self.nodes) + 1, len(self.nodes) + 1))
         for e in self.edges:
-            matrix[0][e.start.GetId()][e.end.GetId()] = 1
+            matrix[0][e.start.id][e.end.id] = 1
         return matrix
 
     def GetNoOutNodes(self):
         return self.without_out
 
-    def ReplaceNodeId(self, s_id):
+    def ReplaceNodeId(self, s_id, branches):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
-            for j in range(len(self.nodes[i].branches)):
-                self.nodes[i].branches[j] = str(s_id + int(self.nodes[i].branches[j]))
+            self.nodes[i].branches = branches + self.nodes[i].branches
 
 
 if __name__ == '__main__':
