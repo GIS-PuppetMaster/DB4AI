@@ -79,7 +79,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches: list):
+def analyze_expression(expression, x, branches: list, replace={}):
 
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
@@ -123,6 +123,11 @@ def analyze_expression(expression, x, branches: list):
             new_expression.append(i)
     expression = new_expression
 
+    for i in expression:
+        if len(replace) == 0:
+            break
+        if replace.get(i) is not None:
+            expression[expression.index(i)] = replace.get(i)
     cnt = 1
     for i in expression:
 
@@ -265,8 +270,10 @@ def analyze_expression(expression, x, branches: list):
             new_expression = X + ' = ' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
-            temp = analyze_expression(new_expression, x, branches)
+            temp = analyze_expression(new_expression, x, branches, replace)
             x += 1
+            for k in temp[0][0]:
+                G.InsertNode(k)
             # 对单变量进行解析操作,找到顶点
             for k in temp[0][0]:
                 flag = 0
@@ -276,8 +283,8 @@ def analyze_expression(expression, x, branches: list):
                         break
                 if flag == 0:
                     G.InsertEdge(k, current_graph.keynode)
-            G.nodes = G.nodes + temp[0][0]
-            G.edges = G.edges + temp[0][1]
+            for k in temp[0][1]:
+                G.InsertEdge(k)
             for t in temp[1]:
                 vallist.append(t)
 
@@ -286,6 +293,7 @@ def analyze_expression(expression, x, branches: list):
                 exp = var[1]
                 if re.fullmatch(re.compile('\d+'), exp.strip()):
                     exp_node = nd.InstantiationClass(x, 'Val', branches, value=eval(exp))
+                    exp_node.set_val(eval(exp))
                     x += 1
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
@@ -405,11 +413,13 @@ def analyze_expression(expression, x, branches: list):
                         axis = v.split('=')[1].strip()
                     current_graph.keynode.set_axis(axis)
                     break
-                new_expression = 'DEF ' + X + ' = ' + v.strip()
+                new_expression = X + ' = ' + v.strip()
                 if requires_grad:
                     new_expression = new_expression + ' WITH GRAD'
-                temp = analyze_expression(new_expression, x, branches)
+                temp = analyze_expression(new_expression, x, branches, replace)
                 x += len(temp[0][0])
+                for k in temp[0][0]:
+                    G.InsertNode(k)
                 for k in temp[0][0]:
                     flag = 0
                     for e in temp[0][1]:
@@ -418,10 +428,9 @@ def analyze_expression(expression, x, branches: list):
                             break
                     if flag == 0:
                         G.InsertEdge(k, current_graph.keynode)
+                        break
                 for k in temp[1]:
                     vallist.append(k)
-                for k in temp[0][0]:
-                    G.InsertNode(k)
                 for k in temp[0][1]:
                     G.InsertEdge(k)
             current_graph = new_stack.pop()
@@ -436,7 +445,7 @@ def analyze_expression(expression, x, branches: list):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]), branches)
+            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]) + x, branches)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
@@ -466,7 +475,7 @@ def analyze_expression(expression, x, branches: list):
             parent = new_stack.pop()
             if parent.keynode.type_id != 36:
                 G.InsertEdge(list(operator_info[0])[0], parent.keynode)
-            list(operator_info[0])[0].set_vars('temp' + str(cnt))
+            list(operator_info[0])[0].set_vars('temp' + str(list(operator_info[0])[0].id))
             cnt += 1
             for v in var:
                 list(operator_info[0])[0].set_vars(v.strip())
@@ -506,30 +515,34 @@ def analyze_expression(expression, x, branches: list):
     # 返回生成解析树上最上层顶点
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
+    if top_node.type_id == 1 or top_node.type_id == 2 or top_node.type_id == 38:
+        if len(top_node.get_vars()) == 0:
+            top_node.set_vars(top_node.get_val())
+    elif 12 <= top_node.type_id <= 35:
+        top_node.set_vars('temp' + str(top_node.id))
     for e in G.edges:
-        if 12 <= e.GetStart().type_id <= 35:
-            e.GetStart().set_vars('temp' + str(cnt))
-            cnt += 1
-    top_node.set_vars('temp' + str(cnt))
-    cnt += 1
+        if e.GetStart().type_id == 1 or e.GetStart().type_id == 2 or e.GetStart().type_id == 38:
+            if len(e.GetStart().get_vars()) == 0:
+                e.GetStart().set_vars(e.GetStart().get_val())
+        elif 12 <= e.GetStart().type_id <= 35:
+            e.GetStart().set_vars('temp' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 35:
-            if len(e.GetStart().get_vars()) == 0:
-                e.GetEnd().set_vars(e.GetStart().get_val())
-            else:
+            if len(e.GetStart().get_vars()) != 0:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+    G.Show()
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    # s = "s = first(a, b, c) * POW(t , 3)"
+    s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
     # s = "d = x * 2"
     # s = "X = Y + LOG(Z + Q)"
-    s = "y = (x * w + POW(z,3)) / 4"
-    p = analyze_expression(s, 0, [])
+    # s = "z = MATMUL(x,w)"
+    p = analyze_expression(s, 10, [], {"x": 't'})
     # p[0].Show()
     print(p[1])
     print(p[2])
