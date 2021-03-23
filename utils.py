@@ -14,12 +14,12 @@ def bfs(fun):
         visited.add(root)
         while not queue.empty():
             current_node = queue.get()
-            visited.add(current_node)
             fun(executor, current_node)
             next_nodes = current_node.next_nodes()
             for node in next_nodes:
                 if node not in visited:
                     queue.put(node)
+                    visited.add(node)
 
     return decorated
 

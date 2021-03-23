@@ -177,14 +177,15 @@ class Executor:
         # self.pipeline = dict()
         self.finished_loop_id = set()
         self.init_nodes()
+        self.finished_nodes=set()
         # self.init_branches(self.graph.nodes[0], None)
 
     @bfs
     def init_nodes(self, current_node):
         current_node.generate_data_edges()
         current_node.infer_data()
-        if len(current_node.vars)>0:
-            self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
+        # if len(current_node.vars)>0:
+        #     self.var_dict[current_node.vars[0]] = np.empty(current_node.data_shape)
         # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
         current_node.fathers = [edge.start for edge in current_node.in_edges]
@@ -205,7 +206,12 @@ class Executor:
 
     @bfs
     def execute(self, current_node):
+        # 确保父节点都执行完了再执行他
+        for father in current_node.fathers:
+            if father not in self.finished_nodes:
+                return
         current_node.run()
+        self.finished_nodes.add(current_node)
 
     def run(self):
         self.execute()
