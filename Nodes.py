@@ -106,7 +106,9 @@ class CreateTensor(Node):
         self.var = var
 
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
+        # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
+        # self.executor.var_dict[self.vars[0]] = None
+        pass
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -160,7 +162,7 @@ class Random(Node):
             self.data_shape = data_shape
         else:
             self.data_shape = eval(data_shape)
-        if distribution == '' or distribution is None:
+        if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 'normal'
         else:
             self.distribution = distribution

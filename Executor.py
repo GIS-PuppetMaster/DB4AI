@@ -180,16 +180,17 @@ class Executor:
         self.finished_nodes=set()
         # self.init_branches(self.graph.nodes[0], None)
 
-    @bfs
+    @bfs(True)
     def init_nodes(self, current_node):
-        current_node.generate_data_edges()
+        current_node.fathers = [edge.start for edge in current_node.in_edges]
+        current_node.sons = [edge.end for edge in current_node.out_edges]
+        # current_node.generate_data_edges()
         current_node.infer_data()
         # if len(current_node.vars)>0:
         #     self.var_dict[current_node.vars[0]] = np.empty(current_node.data_shape)
         # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
-        current_node.fathers = [edge.start for edge in current_node.in_edges]
-        current_node.sons = [edge.end for edge in current_node.out_edges]
+
         # current_node.default_batch_size = self.default_batch_size
 
     def init_branches(self, node, current_branch):
@@ -204,7 +205,7 @@ class Executor:
             for next_node in next_nodes:
                 self.init_branches(next_node, current_branch)
 
-    @bfs
+    @bfs(False)
     def execute(self, current_node):
         # 确保父节点都执行完了再执行他
         for father in current_node.fathers:
