@@ -513,7 +513,7 @@ class Parser:
             self.EndIf()
             var_str = matchObj2.group(3)
             v_name = matchObj2.group(2)
-            var_info = var_str.split(',')
+            var_info = list(map(lambda x: x.strip(), var_str.split(',')))
             real_var = set()
             as_replace = dict()
             for v_i in var_info:
