@@ -117,7 +117,6 @@ class Parser:
                         self.branches.pop(-1)
                         self.extra_pop_num += -1
                 self.state = ''
-                print(self.branches)
                 self.branches.append(self.root_id)
             else:
                 state_li = self.state_stack.pop(-1)
@@ -307,13 +306,14 @@ class Parser:
             node1_id = self.node_id
             self.node_id += 1
             if hasFrom == 1:
-                node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad)
+                node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad, var=legal_info[0])
                 node2.set_val(legal_info[0])
             elif hasFrom == 2:
-                node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info)
+                node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
+                                              var=legal_info[0])
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad,
-                                              data_shape=from_info[0], boundary=from_info[1], type=from_info[2])
+                node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad,data_shape=from_info[0],
+                                              boundary=from_info[1], type=from_info[2], var=legal_info[0])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)
@@ -504,7 +504,7 @@ class Parser:
             v_name = matchObj1.group(1)
             search_exp = matchObj1.group(2)
             self.node_id += 1
-            e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp)
+            e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp, var=v_name)
             self.graph.InsertNode(e_node)
             self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
             r_var = '@' + str(e_node.id)
@@ -518,7 +518,7 @@ class Parser:
             as_replace = dict()
             for v_i in var_info:
                 if re.search(' AS ', v_i):
-                    rep = v_i.split('AS')
+                    rep = v_i.split(' AS ')
                     as_replace[rep[0]] = rep[1]
                     real_var.add(rep[1])
                 else:

@@ -102,7 +102,7 @@ class CreateTensor(Node):
             self.data_shape = data_shape
         else:
             self.data_shape = eval(data_shape)
-        self.var = var
+        self.vars = var
 
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
@@ -113,14 +113,13 @@ class CreateTensor(Node):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
 
-    def get_val(self):
-        return self.var
 
 
 class Val(Node):
-    def __init__(self, **kwargs):
+    def __init__(self, var, **kwargs):
         super().__init__(2, **kwargs)
         self.value = 0
+        self.vars = var
 
     def set_val(self, value):
         self.value = value
@@ -137,9 +136,10 @@ class Val(Node):
 
 
 class Sql(Node):
-    def __init__(self, t_info, **kwargs):
+    def __init__(self, t_info, var, **kwargs):
         super().__init__(3, **kwargs)
         self.t_search_sentences = t_info
+        self.vars = var
         self.shape = None
         # self.batch_size = None  # TODO: 自动选择batch_size
 
@@ -154,11 +154,12 @@ class Sql(Node):
 
 
 class Random(Node):
-    def __init__(self, boundary, data_shape, distribution=None, **kwargs):
+    def __init__(self, boundary, data_shape, distribution, var, **kwargs):
         super().__init__(4, **kwargs)
         if isinstance(boundary, str):
             boundary = eval(boundary)
         self.boundary = boundary
+        self.vars = var
         if isinstance(data_shape, str):
             data_shape = eval(data_shape)
         self.data_shape = data_shape
@@ -596,12 +597,17 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
-        node = globals()[nodeType](t_info, id=nodeId, branches=branches, with_grad=with_grad)
+        var = otherField['var']
+        node = globals()[nodeType](t_info, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Random':
         boundary = otherField['boundary']
         data_shape = otherField['data_shape']
         type = otherField['type']
-        node = globals()[nodeType](boundary, data_shape, type, id=nodeId, branches=branches, with_grad=with_grad)
+        var = otherField['var']
+        node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
+    elif nodeType == 'Val':
+        var = otherField['var']
+        node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
         node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)
