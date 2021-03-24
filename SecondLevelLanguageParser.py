@@ -25,6 +25,7 @@ class Parser:
         self.out_var = dict()
         self.in_var = list()
         self.oth_branch = 0
+        self.extra_pop_num = 0
         self.branches = list()
         #  用于自定义算子使用的特殊域
         self.input = list()
@@ -86,7 +87,7 @@ class Parser:
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             if c_state == 'if':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.in_var.copy(), self.branches.copy(), self.oth_branch])
+                                         self.in_var.copy(), self.branches.copy(), self.oth_branch, self.extra_pop_num])
             elif c_state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
                                          self.in_var.copy(), self.branches.copy(), self.loop_id])
@@ -106,21 +107,27 @@ class Parser:
         elif (self.state == 'if' or self.state == 'loop') and c_state == 'end':
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
-                self.state = ''
-                while self.branches[-1] != 0:
+                if self.state == 'loop':
                     self.branches.pop(-1)
+                elif self.state == 'if':
+                    while self.extra_pop_num != 0:
+                        self.branches.pop(-1)
+                        self.extra_pop_num += -1
+                self.state = ''
+                print(self.branches)
                 self.branches.append(self.root_id)
             else:
                 state_li = self.state_stack.pop(-1)
                 if state_li[1] == 'if_branch' and self.state == 'if':
-                    self.oth_branch = state_li[-1]
+                    self.extra_pop_num = state_li[6]
+                    self.oth_branch = state_li[5]
                 elif state_li[1] == 'loop' and self.state == 'loop':
-                    self.loop_id = state_li[-1]
-                self.branches = state_li[-2]
-                self.in_var = state_li[-3]
-                self.out_var = state_li[-4]
-                self.state = state_li[-5]
-                self.loop_or_if_id = state_li[-6]
+                    self.loop_id = state_li[5]
+                self.branches = state_li[4]
+                self.in_var = state_li[3]
+                self.out_var = state_li[2]
+                self.state = state_li[1]
+                self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
                 self.end = True
@@ -219,7 +226,7 @@ class Parser:
                             f'|create tensor {variable_name_reg}[^ ]*( from [^ ]+)?( with grad)?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = 'SQL[(](.+)[)]|sql[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
-        val_info_reg3 = 'RANDOM[(](.+)[)]|random[(](.+)[)]'
+        val_info_reg3 = f'^RANDOM([(]({data_list_reg}),({random_reg})(,[a-zA-Z])?[)])|random[(](.+)[)]'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
         hasWith = False  # 是否需要记录梯度
@@ -262,8 +269,7 @@ class Parser:
                     elif match3:
                         in_random_str = match3.group(1)
                         type_li = re.findall('[a-zA-z]', in_random_str)
-                        in_random_reg = f'^({data_list_reg}),({random_reg})'
-                        ran_matchObj = re.match(in_random_reg, in_random_str)
+                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)])[)]', in_random_str)
                         if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
@@ -431,6 +437,7 @@ class Parser:
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       'T' + '$' + condition, need_var=var_li)
                 self.oth_branch = self.node_id
+                self.extra_pop_num += 1
                 return True
             else:
                 return False
@@ -442,7 +449,8 @@ class Parser:
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
-                self.EndIf()
+                self.oth_branch = 0
+                self.extra_pop_num += 1
                 return True
             else:
                 return False
@@ -468,6 +476,9 @@ class Parser:
                 self.graph.InsertNode(node)
                 self.ConnInVar(self.node_id)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
+            elif self.oth_branch == 0:
+                self.StateConvert('end')
+                self.EndIf()
             else:
                 self.StateConvert('end')
             return True
@@ -482,7 +493,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = SQL[(](.+)[)]\n$'
-        ass_reg2 = f'^SELECT (.+) AS {variable_name_reg} FROM ([a-zA-Z_]+[a-zA-Z0-9_]*, )*[a-zA-Z_]+[a-zA-Z0-9_]*'
+        ass_reg2 = f'^SELECT (.+) AS {variable_name_reg} FROM (.+)'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
         if matchObj1:
@@ -497,11 +508,22 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif matchObj2:
             self.EndIf()
+            var_str = matchObj2.group(3)
             v_name = matchObj2.group(2)
-            exp = matchObj2.group(1)
+            var_info = var_str.split(',')
+            real_var = set()
+            as_replace = dict()
+            for v_i in var_info:
+                if re.search(' AS ', v_i):
+                    rep = v_i.split('AS')
+                    as_replace[rep[0]] = rep[1]
+                    real_var.add(rep[1])
+                else:
+                    real_var.add(v_i)
+            exp = v_name + ' = ' + matchObj2.group(1)
             self.node_id += 1
             branches = self.branches.copy()
-            p = A_e.analyze_expression(exp, self.node_id, branches)
+            p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
             g = p[0]
             g_in = p[1]
             g_out = p[2]
@@ -509,12 +531,14 @@ class Parser:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     var_li = self.var_dict.get(in_v[0], None)
-                    if var_li:
+                    if var_li and in_v[0] in real_var:
                         last_use = var_li[-1]
                         if self.graph.nodes[last_use].branches == in_v[1].branches:
                             self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
                         else:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                    elif in_v[1].type_id == 2:
+                        self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
                         return False
                 e_node = g_out
@@ -558,7 +582,6 @@ class Parser:
         :param query:
         :return: True 合法语句，False 非法语句
         """
-        self.EndIf()
         c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$' \
                   '|operator ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$'
         para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*, )*[a-zA-Z_]+[a-zA-Z0-9_]*'

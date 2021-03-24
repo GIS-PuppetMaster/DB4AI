@@ -9,6 +9,11 @@ y = SQL('select')
 ELSE {
 CREATE TENSOR d(4,10)
 CREATE TENSOR e(4,10)
-CREATE TENSOR f(4,10)
+SELECT r + e AS y FROM r AS d,e
 }
-CREATE TENSOR g(4,10)
+LOOP TRUE{
+SELECT MATMUL(x, w) AS z FROM x,w
+IF (z>27){
+BREAK
+}
+}
