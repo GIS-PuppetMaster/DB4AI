@@ -1,7 +1,6 @@
 import Nodes as nd
 import numpy as np
 from graphviz import Digraph
-from queue import Queue
 from Nodes import Node
 
 
@@ -97,7 +96,7 @@ class Graph:
         dot = Digraph(name="computation graph", format="png")
         for node in self.nodes:
             id = node.id
-            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + f'branches:{node.branches} vars: {node.vars}')
+            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + '\n' + str(node.branches) + '\n' + str(node.vars))
         for edge in self.edges:
             if edge.GetCondition()[1] == 'no':
                 dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),

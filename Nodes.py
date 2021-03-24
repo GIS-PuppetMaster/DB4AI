@@ -25,7 +25,6 @@ class Node:
         self.use_batch = True
         self.fathers = []
         self.sons = []
-        self.branches = kwargs['branches']
 
     @property
     def default_batch_size(self):
