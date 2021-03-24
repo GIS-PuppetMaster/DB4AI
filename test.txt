@@ -1,20 +1,10 @@
 CREATE TENSOR x(4,3) FROM RANDOM((4,3),(0,1))
 CREATE TENSOR w(3,5) FROM RANDOM((3,5),(0,1))
-CREATE TENSOR z(3,10) FROM RANDOM((3,10),(0,1))
 CREATE TENSOR y(4,5)
 CREATE TENSOR flag(1,) FROM 2
 IF (flag<1){
-y = SQL('select')
+y = x * w
 }
 ELSE {
-CREATE TENSOR d(4,10)
-CREATE TENSOR e(4,10)
-y = square_sum(d, e)
-}
-x = x + y
-LOOP TRUE{
-z = MATMUL(x,w)
-IF (z>27){
-BREAK
-}
+x = x * 2
 }

@@ -500,11 +500,16 @@ def analyze_expression(expression, x, branches: list, replace={}):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
-        # 对于未识别字符设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
+        # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
-            x += 1
-            current_graph.keynode.set_val(i)
+            if re.fullmatch(re.compile('[-]?\\d+'), i):
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, with_grad=requires_grad))
+                x += 1
+                current_graph.keynode.set_val(eval(i))
+            else:
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
+                x += 1
+                current_graph.keynode.set_val(i)
             vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
@@ -531,7 +536,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
         if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) != 0:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, top_node
 
 
@@ -543,6 +548,6 @@ if __name__ == '__main__':
     # s = "X = Y + LOG(Z + Q)"
     # s = "z = MATMUL(x,w)"
     p = analyze_expression(s, 10, [], {"x": 't'})
-    # p[0].Show()
+    p[0].Show()
     print(p[1])
     print(p[2])
