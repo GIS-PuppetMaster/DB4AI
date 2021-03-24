@@ -156,11 +156,12 @@ class Sql(Node):
 class Random(Node):
     def __init__(self, boundary, data_shape, distribution=None, **kwargs):
         super().__init__(4, **kwargs)
+        if isinstance(boundary, str):
+            boundary = eval(boundary)
         self.boundary = boundary
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        else:
-            self.data_shape = eval(data_shape)
+        if isinstance(data_shape, str):
+            data_shape = eval(data_shape)
+        self.data_shape = data_shape
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 'normal'
         else:

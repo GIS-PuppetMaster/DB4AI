@@ -4,8 +4,8 @@ CREATE TENSOR y(4,5)
 CREATE TENSOR z(4,3)
 CREATE TENSOR flag(1,) FROM 2
 IF (flag<1){
-y = x * w
+SELECT x * w AS y FROM x, w
 }
 ELSE {
-z = x
+SELECT x AS z FROM x
 }
