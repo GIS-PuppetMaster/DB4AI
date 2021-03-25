@@ -1,5 +1,4 @@
-from collections import defaultdict
-
+from Nodes import LoopEnd
 from Nodes import *
 from utils import *
 import numpy as np
@@ -210,7 +209,7 @@ class Executor:
     def execute(self, current_node):
         # 确保父节点都执行完了再执行他
         for father in current_node.fathers:
-            if father not in self.finished_nodes:
+            if father not in self.finished_nodes and not isinstance(father, LoopEnd):
                 return False
         current_node.run()
         self.finished_nodes.add(current_node)
