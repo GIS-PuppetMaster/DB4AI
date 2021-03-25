@@ -1,4 +1,8 @@
 from Executor import *
+from threading import Thread
+import numpy as np
+import torch
+from Executor import BatchedTensor
 from copy import copy
 
 
@@ -12,8 +16,34 @@ class Node:
         self.out_edges = []
         self.in_edges = []
         self.input_data_edges = []
-        self.branches = kwargs['branches']
         self.vars = []
+        self.executor = None
+        self.batch_counter = 0
+        self._default_batch_size = 0
+        self.batch_size = 0
+        self.use_batch = True
+        self.fathers = [edge.start for edge in self.in_edges]
+        self.sons = [edge.end for edge in self.out_edges]
+        self.branches = kwargs['branches']
+
+    @property
+    def default_batch_size(self):
+        return self._default_batch_size
+
+    @default_batch_size.setter
+    def default_batch_size(self, value):
+        if self.use_batch:
+            if value < 1:
+                # 输入的是按比例划分batch_size
+                self.batch_size = int(self.out_edges[0].data_shape[0] * value)
+            else:
+                assert isinstance(value, int)
+                self.batch_size = value
+        else:
+            self.batch_size = self.out_edges[0].data_shape[0]
+
+    def GetId(self):
+        return self.id
 
     def generate_data_edges(self):
         for in_edge in self.in_edges:
@@ -23,6 +53,20 @@ class Node:
                         self.input_data_edges.append(data_edge)
             else:
                 self.input_data_edges.append(in_edge)
+
+    @batch_stream
+    def run(self, input_buffer):
+        # 默认转发经过的数据
+        return input_buffer
+
+    def next_nodes(self):
+        return self.sons
+
+    def infer_data(self):
+        pass
+
+    def GetType(self):
+        return self.type_id
 
     def __eq__(self, other):
         if isinstance(other, Node):
@@ -34,12 +78,6 @@ class Node:
         return hash(self.id + self.type_id)
 
     def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
-
-    def infer_data(self):
         pass
 
     def set_vars(self, input):
@@ -65,18 +103,15 @@ class CreateTensor(Node):
             self.data_shape = None
         self.vars = var
 
-    def __call__(self, executor: Executor):
-        executor.graph.output_of_nodes[self] = Tensor(shape=self.data_shape)
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
-            if self.physic_algorithm == 'relational':
-                edge.data_type = 'relation'
-            else:
-                edge.data_type = 'ndarray'
 
 
+# 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, var, **kwargs):
         super().__init__(2, **kwargs)
@@ -86,34 +121,32 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
+    def run(self, **kwargs):
+        self.executor.graph.var_dict[self.vars[0]] = torch.tensor(self.value)
     def get_val(self):
         return self.value
-
-    def __call__(self, executor: Executor):
-        tensor = Tensor(shape=(1,))
-        executor.graph.output_of_nodes[self] = tensor.handle = self.value
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_shape = (1,)
-            edge.data_type = 'ndarray'
 
 
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
         super().__init__(3, **kwargs)
         self.t_search_sentences = t_info
+        self.shape = None
+        # self.batch_size = None  # TODO: 自动选择batch_size
         self.vars = var
 
-    def __call__(self, executor: Executor):
-        # TODO:和高斯数据的API
-        pass
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = None  # TODO:get data
 
     def infer_data(self):
         for edge in self.out_edges:
             # TODO: 使用SQL查询该表的维度
-            # edge.data_shape =
-            edge.data_type = 'relation'
+            self.shape = None
+            edge.data_shape = self.shape
 
 
 class Random(Node):
@@ -127,18 +160,16 @@ class Random(Node):
         else:
             self.distribution = distribution
 
-    def __call__(self, executor: Executor):
-        tensor = Tensor(shape=self.data_shape)
+    def run(self, **kwargs):
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
-            data = np.random.random(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
+            tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
-            data = np.random.randn() * self.boundary[1] + self.boundary[0]
+            tensor = torch.randn() * self.boundary[1] + self.boundary[0]
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
-        tensor.handle = data
-        executor.graph.output_of_nodes[self] = tensor.handle
+        self.executor.graph.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -149,7 +180,7 @@ class Random(Node):
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(5, **kwargs)
         if condition:
             self.dead_cycle = condition
             self.times = 0
@@ -159,13 +190,7 @@ class Loop(Node):
         self.loop_id = loop_id
         self.finished_times = 0
 
-    def __call__(self, executor: Executor):
-        executor.output_of_nodes[self] = []
-        for edge in self.in_edges:
-            start_node = edge.start
-            executor.output_of_nodes[self].append(executor.output_of_nodes[start_node])
-
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         end_nodes = [edge.end for edge in self.out_edges]
         last_nodes = [edge.start for edge in self.in_edges]
         loop_end_node = None
@@ -179,7 +204,7 @@ class Loop(Node):
         # 循环结束
         if self.finished_times >= self.times:
             # 找到对应的Loop_End
-            executor.finished_loop_id.add(self.loop_id)
+            self.executor.finished_loop_id.add(self.loop_id)
             return [loop_end_node]
         else:
             return end_nodes
@@ -187,13 +212,10 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(6, **kwargs)
         self.loop_id = loop_id
 
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         end_nodes = [edge.end for edge in self.out_edges]
         loop_node = None
         for node in end_nodes:
@@ -203,8 +225,8 @@ class LoopEnd(Node):
         assert loop_node is not None, f'Did not find corresponding loop node for end loop node{self.loop_id}'
         end_nodes.remove(loop_node)
         # 退出循环
-        if self.loop_id in executor.finished_loop_id:
-            executor.finished_loop_id.remove(self.loop_id)
+        if self.loop_id in self.executor.finished_loop_id:
+            self.executor.finished_loop_id.remove(self.loop_id)
             return end_nodes
         # 继续下一次循环
         else:
@@ -213,14 +235,11 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(7, **kwargs)
         self.loop_id = loop_id
 
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
-        executor.finished_loop_id.remove(self.loop_id)
+    def next_nodes(self):
+        self.executor.finished_loop_id.remove(self.loop_id)
         end_nodes = [edge.end for edge in self.out_edges]
         loop_end_node = None
         for node in end_nodes:
@@ -233,16 +252,12 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
+        super().__init__(8, **kwargs)
 
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         for edge in self.out_edges:
-            # todo: edge.node_name
             para = {}
-            for var_name, var_node in zip(edge.node_name, edge.node_var):
+            for var_name, var_node in edge.need_var:
                 para[var_name] = var_node
             res = eval(edge.condition, para)
             if edge.reverse:
@@ -253,16 +268,12 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(9, **kwargs)
 
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
+    def next_nodes(self):
         for edge in self.out_edges:
-            # todo: edge.node_name
             para = {}
-            for var_name, var_node in zip(edge.node_name, edge.node_var):
+            for var_name, var_node in edge.need_var:
                 para[var_name] = var_node
             res = eval(edge.condition, para)
             if edge.reverse:
@@ -273,88 +284,114 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(11, **kwargs)
-
-    def __call__(self, executor: Executor):
-        pass
-
-    def next_nodes(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
+        super().__init__(10, **kwargs)
 
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(11, **kwargs)
         self.vars = var_li
 
-    def __call__(self, executor: Executor):
-        assert len(self.input_data_edges) == 2, f'the number of assignment node\'s in_edges not equal to 2, {self.in_edges}'
-        # var_node = self.in_edges[0]
-        data_node = self.input_data_edges[1].start
-        executor.output_of_nodes[self] = executor.output_of_nodes[data_node]
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
-    def next_nodes(self, executor: Executor):
-        return [edge.end for edge in self.out_edges]
 
 
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[self.vars[2]]
+
 
 class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(13, **kwargs)
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[self.vars[2]]
 
 
 class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(14, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[self.vars[2]]
+
 
 class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(15, **kwargs)
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[self.vars[2]]
 
 
 class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(16, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
+
 
 class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(17, **kwargs)
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(18, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.sqrt(self.executor.var_dict[self.vars[1]])
+
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(19, **kwargs)
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.matmul(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(20, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.dot(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
+
 
 class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(21, **kwargs)
+
+    def run(self, **kwargs):
+        # self.executor.var_dict[self.vars[0]] = torch.inn(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
+        raise Exception('暂不支持inner')
 
 
 class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(22, **kwargs)
 
+    def run(self, **kwargs):
+        raise Exception('暂不支持outer')
+
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(23, **kwargs)
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensordot(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
 
 
 class KRON(Node):
@@ -379,13 +416,18 @@ class QR(Node):
 class SVD(Node):
     def __init__(self, **kwargs):
         super().__init__(27, **kwargs)
-        self.parameter_dict = {'full_matrices': 1, 'compute_uv': 1, 'hermitian': 0}
+        self.full_matrices = True
+        self.compute_uv = True
+        self.hermitian = False
+
 
     def set_param(self, full_matrices, compute_uv, hermitian):
-        self.parameter_dict['full_matrices'] = full_matrices
-        self.parameter_dict['compute_uv'] = compute_uv
-        self.parameter_dict['hermitian'] = hermitian
+        self.full_matrices = bool(full_matrices)
+        self.compute_uv = bool(compute_uv)
+        self.hermitian = bool(hermitian)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.linalg.svd(self.executor.var_dict[self.vars[1]], full_matrices=self.full_matrices,compute_uv=self.compute_uv)
 
 class NORM(Node):
     def __init__(self, **kwargs):
@@ -411,10 +453,17 @@ class DET(Node):
     def __init__(self, **kwargs):
         super().__init__(30, **kwargs)
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.det(self.executor.var_dict[self.vars[1]])
+
 
 class RANK(Node):
     def __init__(self, **kwargs):
         super().__init__(31, **kwargs)
+
+    def run(self, **kwargs):
+        # self.executor.var_dict[self.vars[0]] = torch.rank(self.executor.var_dict[self.vars[1]])
+        raise Exception('暂不支持rank')
 
 
 class TRACE(Node):
@@ -429,15 +478,22 @@ class TRACE(Node):
         self.parameter_dict['dtype'] = dtype
         self.parameter_dict['out'] = out
 
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.trace(self.executor.var_dict[self.vars[1]])
+
 
 class RESHAPE(Node):
-    def __init__(self,  **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(33, **kwargs)
-        self.parameter_dict = {'newshape': None, 'order': 'C'}
+        self.new_shape = None
+        self.order = 'C'
 
     def set_param(self, newshape, order):
-        self.parameter_dict['newshape'] = newshape
-        self.parameter_dict['order'] = order
+        self.new_shape = newshape
+        self.order = order
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.reshape(self.executor.var_dict[self.vars[1]], self.new_shape)
 
 
 class TRANSPOSE(Node):
@@ -465,13 +521,25 @@ class Slice(Node):
     def __init__(self, **kwargs):
         super().__init__(37, **kwargs)
         self.name = ''
-        self.slice_info = []
+        self.slice_info = None
+        self.slice_index = None
 
     def set_name(self, name):
         self.name = name
 
     def set_slice(self, slice_info):
-        self.slice_info += slice_info
+        self.slice_info = slice_info
+        total_slice = []
+        for idx in self.slice_info:
+            if ':' in idx:
+                total_slice.append(slice(*list(map(lambda x: None if x == '' else int(x), idx.split(':')))))
+            else:
+                total_slice.append(int(idx))
+        self.slice_index = total_slice
+
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
+
 
 
 # 该类用来存储参数变量，如x，y
@@ -485,6 +553,25 @@ class Var(Node):
 
     def get_val(self):
         return self.var
+
+
+# 该类用来存储参数变量，如x，y
+class Var(Node):
+    def __init__(self, **kwargs):
+        super().__init__(38, **kwargs)
+        self.var = 0
+
+    def set_val(self, var):
+        self.var = var
+
+    def get_val(self):
+        return self.var
+
+
+# 用来计算梯度
+class Gradient(Node):
+    def __init__(self, **kwargs):
+        super().__init__(39, **kwargs)
 
 
 def shallow_copy(fun):
@@ -505,7 +592,7 @@ def shallow_copy(fun):
 
 
 # 通过globals方法，以类名选择类进行实例化
-@ shallow_copy
+@shallow_copy
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
     if nodeType == 'CreateTensor':
         data_shape = otherField['data_shape']

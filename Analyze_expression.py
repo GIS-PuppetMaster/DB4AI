@@ -500,12 +500,17 @@ def analyze_expression(expression, x, branches: list, replace={}):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
-        # 对于未识别字符设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
+        # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
-            x += 1
-            current_graph.keynode.set_val(i)
-            vallist.append([i, current_graph.keynode])
+            if re.fullmatch(re.compile('[-]?\\d+'), i):
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, with_grad=requires_grad))
+                x += 1
+                current_graph.keynode.set_val(eval(i))
+            else:
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
+                x += 1
+                current_graph.keynode.set_val(i)
+                vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and parent.keynode.type_id != 36:
@@ -515,22 +520,23 @@ def analyze_expression(expression, x, branches: list, replace={}):
     # 返回生成解析树上最上层顶点
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
-    if top_node.type_id == 1 or top_node.type_id == 2 or top_node.type_id == 38:
+    if top_node.type_id == 38:
         if len(top_node.get_vars()) == 0:
             top_node.set_vars(top_node.get_val())
-    elif 12 <= top_node.type_id <= 35:
+    elif top_node.type_id == 2 or 12 <= top_node.type_id <= 35:
         top_node.set_vars('temp' + str(top_node.id))
     for e in G.edges:
-        if e.GetStart().type_id == 1 or e.GetStart().type_id == 2 or e.GetStart().type_id == 38:
+        if e.GetStart().type_id == 38:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetStart().set_vars(e.GetStart().get_val())
-        elif 12 <= e.GetStart().type_id <= 35:
+        elif e.GetStart().type_id == 2 or 12 <= e.GetStart().type_id <= 35:
             e.GetStart().set_vars('temp' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 35:
             if len(e.GetStart().get_vars()) != 0:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+    # G.Show()
     return G.GetSet(), vallist, top_node
 
 
@@ -538,10 +544,10 @@ if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
     # s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
-    # s = "d = x * 2"
+    s = "d = x + 1"
     # s = "X = Y + LOG(Z + Q)"
-    s = "y = x + 2"
-    p = analyze_expression(s, 0, [])
+    # s = "z = MATMUL(x,w)"
+    p = analyze_expression(s, 10, [], {"x": 't'})
     # p[0].Show()
     print(p[1])
     print(p[2])
