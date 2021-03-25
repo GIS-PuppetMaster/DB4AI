@@ -278,6 +278,19 @@ class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
 
+    def next_nodes(self):
+        if self.out_edges[0].condition is None:
+            return self.sons
+        else:
+            for edge in self.out_edges:
+                para = {}
+                for var_name, var_node in edge.need_var:
+                    para[var_name] = self.executor.var_dict[var_node.vars[0]]
+                res = eval(edge.condition, para)
+                if edge.reverse:
+                    res = not res
+                if res:
+                    return [edge.end]
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
@@ -595,7 +608,10 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Val':
-        var = otherField['var']
+        if 'var' in otherField.keys():
+            var = otherField['var']
+        else:
+            var = None
         node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']

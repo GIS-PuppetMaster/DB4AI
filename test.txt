@@ -9,7 +9,13 @@ LOOP 5{
 IF (flag<1){
 SELECT flag + 1 AS flag FROM flag
 }
+ELIF (flag<2){
+SELECT flag + 2 AS flag FROM flag
+}
+ELIF (flag<3){
+SELECT flag + 3 AS flag FROM flag
+}
 ELSE {
-SELECT flag * b AS flag FROM flag, b
+SELECT flag * flag AS flag FROM flag
 }
 }
