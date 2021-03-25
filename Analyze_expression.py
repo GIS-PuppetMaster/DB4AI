@@ -510,7 +510,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
                 current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
                 x += 1
                 current_graph.keynode.set_val(i)
-            vallist.append([i, current_graph.keynode])
+                vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and parent.keynode.type_id != 36:
@@ -542,12 +542,12 @@ def analyze_expression(expression, x, branches: list, replace={}):
 
 if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
-    s = "s = first(a, b, c) * POW(t , 3)"
+    # s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
-    # s = "d = x * 2"
+    s = "d = x + 1"
     # s = "X = Y + LOG(Z + Q)"
     # s = "z = MATMUL(x,w)"
     p = analyze_expression(s, 10, [], {"x": 't'})
-    p[0].Show()
+    # p[0].Show()
     print(p[1])
     print(p[2])
