@@ -292,7 +292,7 @@ class Parser:
             with_grad = False
         self.node_id += 1
         node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
-                                      var=legal_info[0])
+                                      var=[legal_info[0]])
         self.graph.InsertNode(node1)
         if self.isCu and self.root_id == 0:
             pass
@@ -303,14 +303,15 @@ class Parser:
             node1_id = self.node_id
             self.node_id += 1
             if hasFrom == 1:
-                node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad, var=legal_info[0])
+                node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
+                                              var=['@' + str(self.node_id)])
                 node2.set_val(legal_info[0])
             elif hasFrom == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
-                                              var=legal_info[0])
+                                              var=['@' + str(self.node_id)])
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad,data_shape=from_info[0],
-                                              boundary=from_info[1], type=from_info[2], var=legal_info[0])
+                node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
+                                              boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)
@@ -501,7 +502,8 @@ class Parser:
             v_name = matchObj1.group(1)
             search_exp = matchObj1.group(2)
             self.node_id += 1
-            e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp, var=v_name)
+            e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp,
+                                           var=['@' + str(self.node_id)])
             self.graph.InsertNode(e_node)
             self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
             r_var = '@' + str(e_node.id)
