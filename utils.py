@@ -13,9 +13,10 @@ def bfs(all_sons):
             root = executor.graph.nodes[0]
             queue.put(root)
             visited.add(root)
+            info = {}
             while not queue.empty():
                 current_node = queue.get()
-                success = fun(executor, current_node)
+                success = fun(executor, current_node, visited=visited, info=info)
                 if not success:
                     visited.remove(current_node)
                 else:
