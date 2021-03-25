@@ -14,6 +14,7 @@ class Node:
         self.in_edges = []
         self.input_data_edges = []
         self.branches = kwargs['branches']
+        self.branches_set = None
         self.vars = []
         self.executor = None
         self.batch_counter = 0
@@ -51,7 +52,7 @@ class Node:
             else:
                 self.input_data_edges.append(in_edge)
 
-    def run(self):
+    def run(self, **kwargs):
         pass
 
     def next_nodes(self):
@@ -118,6 +119,8 @@ class Val(Node):
         self.value = 0
         if isinstance(var, list):
             self.vars = var
+        elif var is None:
+            self.vars = []
         else:
             self.vars = [var]
 
@@ -196,24 +199,27 @@ class Loop(Node):
             self.dead_cycle = False
             self.times = condition
         self.loop_id = loop_id
-        self.finished_times = 0
+        self.loop_pair = None
+
+    def run(self, **kwargs):
+        visited = kwargs['visited']
+        executor = kwargs['executor']
+        if self.loop_pair in visited:
+            visited.remove(self.loop_pair)
+        if self.loop_pair in executor.finished_nodes:
+            executor.finished_nodes.remove(self.loop_pair)
+        self.times += 1
 
     def next_nodes(self):
+        assert self.loop_pair is not None
         end_nodes = [edge.end for edge in self.out_edges]
-        last_nodes = [edge.start for edge in self.in_edges]
-        loop_end_node = None
-        for node in last_nodes:
-            if isinstance(node, LoopEnd) and node.loop_id == self.loop_id:
-                loop_end_node = node
-                break
-        assert loop_end_node is not None, f'Did not find corresponding loop end node for loop node{self.loop_id}'
-        if loop_end_node in end_nodes:
-            end_nodes.remove(loop_end_node)
+        if self.loop_pair in end_nodes:
+            end_nodes.remove(self.loop_pair)
         # 循环结束
-        if self.finished_times >= self.times:
+        if self.dead_cycle < self.times:
             # 找到对应的Loop_End
             self.executor.finished_loop_id.add(self.loop_id)
-            return [loop_end_node]
+            return [self.loop_pair]
         else:
             return end_nodes
 
@@ -222,23 +228,35 @@ class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
         super().__init__(6, **kwargs)
         self.loop_id = loop_id
+        self.loop_pair = None
+
+    def run(self, **kwargs):
+        visited = kwargs['visited']
+        executor = kwargs['executor']
+        # 从visited中删除对应的LoopEnd
+        visited.remove(self.loop_pair)
+        executor.finished_nodes.remove(self.loop_pair)
+        # 移除loop内的节点
+        nodes_in_loop = []
+        for node in visited:
+            if self.loop_pair.id in node.branches_set:
+                nodes_in_loop.append(node)
+        for node in nodes_in_loop:
+            visited.remove(node)
+            executor.finished_nodes.remove(node)
 
     def next_nodes(self):
+        assert self.loop_pair is not None
         end_nodes = [edge.end for edge in self.out_edges]
-        loop_node = None
-        for node in end_nodes:
-            if isinstance(node, Loop) and node.loop_id == self.loop_id:
-                loop_node = node
-                break
-        assert loop_node is not None, f'Did not find corresponding loop node for end loop node{self.loop_id}'
-        end_nodes.remove(loop_node)
+        end_nodes.remove(self.loop_pair)
+
         # 退出循环
         if self.loop_id in self.executor.finished_loop_id:
             self.executor.finished_loop_id.remove(self.loop_id)
             return end_nodes
         # 继续下一次循环
         else:
-            return [loop_node]
+            return [self.loop_pair]
 
 
 class Break(Node):
@@ -291,6 +309,7 @@ class IfBranch(Node):
                     res = not res
                 if res:
                     return [edge.end]
+
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
@@ -608,7 +627,10 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Val':
-        var = otherField['var']
+        if 'var' not in otherField:
+            var = None
+        else:
+            var = otherField['var']
         node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']

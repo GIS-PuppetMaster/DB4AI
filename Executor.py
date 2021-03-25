@@ -4,6 +4,7 @@ from utils import *
 import numpy as np
 import yaml
 
+
 def batch_stream(fun):
     # 对所有接收数据流并输出数据流的节点使用此装饰器
     @wraps(fun)
@@ -72,6 +73,7 @@ def operator_wrapper(fun):
         node.executor.pipeline[node.vars[0]].put(batch)
 
     return decorated
+
 
 class BatchedTensor:
     def __init__(self, source_tensor, next_nodes, branches, batch_size: int, start_index: int, batch_axis: int = 0, step: int = 1):
@@ -176,13 +178,23 @@ class Executor:
         # self.pipeline = dict()
         self.finished_loop_id = set()
         self.init_nodes()
-        self.finished_nodes=set()
+        self.finished_nodes = set()
         # self.init_branches(self.graph.nodes[0], None)
 
     @bfs(True)
-    def init_nodes(self, current_node):
+    def init_nodes(self, current_node, **kwargs):
+        if isinstance(current_node, Loop):
+            if 'loop' not in kwargs['info'].keys():
+                kwargs['info']['loop'] = {}
+            loop_info = kwargs['info']['loop']
+            loop_info[current_node.loop_id] = current_node
+        elif isinstance(current_node, LoopEnd):
+            loop = kwargs['info']['loop'][current_node.loop_id]
+            current_node.loop_pair = loop
+            loop.loop_pair = current_node
         current_node.fathers = [edge.start for edge in current_node.in_edges]
         current_node.sons = [edge.end for edge in current_node.out_edges]
+        current_node.branches_set = set(current_node.branches)
         # current_node.generate_data_edges()
         current_node.infer_data()
         # if len(current_node.vars)>0:
@@ -206,12 +218,14 @@ class Executor:
                 self.init_branches(next_node, current_branch)
 
     @bfs(False)
-    def execute(self, current_node):
+    def execute(self, current_node, **kwargs):
+        visited = kwargs['visited']
         # 确保父节点都执行完了再执行他
-        for father in current_node.fathers:
-            if father not in self.finished_nodes and not isinstance(father, LoopEnd):
-                return False
-        current_node.run()
+        if not isinstance(current_node, IfEnd) and not isinstance(current_node, LoopEnd):
+            for father in current_node.fathers:
+                if father not in self.finished_nodes and not isinstance(father, LoopEnd):
+                    return False
+        current_node.run(visited=visited, executor=self)
         self.finished_nodes.add(current_node)
         return True
 
