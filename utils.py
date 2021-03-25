@@ -18,14 +18,15 @@ def bfs(all_sons):
                 success = fun(executor, current_node)
                 if not success:
                     visited.remove(current_node)
-                if all_sons:
-                    next_nodes = current_node.sons
                 else:
-                    next_nodes = current_node.next_nodes()
-                for node in next_nodes:
-                    if node not in visited:
-                        queue.put(node)
-                        visited.add(node)
+                    if all_sons:
+                        next_nodes = current_node.sons
+                    else:
+                        next_nodes = current_node.next_nodes()
+                    for node in next_nodes:
+                        if node not in visited:
+                            queue.put(node)
+                            visited.add(node)
 
         return decorated
 

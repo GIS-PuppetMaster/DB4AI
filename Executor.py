@@ -190,6 +190,7 @@ class Executor:
         #     self.var_dict[current_node.vars[0]] = np.empty(current_node.data_shape)
         # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
+        return True
 
         # current_node.default_batch_size = self.default_batch_size
 

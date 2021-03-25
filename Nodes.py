@@ -119,7 +119,10 @@ class Val(Node):
     def __init__(self, var, **kwargs):
         super().__init__(2, **kwargs)
         self.value = 0
-        self.vars = var
+        if isinstance(var, list):
+            self.vars = var
+        else:
+            self.vars = [var]
 
     def set_val(self, value):
         self.value = value
@@ -266,7 +269,7 @@ class If(Node):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
-                para[var_name] = var_node
+                para[var_name] = self.executor.var_dict[var_node.vars[0]]
             res = eval(edge.condition, para)
             if edge.reverse:
                 res = not res
@@ -277,17 +280,6 @@ class If(Node):
 class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
-
-    def next_nodes(self):
-        for edge in self.out_edges:
-            para = {}
-            for var_name, var_node in edge.need_var:
-                para[var_name] = var_node
-            res = eval(edge.condition, para)
-            if edge.reverse:
-                res = not res
-            if res:
-                return [edge.end]
 
 
 class IfEnd(Node):

@@ -308,7 +308,7 @@ class Parser:
             if hasFrom == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
                                               var=['@' + str(self.node_id)])
-                node2.set_val(legal_info[0])
+                node2.set_val(legal_info[2])
             elif hasFrom == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
@@ -639,3 +639,4 @@ if __name__ == '__main__':
     result = testPar()
     executor = Executor(result)
     executor.run()
+    print(executor.var_dict)
