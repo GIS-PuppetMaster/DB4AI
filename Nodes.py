@@ -111,7 +111,7 @@ class CreateTensor(Node):
             edge.data_shape = self.data_shape
 
 
-
+# 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, var, **kwargs):
         super().__init__(2, **kwargs)
