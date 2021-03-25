@@ -7,7 +7,7 @@ CREATE TENSOR a(1,) FROM 1
 CREATE TENSOR b(1,) FROM 2
 LOOP 5{
 IF (flag<1){
-SELECT flag + a AS flag FROM flag, a
+SELECT flag + 1 AS flag FROM flag
 }
 ELSE {
 SELECT flag * b AS flag FROM flag, b
