@@ -188,7 +188,7 @@ class Random(Node):
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(5, **kwargs)
         if condition:
             self.dead_cycle = condition
             self.times = 0
@@ -220,7 +220,7 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(6, **kwargs)
         self.loop_id = loop_id
 
     def next_nodes(self):
@@ -243,7 +243,7 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(7, **kwargs)
         self.loop_id = loop_id
 
     def next_nodes(self):
@@ -260,7 +260,7 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
+        super().__init__(8, **kwargs)
 
     def next_nodes(self):
         for edge in self.out_edges:
@@ -276,7 +276,7 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(9, **kwargs)
 
     def next_nodes(self):
         if self.out_edges[0].condition is None:
@@ -294,12 +294,12 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(11, **kwargs)
+        super().__init__(10, **kwargs)
 
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(11, **kwargs)
         self.vars = var_li
 
     def run(self, **kwargs):
@@ -608,10 +608,7 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Val':
-        if 'var' in otherField.keys():
-            var = otherField['var']
-        else:
-            var = None
+        var = otherField['var']
         node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
