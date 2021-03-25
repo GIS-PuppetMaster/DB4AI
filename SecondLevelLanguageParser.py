@@ -345,11 +345,14 @@ class Parser:
             else:
                 condition = int(loop_str)
             self.node_id += 1
+            root_id = self.root_id
+            self.StateConvert('loop')
             node = Nd.InstantiationClass(self.node_id, 'Loop', self.branches, condition=condition, loop_id=self.loop_id)
+            if self.graph.nodes[root_id].type_id == 7:
+                self.graph.InsertEdge(self.graph.nodes[root_id], node)
             for l_n in self.graph.GetNoOutNodes().copy():
                 self.graph.InsertEdge(l_n, node)
             self.graph.InsertNode(node)
-            self.StateConvert('loop')
             return True
         else:
             return False
@@ -397,6 +400,8 @@ class Parser:
                 return False
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
+            if self.graph.nodes[self.root_id].type_id == 7:
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
             for l_n in self.graph.GetNoOutNodes().copy():
                 self.graph.InsertEdge(l_n, node)
             self.graph.InsertNode(node)

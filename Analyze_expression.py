@@ -540,7 +540,7 @@ if __name__ == '__main__':
     # s = "s = (N + Y) * Z"
     # s = "d = x * 2"
     # s = "X = Y + LOG(Z + Q)"
-    s = "y = (x * w + POW(z,3)) / 4"
+    s = "y = x + 2"
     p = analyze_expression(s, 0, [])
     # p[0].Show()
     print(p[1])
