@@ -510,7 +510,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
                 current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
                 x += 1
                 current_graph.keynode.set_val(i)
-                vallist.append([i, current_graph.keynode])
+            vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and parent.keynode.type_id != 36:
