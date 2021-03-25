@@ -520,16 +520,16 @@ def analyze_expression(expression, x, branches: list, replace={}):
     # 返回生成解析树上最上层顶点
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
-    if top_node.type_id == 1 or top_node.type_id == 2 or top_node.type_id == 38:
+    if top_node.type_id == 38:
         if len(top_node.get_vars()) == 0:
             top_node.set_vars(top_node.get_val())
-    elif 12 <= top_node.type_id <= 35:
+    elif top_node.type_id == 2 or 12 <= top_node.type_id <= 35:
         top_node.set_vars('temp' + str(top_node.id))
     for e in G.edges:
-        if e.GetStart().type_id == 1 or e.GetStart().type_id == 2 or e.GetStart().type_id == 38:
+        if e.GetStart().type_id == 38:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetStart().set_vars(e.GetStart().get_val())
-        elif 12 <= e.GetStart().type_id <= 35:
+        elif e.GetStart().type_id == 2 or 12 <= e.GetStart().type_id <= 35:
             e.GetStart().set_vars('temp' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
