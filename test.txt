@@ -16,6 +16,6 @@ ELIF (flag<3){
 SELECT flag + 3 AS flag FROM flag
 }
 ELSE {
-SELECT flag * flag AS flag FROM flag
+BREAK
 }
 }

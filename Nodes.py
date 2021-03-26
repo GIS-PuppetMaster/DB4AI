@@ -128,7 +128,8 @@ class Val(Node):
         self.value = value
 
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(self.value)
+        if self.vars[0] not in self.executor.var_dict:
+            self.executor.var_dict[self.vars[0]] = torch.tensor(self.value)
 
     def get_val(self):
         return self.value
@@ -252,7 +253,7 @@ class LoopEnd(Node):
 
         # 退出循环
         if self.loop_id in self.executor.finished_loop_id:
-            self.executor.finished_loop_id.remove(self.loop_id)
+            # self.executor.finished_loop_id.remove(self.loop_id)
             return end_nodes
         # 继续下一次循环
         else:
@@ -263,17 +264,11 @@ class Break(Node):
     def __init__(self, loop_id, **kwargs):
         super().__init__(7, **kwargs)
         self.loop_id = loop_id
+        self.loop_pair = None
 
     def next_nodes(self):
-        self.executor.finished_loop_id.remove(self.loop_id)
-        end_nodes = [edge.end for edge in self.out_edges]
-        loop_end_node = None
-        for node in end_nodes:
-            if isinstance(node, LoopEnd) and node.loop_id == self.loop_id:
-                loop_end_node = node
-                break
-        assert loop_end_node is not None, f'Did not find corresponding loop end node for break node{self.loop_id}'
-        return loop_end_node
+        self.executor.finished_loop_id.add(self.loop_id)
+        return [self.loop_pair]
 
 
 class If(Node):

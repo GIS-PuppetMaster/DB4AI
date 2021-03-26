@@ -192,6 +192,11 @@ class Executor:
             loop = kwargs['info']['loop'][current_node.loop_id]
             current_node.loop_pair = loop
             loop.loop_pair = current_node
+            kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
+        elif isinstance(current_node, Break):
+            if 'break' not in kwargs['info'].keys():
+                kwargs['info']['break'] = {}
+            kwargs['info']['break'][current_node.loop_id] = current_node
         current_node.fathers = [edge.start for edge in current_node.in_edges]
         current_node.sons = [edge.end for edge in current_node.out_edges]
         current_node.branches_set = set(current_node.branches)
