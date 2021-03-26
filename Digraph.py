@@ -1,7 +1,6 @@
 import Nodes as nd
 import numpy as np
 from graphviz import Digraph
-from queue import Queue
 from Nodes import Node
 
 

@@ -123,6 +123,7 @@ class Val(Node):
 
     def run(self, **kwargs):
         self.executor.graph.var_dict[self.vars[0]] = torch.tensor(self.value)
+
     def get_val(self):
         return self.value
 
@@ -541,20 +542,6 @@ class Slice(Node):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
 
 
-
-# 该类用来存储参数变量，如x，y
-class Var(Node):
-    def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
-        self.var = 0
-
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
-
-
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
@@ -609,8 +596,11 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Val':
-        var = otherField['var']
-        node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
+        if otherField.get('var', None):
+            var = otherField['var']
+            node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
+        else:
+            node = globals()[nodeType](var=[], id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
         node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)
