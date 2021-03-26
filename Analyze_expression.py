@@ -5,6 +5,7 @@ import re
 import Nodes as nd
 import Digraph
 import math
+import numpy
 
 
 '''
@@ -84,11 +85,12 @@ def analyze_expression(expression, x, branches: list, replace={}):
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
-                       'TRANSPOSE', 'GRADIENT')
-    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Gradient')
+                       'TRANSPOSE')
+    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
+    # 常量dict,用于建立对应val节点
+    constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
     # 查看UserOperators.json文件，取得自定义算子
-    user_operator = []
     if os.path.exists('UserOperatorName.json'):
         with open('UserOperatorName.json', 'r') as f:
             load_dict = json.load(f)
@@ -214,7 +216,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
             simple_operator_class = ['Add', 'Sub', 'Mul', 'Div']
             for count in range(len(simple_operator)):
                 if i == simple_operator[count]:
-                    if current_graph.keynode.type_id == 36:
+                    if current_graph.keynode.type_id == 37:
                         current_graph.set_val(nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
                         x += 1
                     else:
@@ -225,7 +227,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
                         current_graph = temp_graph
             if len(new_stack.items) != 0 and label == 1:
                 parent = new_stack.pop()
-                if current_graph != parent and parent.keynode.type_id != 36:
+                if current_graph != parent and parent.keynode.type_id != 37:
                     G.InsertEdge(current_graph.keynode, parent.keynode)
                 new_stack.push(parent)
             G.InsertNode(current_graph.keynode)
@@ -236,20 +238,13 @@ def analyze_expression(expression, x, branches: list, replace={}):
             current_graph = current_graph.get_child()
 
         # 对于constant.PI和constant.E，节点值为对应张量，操作节点转移到父节点
-        elif i == 'PI':
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=math.pi, with_grad=requires_grad))
+        elif i in constant_dict.keys():
+            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches,
+                                                        value=constant_dict.get(i), with_grad=requires_grad))
             x += 1
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.type_id != 36:
-                G.InsertEdge(current_graph.keynode, parent.keynode)
-            current_graph = parent
-        elif i == 'E':
-            current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=math.e, with_grad=requires_grad))
-            x += 1
-            parent = new_stack.pop()
-            G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.type_id != 36:
+            if current_graph != parent and parent.keynode.type_id != 37:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
@@ -383,7 +378,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
                     break
             G.InsertNode(current_graph.keynode)
             parent = new_stack.pop()
-            if current_graph != parent and parent.keynode.type_id != 36:
+            if current_graph != parent and parent.keynode.type_id != 37:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
 
@@ -473,7 +468,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
                 if flag == 0:
                     G.InsertEdge(e.GetStart(), e.GetEnd())
             parent = new_stack.pop()
-            if parent.keynode.type_id != 36:
+            if parent.keynode.type_id != 37:
                 G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             list(operator_info[0])[0].set_vars('temp' + str(list(operator_info[0])[0].id))
             cnt += 1
@@ -496,16 +491,15 @@ def analyze_expression(expression, x, branches: list, replace={}):
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.type_id != 36:
+            if current_graph != parent and parent.keynode.type_id != 37:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
             if re.fullmatch(re.compile('[-]?\\d+'), i):
-                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, with_grad=requires_grad))
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=eval(i), with_grad=requires_grad))
                 x += 1
-                current_graph.keynode.set_val(eval(i))
             else:
                 current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
                 x += 1
@@ -513,27 +507,28 @@ def analyze_expression(expression, x, branches: list, replace={}):
             vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and parent.keynode.type_id != 36:
+            if current_graph != parent and parent.keynode.type_id != 37:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
     # 返回生成解析树上最上层顶点
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
-    if top_node.type_id == 38:
+    if top_node.type_id == 39:
         if len(top_node.get_vars()) == 0:
             top_node.set_vars(top_node.get_val())
-    elif top_node.type_id == 2 or 12 <= top_node.type_id <= 35:
+    elif top_node.type_id == 2 or 12 <= top_node.type_id <= 36:
         top_node.set_vars('temp' + str(top_node.id))
     for e in G.edges:
-        if e.GetStart().type_id == 38:
+        if e.GetStart().type_id == 39:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetStart().set_vars(e.GetStart().get_val())
-        elif e.GetStart().type_id == 2 or 12 <= e.GetStart().type_id <= 35:
-            e.GetStart().set_vars('temp' + str(e.GetStart().id))
+        elif e.GetStart().type_id == 2 or 12 <= e.GetStart().type_id <= 36:
+            if len(e.GetStart().get_vars()) == 0:
+                e.GetStart().set_vars('temp' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
-        if 12 <= e.GetEnd().type_id <= 35:
+        if 12 <= e.GetEnd().type_id <= 36:
             if len(e.GetStart().get_vars()) != 0:
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
@@ -544,8 +539,8 @@ if __name__ == '__main__':
     # s = "a = x + POW(T , 3) + y / z - x * E"
     # s = "s = first(a, b, c) * POW(t , 3)"
     # s = "s = (N + Y) * Z"
-    s = "d = x + 1"
-    # s = "X = Y + LOG(Z + Q)"
+    # s = "d = x + 1"
+    s = "X = Y + GRADIENT(a,CONSTANT.PI) + 3"
     # s = "z = MATMUL(x,w)"
     p = analyze_expression(s, 10, [], {"x": 't'})
     # p[0].Show()

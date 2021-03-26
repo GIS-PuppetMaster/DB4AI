@@ -114,9 +114,9 @@ class CreateTensor(Node):
 
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
-    def __init__(self, var, **kwargs):
+    def __init__(self, var, val, **kwargs):
         super().__init__(2, **kwargs)
-        self.value = 0
+        self.value = val
         if isinstance(var, list):
             self.vars = var
         elif var is None:
@@ -543,16 +543,22 @@ class STACK(Node):
         self.axis = axis
 
 
+# 用来计算梯度
+class GRADIENT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(36, **kwargs)
+
+
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(37, **kwargs)
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(38, **kwargs)
         self.name = ''
         self.slice_info = None
         self.slice_index = None
@@ -577,7 +583,7 @@ class Slice(Node):
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
+        super().__init__(39, **kwargs)
         self.var = 0
 
     def set_val(self, var):
@@ -621,12 +627,6 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         type = otherField['type']
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
-    elif nodeType == 'Val':
-        if 'var' not in otherField:
-            var = None
-        else:
-            var = otherField['var']
-        node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
         node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)
@@ -637,6 +637,9 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
+    elif nodeType == 'Val':
+        val = otherField['value']
+        node = globals()[nodeType](val, id=nodeId, branches=branches, with_grad=with_grad)
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
     return node
