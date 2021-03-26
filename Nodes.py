@@ -77,7 +77,7 @@ class Node:
     def __hash__(self):
         return hash(self.id + self.type_id)
 
-    def __call__(self, executor: Executor):
+    def __call__(self, executor):
         pass
 
     def set_vars(self, input):
@@ -112,15 +112,13 @@ class CreateTensor(Node):
 
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
-    def __init__(self, **kwargs):
+    def __init__(self, val, **kwargs):
         super().__init__(2, **kwargs)
-        self.value = 0
-
-    def set_val(self, value):
-        self.value = value
+        self.value = val
 
     def run(self, **kwargs):
         self.executor.graph.var_dict[self.vars[0]] = torch.tensor(self.value)
+
     def get_val(self):
         return self.value
 
@@ -292,7 +290,6 @@ class Assignment(Node):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
 
-
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
@@ -416,7 +413,6 @@ class SVD(Node):
         self.compute_uv = True
         self.hermitian = False
 
-
     def set_param(self, full_matrices, compute_uv, hermitian):
         self.full_matrices = bool(full_matrices)
         self.compute_uv = bool(compute_uv)
@@ -424,6 +420,7 @@ class SVD(Node):
 
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.linalg.svd(self.executor.var_dict[self.vars[1]], full_matrices=self.full_matrices,compute_uv=self.compute_uv)
+
 
 class NORM(Node):
     def __init__(self, **kwargs):
@@ -506,16 +503,22 @@ class STACK(Node):
         self.axis = axis
 
 
+# 用来计算梯度
+class GRADIENT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(36, **kwargs)
+
+
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(37, **kwargs)
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(38, **kwargs)
         self.name = ''
         self.slice_info = None
         self.slice_index = None
@@ -537,37 +540,17 @@ class Slice(Node):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
 
 
-
 # 该类用来存储参数变量，如x，y
 class Var(Node):
-    def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
-        self.var = 0
-
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
-
-
-# 该类用来存储参数变量，如x，y
-class Var(Node):
-    def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
-        self.var = 0
-
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
-
-
-# 用来计算梯度
-class Gradient(Node):
     def __init__(self, **kwargs):
         super().__init__(39, **kwargs)
+        self.var = 0
+
+    def set_val(self, var):
+        self.var = var
+
+    def get_val(self):
+        return self.var
 
 
 def shallow_copy(fun):
@@ -611,6 +594,9 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
+    elif nodeType == 'Val':
+        val = otherField['value']
+        node = globals()[nodeType](val, id=nodeId, branches=branches, with_grad=with_grad)
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
     return node
