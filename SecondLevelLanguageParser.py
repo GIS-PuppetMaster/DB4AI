@@ -228,7 +228,7 @@ class Parser:
                             f'|create tensor {variable_name_reg}[^ ]*( from [^ ]+)?( with grad)?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = 'SQL[(](.+)[)]|sql[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
-        val_info_reg3 = f'^RANDOM([(]({data_list_reg}),({random_reg})(,[a-zA-Z])?[)])|random[(](.+)[)]'
+        val_info_reg3 = f'^RANDOM([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])|random[(](.+)[)]'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
         hasWith = False  # 是否需要记录梯度
@@ -270,14 +270,18 @@ class Parser:
                         hasFrom = 1
                     elif match3:
                         in_random_str = match3.group(1)
-                        type_li = re.findall('[a-zA-z]', in_random_str)
-                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)])[)]', in_random_str)
+                        type_search_Obj = re.search(',\'([a-zA-z]+)\'[)]', in_random_str)
+                        if type_search_Obj:
+                            type = type_search_Obj.group(1)
+                        else:
+                            type = ''
+                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).+[)]', in_random_str)
                         if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
                         else:
                             return False
-                        legal_info.append([data_shape, boundary, type_li])
+                        legal_info.append([data_shape, boundary, type])
                         hasFrom = 3
                     elif match2:
                         t_info = match2.group(1)
