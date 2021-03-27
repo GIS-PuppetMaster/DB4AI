@@ -7,7 +7,6 @@ import Digraph
 import math
 import numpy
 
-
 '''
 栈用来存储父节点，以支持算子作为父节点联接多个变量子节点
 '''
@@ -80,8 +79,9 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches: list, replace={}):
-
+def analyze_expression(expression, x, branches: list, replace=None):
+    if replace is None:
+        replace = {}
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
@@ -95,7 +95,9 @@ def analyze_expression(expression, x, branches: list, replace={}):
         with open('UserOperatorName.json', 'r') as f:
             load_dict = json.load(f)
             user_operator = load_dict.get('name')
-    user_operator = tuple(user_operator)
+        user_operator = tuple(user_operator)
+    else:
+        user_operator = ()
 
     # 这里要记录求导信息，设requires_grad变量，此变量应记录在Node父类节点中，之后配合解析器修改
     requires_grad = False
@@ -103,7 +105,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
     if re.match(use_reg, expression) and re.search('WITH GRAD', expression):
         requires_grad = True
     explist = expression.split('=', 1)
-    X = explist[0]       # X为DEF定义的变量名，应记录在全局变量中，之后配合解析器修改
+    X = explist[0]  # X为DEF定义的变量名，应记录在全局变量中，之后配合解析器修改
     Y = explist[1]
     if len(explist[1].strip()) != 1:
         Y = '( ' + explist[1] + ' )'
@@ -233,7 +235,7 @@ def analyze_expression(expression, x, branches: list, replace={}):
             G.InsertNode(current_graph.keynode)
             G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
 
-            current_graph.insert(x, 'Blank', branches,  grad=requires_grad)
+            current_graph.insert(x, 'Blank', branches, grad=requires_grad)
             new_stack.push(current_graph)
             current_graph = current_graph.get_child()
 
@@ -498,12 +500,11 @@ def analyze_expression(expression, x, branches: list, replace={}):
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
             if re.fullmatch(re.compile('[-]?\\d+'), i):
-                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, value=eval(i), with_grad=requires_grad))
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, val=eval(i), with_grad=requires_grad))
                 x += 1
             else:
-                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, with_grad=requires_grad))
+                current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Var', branches, val=i, with_grad=requires_grad))
                 x += 1
-                current_graph.keynode.set_val(i)
             vallist.append([i, current_graph.keynode])
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)

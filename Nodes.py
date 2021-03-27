@@ -325,8 +325,7 @@ class Add(Node):
         super().__init__(12, **kwargs)
 
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
-            self.vars[2]]
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[self.vars[2]]
 
 
 class Sub(Node):
@@ -628,11 +627,12 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         var = otherField['var']
         node = globals()[nodeType](boundary, data_shape, type, var, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Val':
-        if otherField.get('var', None):
+        val = otherField['val']
+        if 'var' in otherField.keys():
             var = otherField['var']
-            node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad)
+            node = globals()[nodeType](var, id=nodeId, branches=branches, with_grad=with_grad, val=val)
         else:
-            node = globals()[nodeType](var=[], id=nodeId, branches=branches, with_grad=with_grad)
+            node = globals()[nodeType](var=[], id=nodeId, branches=branches, with_grad=with_grad, val=val)
     elif nodeType == 'Assignment':
         var_li = otherField['var_li']
         node = globals()[nodeType](var_li, id=nodeId, branches=branches, with_grad=with_grad)

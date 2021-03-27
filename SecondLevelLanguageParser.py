@@ -275,7 +275,7 @@ class Parser:
                             type = type_search_Obj.group(1)
                         else:
                             type = ''
-                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).+[)]', in_random_str)
+                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).*[)]', in_random_str)
                         if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
@@ -311,8 +311,7 @@ class Parser:
             self.node_id += 1
             if hasFrom == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
-                                              var=['@' + str(self.node_id)])
-                node2.set_val(legal_info[2])
+                                              var=['@' + str(self.node_id)],val=legal_info[2])
             elif hasFrom == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
