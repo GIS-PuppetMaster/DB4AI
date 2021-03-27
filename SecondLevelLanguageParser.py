@@ -311,7 +311,7 @@ class Parser:
             self.node_id += 1
             if hasFrom == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
-                                              var=['@' + str(self.node_id)],val=legal_info[2])
+                                              var=['@' + str(self.node_id)], val=legal_info[2])
             elif hasFrom == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
@@ -595,15 +595,19 @@ class Parser:
         :param query:
         :return: True 合法语句，False 非法语句
         """
-        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$' \
-                  '|operator ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$'
-        para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*, )*[a-zA-Z_]+[a-zA-Z0-9_]*'
+        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*)[ ]?[(](.+)[)]{\n$' \
+                  '|operator ([a-zA-Z_]+[a-zA-Z0-9_]*)[ ]?[(](.+)[)]{\n$'
+        para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*[ ]?,[ ]?)*[a-zA-Z_]+[a-zA-Z0-9_]*'
         matchObj = re.match(c_o_reg, query)
         if matchObj:
             self.isCu = True
-            self.operator = matchObj.group(1)
-            parameter_str = re.search(para_reg, matchObj.group(2)).group()
-            parameter_li = parameter_str.split(', ')
+            if matchObj.group(1) is not None:
+                self.operator = matchObj.group(1)
+                parameter_str = re.search(para_reg, matchObj.group(2)).group()
+            else:
+                self.operator = matchObj.group(3)
+                parameter_str = re.search(para_reg, matchObj.group(4)).group()
+            parameter_li = parameter_str.replace(' ','').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
             self.node_id = -1
