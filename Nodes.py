@@ -77,11 +77,10 @@ class Node:
         pass
 
     def set_vars(self, input):
-        if isinstance(input,list):
+        if isinstance(input, list):
             self.vars = input
         else:
             self.vars.append(input)
-
 
     def get_vars(self):
         return self.vars
@@ -102,8 +101,11 @@ class CreateTensor(Node):
         super().__init__(1, **kwargs)
         if isinstance(data_shape, tuple):
             self.data_shape = data_shape
-        else:
+        elif isinstance(data_shape, str):
             self.data_shape = eval(data_shape)
+        elif data_shape is None:
+            self.data_shape = None
+        # TODO: infer data_shape
         self.vars = var
 
     def run(self, **kwargs):
@@ -329,7 +331,8 @@ class Add(Node):
         super().__init__(12, **kwargs)
 
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[self.vars[2]]
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
+            self.vars[2]]
 
 
 class Sub(Node):
@@ -551,6 +554,15 @@ class GRADIENT(Node):
     def __init__(self, **kwargs):
         super().__init__(36, **kwargs)
 
+    def run(self, **kwargs):
+        if len(self.vars) == 2:
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].grad
+        else:
+            # TODO: add list data type
+            self.executor.var_dict[self.vars[1]].backward()
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[2]].grad
+
+
 
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
@@ -589,7 +601,6 @@ class Var(Node):
         super().__init__(39, **kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
-
 
 
 def shallow_copy(fun):
