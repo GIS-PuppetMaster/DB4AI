@@ -546,16 +546,22 @@ class STACK(Node):
         self.axis = axis
 
 
+# 用来计算梯度
+class GRADIENT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(36, **kwargs)
+
+
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(37, **kwargs)
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(38, **kwargs)
         self.name = ''
         self.slice_info = None
         self.slice_index = None
@@ -580,14 +586,10 @@ class Slice(Node):
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
+        super().__init__(39, **kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
 
-# 用来计算梯度
-class Gradient(Node):
-    def __init__(self, **kwargs):
-        super().__init__(39, **kwargs)
 
 
 def shallow_copy(fun):
