@@ -77,7 +77,11 @@ class Node:
         pass
 
     def set_vars(self, input):
-        self.vars.append(input)
+        if isinstance(input,list):
+            self.vars = input
+        else:
+            self.vars.append(input)
+
 
     def get_vars(self):
         return self.vars
@@ -577,14 +581,8 @@ class Slice(Node):
 class Var(Node):
     def __init__(self, **kwargs):
         super().__init__(38, **kwargs)
-        self.var = 0
-
-    def set_val(self, var):
-        self.var = var
-
-    def get_val(self):
-        return self.var
-
+        if 'vars' in kwargs.keys():
+            self.set_vars(kwargs['vars'])
 
 # 用来计算梯度
 class Gradient(Node):
@@ -644,5 +642,5 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
     else:
-        node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad)
+        node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad, **otherField)
     return node
