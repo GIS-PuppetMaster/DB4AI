@@ -563,7 +563,6 @@ class GRADIENT(Node):
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[2]].grad
 
 
-
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):

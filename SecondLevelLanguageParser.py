@@ -43,8 +43,12 @@ class Parser:
         root = Nd.InstantiationClass(self.node_id, 'Root', self.branches)
         self.graph.InsertNode(root)
         self.branches.append(0)
+        self.queries[-1] = self.queries[-1] + '\n'
+        self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
+            if len(query) == 0:
+                continue
             if self.CreateTensor(query):
                 pass
             elif self.Loop(query):
@@ -224,7 +228,8 @@ class Parser:
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
-        create_tensor_reg = f'^(CREATE|create) (TENSOR|tensor) {variable_name_reg}[^ ]*( (FROM|from) [^ ]+)?( (WITH|with) (GRAD|grad))?\n$'
+        create_tensor_reg = f'^(CREATE|create) (TENSOR|tensor) {variable_name_reg}[^ ]*' \
+                            f'( (FROM|from) [^ ]+)?( (WITH|with) (GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = '(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = f'^(RANDOM|random)([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
@@ -236,7 +241,7 @@ class Parser:
         matchObj = re.match(create_tensor_reg, query)
         if matchObj:
             query = matchObj.group()
-            if re.search('WITH', query) or re.search('with', query):
+            if re.search('WITH|with', query):
                 hasWith = True
             T_name = matchObj.group(3)
             if self.var_dict.get(T_name, None):
@@ -400,7 +405,7 @@ class Parser:
             self.EndIf()
             if_str = matchObj_if.group(2)
             condition = re.search(con_reg, if_str).group()
-            if condition!='true' and condition!='TRUE':
+            if condition != 'true' and condition != 'TRUE':
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
                     return False
@@ -507,7 +512,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select) (.+) (AS|as) {variable_name_reg} (FROM|from) (.+)\n'
+        ass_reg2 = f'^(SELECT|select) (.+) (AS|as) {variable_name_reg} (FROM|from) ([^ ]+)( (WITH|with) (GRAD|grad))?\n'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
         if matchObj1:
@@ -529,17 +534,15 @@ class Parser:
             real_var = set()
             as_replace = dict()
             for v_i in var_info:
-                if re.search(' AS ', v_i):
+                if re.search(' AS | as ', v_i):
                     rep = v_i.split(' AS ')
-                    as_replace[rep[0]] = rep[1]
-                    real_var.add(rep[1])
-                elif re.search(' as ', v_i):
-                    rep = v_i.split(' as ')
                     as_replace[rep[0]] = rep[1]
                     real_var.add(rep[1])
                 else:
                     real_var.add(v_i)
             exp = v_name + ' = ' + matchObj2.group(2)
+            if re.search('WITH|with', query):
+                exp = exp + ' WITH GRAD'
             self.node_id += 1
             branches = self.branches.copy()
             p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
@@ -650,7 +653,6 @@ class Parser:
 if __name__ == '__main__':
     with open('test.txt', 'r') as f:
         create_test = f.readlines()
-    create_test.append('$')
     testPar = Parser(create_test)
     result = testPar()
     executor = Executor(result)
