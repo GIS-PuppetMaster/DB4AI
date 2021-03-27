@@ -7,6 +7,8 @@ import json
 import os
 import pickle
 
+from Executor import Executor
+
 
 class Parser:
     def __init__(self, queries: list):
@@ -68,6 +70,7 @@ class Parser:
                 self.graph.Show()
                 raise Exception('非法语句：' + query)
         self.graph.Show()
+        return self.graph
 
     #  用于解析语句时维护解析器或计算图数据的主要函数
     def StateConvert(self, c_state):
@@ -221,11 +224,10 @@ class Parser:
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
-        create_tensor_reg = f'^CREATE TENSOR {variable_name_reg}[^ ]*( FROM [^ ]+)?( WITH GRAD)?\n$' \
-                            f'|create tensor {variable_name_reg}[^ ]*( from [^ ]+)?( with grad)?\n$'
+        create_tensor_reg = f'^(CREATE|create) (TENSOR|tensor) {variable_name_reg}[^ ]*( (FROM|from) [^ ]+)?( (WITH|with) (GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
-        val_info_reg2 = 'SQL[(](.+)[)]|sql[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
-        val_info_reg3 = f'^RANDOM([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])|random[(](.+)[)]'
+        val_info_reg2 = '(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
+        val_info_reg3 = f'^(RANDOM|random)([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
         hasWith = False  # 是否需要记录梯度
@@ -234,9 +236,9 @@ class Parser:
         matchObj = re.match(create_tensor_reg, query)
         if matchObj:
             query = matchObj.group()
-            if re.search('WITH', query):
+            if re.search('WITH', query) or re.search('with', query):
                 hasWith = True
-            T_name = matchObj.group(1)
+            T_name = matchObj.group(3)
             if self.var_dict.get(T_name, None):
                 return False
             li = query.split(' ')
@@ -266,7 +268,7 @@ class Parser:
                         legal_info.append(value)
                         hasFrom = 1
                     elif match3:
-                        in_random_str = match3.group(1)
+                        in_random_str = match3.group(2)
                         type_search_Obj = re.search(',\'([a-zA-z]+)\'[)]', in_random_str)
                         if type_search_Obj:
                             type = type_search_Obj.group(1)
@@ -308,8 +310,7 @@ class Parser:
             self.node_id += 1
             if hasFrom == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
-                                              var=['@' + str(self.node_id)])
-                node2.set_val(legal_info[0])
+                                              var=['@' + str(self.node_id)], val=legal_info[2])
             elif hasFrom == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
@@ -339,11 +340,11 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        loop_reg = 'LOOP ([1-9][0-9]*|TRUE){\n$|loop ([1-9][0-9]*|true){\n$'
+        loop_reg = '(LOOP|loop)[ \t]*[(]([1-9][0-9]*|TRUE)[)]{\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
             self.EndIf()
-            loop_str = matchObj.group(1)
+            loop_str = matchObj.group(2)
             if loop_str == 'true' or loop_str == 'TRUE':
                 condition = True
             else:
@@ -389,19 +390,22 @@ class Parser:
         :return:True 合法语句，False 非法语句
         """
         con_reg = '[a-zA-Z0-9_=!<> ]+'
-        if_reg = 'IF [(](.+)[)]{\n$|if [(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
-        elif_reg = 'ELIF [(](.+)[)]{\n$|elif [(](.+)[)]{\n$'
-        else_reg = 'ELSE {\n$|else {\n$'
+        if_reg = '(IF|if)[ \t]*[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
+        elif_reg = '(ELIF|elif)[ \t]*[(](.+)[)]{\n$'
+        else_reg = '(ELSE|else)[ \t]*{\n$'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
         if matchObj_if:
             self.EndIf()
-            if_str = matchObj_if.group(1)
+            if_str = matchObj_if.group(2)
             condition = re.search(con_reg, if_str).group()
-            var_li = self.MatchLogicExp(condition)
-            if not var_li:
-                return False
+            if condition!='true' and condition!='TRUE':
+                var_li = self.MatchLogicExp(condition)
+                if not var_li:
+                    return False
+            else:
+                var_li = []
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
             if self.graph.nodes[self.root_id].type_id == 6:
@@ -427,7 +431,7 @@ class Parser:
             return True
         elif matchObj_elif:
             if self.state == 'if':
-                if_str = matchObj_elif.group(1)
+                if_str = matchObj_elif.group(2)
                 condition = re.search(con_reg, if_str).group()
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
@@ -502,8 +506,8 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
-        ass_reg1 = f'^{variable_name_reg} = SQL[(](.+)[)]\n$'
-        ass_reg2 = f'^SELECT (.+) AS {variable_name_reg} FROM (.+)'
+        ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
+        ass_reg2 = f'^(SELECT|select) (.+) (AS|as) {variable_name_reg} (FROM|from) (.+)\n'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
         if matchObj1:
@@ -519,8 +523,8 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif matchObj2:
             self.EndIf()
-            var_str = matchObj2.group(3)
-            v_name = matchObj2.group(2)
+            var_str = matchObj2.group(6)
+            v_name = matchObj2.group(4)
             var_info = list(map(lambda x: x.strip(), var_str.split(',')))
             real_var = set()
             as_replace = dict()
@@ -529,9 +533,13 @@ class Parser:
                     rep = v_i.split(' AS ')
                     as_replace[rep[0]] = rep[1]
                     real_var.add(rep[1])
+                elif re.search(' as ', v_i):
+                    rep = v_i.split(' as ')
+                    as_replace[rep[0]] = rep[1]
+                    real_var.add(rep[1])
                 else:
                     real_var.add(v_i)
-            exp = v_name + ' = ' + matchObj2.group(1)
+            exp = v_name + ' = ' + matchObj2.group(2)
             self.node_id += 1
             branches = self.branches.copy()
             p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
@@ -593,15 +601,17 @@ class Parser:
         :param query:
         :return: True 合法语句，False 非法语句
         """
-        c_o_reg = 'OPERATOR ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$' \
-                  '|operator ([a-zA-Z_]+[a-zA-Z0-9_]*)[(](.+)[)]{\n$'
-        para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*, )*[a-zA-Z_]+[a-zA-Z0-9_]*'
+        c_o_reg = '(OPERATOR|operator)[ \t]*([a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*[(](.+)[)]{\n$'
+        para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*[ \t]*,[ \t]*)*[a-zA-Z_]+[a-zA-Z0-9_]*'
         matchObj = re.match(c_o_reg, query)
         if matchObj:
             self.isCu = True
-            self.operator = matchObj.group(1)
-            parameter_str = re.search(para_reg, matchObj.group(2)).group()
-            parameter_li = parameter_str.split(', ')
+            if matchObj.group(2) is not None:
+                self.operator = matchObj.group(2)
+                parameter_str = re.search(para_reg, matchObj.group(3)).group()
+            else:
+                return False
+            parameter_li = parameter_str.replace(' ', '').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
             self.node_id = -1
@@ -643,3 +653,6 @@ if __name__ == '__main__':
     create_test.append('$')
     testPar = Parser(create_test)
     result = testPar()
+    executor = Executor(result)
+    executor.run()
+    print(executor.var_dict)

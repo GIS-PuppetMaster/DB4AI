@@ -13,9 +13,11 @@ class Edge:
         # 例如2^3，end节点为pow，则2对应的边的parameter_index=1，3对应的边的parameter_index=2
         # 例如3^2，end节点为pow，则3对应的边的parameter_index=1，2对应的边的parameter_index=2
         self.parameter_index = None
+        if condition == 'no':
+            condition = None
         self.condition = condition
         self.reverse = False
-        if self.condition != 'no':
+        if self.condition is not None:
             self.need_var = kwargs['need_var']
             self.SplitCon()
         if in_var:

@@ -1,9 +1,9 @@
-from collections import defaultdict
-
+from Nodes import LoopEnd
 from Nodes import *
 from utils import *
 import numpy as np
 import yaml
+
 
 def batch_stream(fun):
     # 对所有接收数据流并输出数据流的节点使用此装饰器
@@ -73,6 +73,7 @@ def operator_wrapper(fun):
         node.executor.pipeline[node.vars[0]].put(batch)
 
     return decorated
+
 
 class BatchedTensor:
     def __init__(self, source_tensor, next_nodes, branches, batch_size: int, start_index: int, batch_axis: int = 0, step: int = 1):
@@ -169,7 +170,7 @@ class Executor:
         with open('./config.yaml', encoding='utf-8') as f:
             config = yaml.load_all(f)
         self.config = config
-        self.default_batch_size = config['default_batch_size']
+        # self.default_batch_size = config['default_batch_size']
         self.graph = graph
         # 存放每个完整Tensor的dict, key=变量名, value=ndarray
         self.var_dict = dict()
@@ -177,15 +178,36 @@ class Executor:
         # self.pipeline = dict()
         self.finished_loop_id = set()
         self.init_nodes()
+        self.finished_nodes = set()
         # self.init_branches(self.graph.nodes[0], None)
 
-    @bfs
-    def init_nodes(self, current_node):
-        current_node.generate_data_edges()
+    @bfs(True)
+    def init_nodes(self, current_node, **kwargs):
+        if isinstance(current_node, Loop):
+            if 'loop' not in kwargs['info'].keys():
+                kwargs['info']['loop'] = {}
+            loop_info = kwargs['info']['loop']
+            loop_info[current_node.loop_id] = current_node
+        elif isinstance(current_node, LoopEnd):
+            loop = kwargs['info']['loop'][current_node.loop_id]
+            current_node.loop_pair = loop
+            loop.loop_pair = current_node
+            kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
+        elif isinstance(current_node, Break):
+            if 'break' not in kwargs['info'].keys():
+                kwargs['info']['break'] = {}
+            kwargs['info']['break'][current_node.loop_id] = current_node
+        current_node.fathers = [edge.start for edge in current_node.in_edges]
+        current_node.sons = [edge.end for edge in current_node.out_edges]
+        current_node.branches_set = set(current_node.branches)
+        # current_node.generate_data_edges()
         current_node.infer_data()
-        self.var_dict[current_node.vars[0]] = np.empty(current_node.shape)
+        # if len(current_node.vars)>0:
+        #     self.var_dict[current_node.vars[0]] = np.empty(current_node.data_shape)
         # self.pipeline[current_node.vars[0]] = Queue()
         current_node.executor = self
+        return True
+
         # current_node.default_batch_size = self.default_batch_size
 
     def init_branches(self, node, current_branch):
@@ -200,9 +222,17 @@ class Executor:
             for next_node in next_nodes:
                 self.init_branches(next_node, current_branch)
 
-    @bfs
-    def execute(self, current_node):
-        current_node.run()
+    @bfs(False)
+    def execute(self, current_node, **kwargs):
+        visited = kwargs['visited']
+        # 确保父节点都执行完了再执行他
+        if not isinstance(current_node, IfEnd) and not isinstance(current_node, LoopEnd):
+            for father in current_node.fathers:
+                if father not in self.finished_nodes and not isinstance(father, LoopEnd):
+                    return False
+        current_node.run(visited=visited, executor=self)
+        self.finished_nodes.add(current_node)
+        return True
 
     def run(self):
         self.execute()
