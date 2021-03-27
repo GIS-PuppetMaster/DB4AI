@@ -1,21 +1,13 @@
-CREATE TENSOR x(4,3) FROM RANDOM((4,3),(0,1))
-CREATE TENSOR w(3,5) FROM RANDOM((3,5),(0,1))
-CREATE TENSOR y(4,5)
-CREATE TENSOR z(4,3)
-CREATE TENSOR flag(1,) FROM 0
-CREATE TENSOR a(1,) FROM 1
-CREATE TENSOR b(1,) FROM 2
+CREATE TENSOR x(1000,14) FROM RANDOM((1000,14),(0,1))
+CREATE TENSOR w(1,14) FROM RANDOM((1,14),(0,1),'int') WITH GRAD
+CREATE TENSOR y(1000,1)
+CREATE TENSOR learning_rate(1,) FROM 0.01
 LOOP 5{
-IF (flag<1){
-SELECT flag + 1 AS flag FROM flag
-}
-ELIF (flag<2){
-SELECT flag + 2 AS flag FROM flag
-}
-ELIF (flag<3){
-SELECT flag + 3 AS flag FROM flag
-}
-ELSE {
+SELECT 1/(1+POW(CONSTANT.E, w * x)) AS hx FROM w, x
+SELECT y*LOG(hx)+(1-y)(1-hx) AS loss FROM y, hx
+SELECT GRADIENT(loss, w) AS g FROM loss, w
+SELECT learning_rate*g+w AS w FROM learning_rate, g, w
+IF(loss<0.01){
 BREAK
 }
 }
