@@ -3,6 +3,7 @@ from Nodes import *
 from utils import *
 import numpy as np
 import yaml
+from collections import defaultdict
 
 
 class Executor:
@@ -15,6 +16,7 @@ class Executor:
         self.finished_loop_id = set()
         self.finished_nodes = set()
         self.last_use = {}
+        self.wait_to_be_release_after_loop = defaultdict(set)
         self.init_executor()
 
     def init_executor(self):
@@ -44,9 +46,16 @@ class Executor:
         current_node.branches_set = set(current_node.branches)
         current_node.infer_data()
         current_node.executor = self
-        # TODO: 执行loop内部时不回收，只回收带@的
+        in_loop = -1
+        for branch in current_node.branches:
+            # 处于loop内部
+            if isinstance(self.graph.nodes[branch], Loop):
+                in_loop = branch
+                break
+        current_node.in_loop = in_loop
         for var_name in current_node.vars[1:]:
             self.last_use[var_name] = current_node
+
         return True
 
     def init_branches(self, node, current_branch):
@@ -73,9 +82,16 @@ class Executor:
         # TODO: 对requires_grad对象的回收
         for var_name in current_node.release_list:
             if not self.var_dict[var_name].requires_grad:
-                self.var_dict.pop(var_name)
+                if current_node.in_loop == -1 or '@' in var_name:
+                    self.var_dict.pop(var_name)
+                else:
+                    # loop结束后再回收
+                    self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
         for var_name in list(self.var_dict.keys()):
-            if var_name not in self.last_use.keys() or ('@' in var_name and not self.var_dict[var_name].requires_grad):
+            if var_name not in self.last_use.keys():
+                self.var_dict.pop(var_name)
+        if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
+            for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
                 self.var_dict.pop(var_name)
         self.finished_nodes.add(current_node)
         return True
