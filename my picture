@@ -224,6 +224,16 @@ False"]
 [0, 44]
 []
 False"]
+	45 [label="45
+<class 'Nodes.Var'>
+[0, 44]
+['y']
+False"]
+	46 [label="46
+<class 'Nodes.Assignment'>
+[0, 44]
+['y', 'y']
+False"]
 	0 -> 1 [color=green]
 	1 -> 3 [color=green]
 	2 -> 3 [color=green]
@@ -287,4 +297,6 @@ False"]
 	42 -> 43 [color=green]
 	43 -> 44 [color=green]
 	44 -> 18 [color=green]
+	44 -> 45 [color=green]
+	45 -> 46 [color=green]
 }
