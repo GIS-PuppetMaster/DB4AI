@@ -122,10 +122,11 @@ class Graph:
     def GetNoOutNodes(self):
         return self.without_out
 
-    def ReplaceNodeId(self, s_id, branches):
+    def ChangeNodeInfo(self, s_id, branches, with_grad):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
             self.nodes[i].branches = branches + self.nodes[i].branches
+            self.nodes[i].with_grad = with_grad
 
 
 if __name__ == '__main__':

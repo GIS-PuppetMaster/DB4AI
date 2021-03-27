@@ -79,7 +79,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches: list, replace={}):
+def analyze_expression(expression, x, branches: list, replace):
 
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子

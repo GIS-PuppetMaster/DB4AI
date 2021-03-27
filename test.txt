@@ -1,21 +1,20 @@
 CREATE TENSOR x(4,3) FROM RANDOM((4,3),(0,1))
 CREATE TENSOR w(3,5) FROM RANDOM((3,5),(0,1))
-CREATE TENSOR z(3,10) FROM RANDOM((3,10),(0,1))
 CREATE TENSOR y(4,5)
-CREATE TENSOR flag(1,) FROM 2
-LOOP TRUE{
+CREATE TENSOR z(4,3)
+CREATE TENSOR flag(1,) FROM 0
+CREATE TENSOR a(1,) FROM 1
+CREATE TENSOR b(1,) FROM 2
+LOOP 5{
 IF (flag<1){
-y = SQL('select')
+SELECT flag + 1 AS flag FROM flag
+}
+ELIF (flag<2){
+SELECT flag + 2 AS flag FROM flag
+}
+ELIF (flag<3){
+SELECT flag + 3 AS flag FROM flag
 }
 ELSE {
-CREATE TENSOR d(4,10)
-CREATE TENSOR e(4,10)
-SELECT r + e AS y FROM r AS d,e
-}
-}
-LOOP TRUE{
-SELECT MATMUL(x, w) AS z FROM x,w
-IF (z>27){
 BREAK
-}
 }

@@ -272,7 +272,7 @@ class Parser:
                             type = type_search_Obj.group(1)
                         else:
                             type = ''
-                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).+[)]', in_random_str)
+                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).*[)]', in_random_str)
                         if ran_matchObj:
                             data_shape = ran_matchObj.group(1)
                             boundary = ran_matchObj.group(2)
