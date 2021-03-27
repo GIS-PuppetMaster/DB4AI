@@ -2,219 +2,289 @@ digraph "computation graph" {
 	0 [label="0
 <class 'Nodes.Root'>
 []
-[]"]
+[]
+False"]
 	1 [label="1
 <class 'Nodes.CreateTensor'>
 [0]
-['x']"]
+['x']
+True"]
 	2 [label="2
 <class 'Nodes.Random'>
 [0]
-['@2']"]
+['@2']
+True"]
 	3 [label="3
 <class 'Nodes.Assignment'>
 [0]
-['x', '@2']"]
+['x', '@2']
+True"]
 	4 [label="4
 <class 'Nodes.CreateTensor'>
 [0]
-['w']"]
+['w']
+True"]
 	5 [label="5
 <class 'Nodes.Random'>
 [0]
-['@5']"]
+['@5']
+True"]
 	6 [label="6
 <class 'Nodes.Assignment'>
 [0]
-['w', '@5']"]
+['w', '@5']
+True"]
 	7 [label="7
 <class 'Nodes.CreateTensor'>
 [0]
-['y']"]
+['y']
+False"]
 	8 [label="8
 <class 'Nodes.CreateTensor'>
 [0]
-['z']"]
+['z']
+False"]
 	9 [label="9
 <class 'Nodes.CreateTensor'>
 [0]
-['flag']"]
+['flag']
+False"]
 	10 [label="10
 <class 'Nodes.Val'>
 [0]
-['@10']"]
+['@10']
+False"]
 	11 [label="11
 <class 'Nodes.Assignment'>
 [0]
-['flag', '@10']"]
+['flag', '@10']
+False"]
 	12 [label="12
 <class 'Nodes.CreateTensor'>
 [0]
-['a']"]
+['a']
+False"]
 	13 [label="13
 <class 'Nodes.Val'>
 [0]
-['@13']"]
+['@13']
+False"]
 	14 [label="14
 <class 'Nodes.Assignment'>
 [0]
-['a', '@13']"]
+['a', '@13']
+False"]
 	15 [label="15
 <class 'Nodes.CreateTensor'>
 [0]
-['b']"]
+['b']
+False"]
 	16 [label="16
 <class 'Nodes.Val'>
 [0]
-['@16']"]
+['@16']
+False"]
 	17 [label="17
 <class 'Nodes.Assignment'>
 [0]
-['b', '@16']"]
+['b', '@16']
+False"]
 	18 [label="18
 <class 'Nodes.Loop'>
 [0, 18]
-[]"]
+[]
+False"]
 	19 [label="19
 <class 'Nodes.If'>
 [0, 18]
-[]"]
+[]
+False"]
 	20 [label="20
 <class 'Nodes.IfBranch'>
 [0, 18, 20]
-[]"]
+[]
+False"]
 	21 [label="21
 <class 'Nodes.IfBranch'>
 [0, 18, 21]
-[]"]
+[]
+False"]
 	22 [label="22
 <class 'Nodes.Var'>
 [0, 18, 20]
-['flag']"]
+['flag']
+False"]
 	23 [label="23
 <class 'Nodes.Add'>
 [0, 18, 20]
-['temp23', 'flag', 'temp24']"]
+['@23', 'flag', '@24']
+False"]
 	24 [label="24
 <class 'Nodes.Val'>
 [0, 18, 20]
-['temp24']"]
+['@24']
+False"]
 	25 [label="25
 <class 'Nodes.Assignment'>
 [0, 18, 20]
-['flag', 'temp23']"]
+['flag', '@23']
+False"]
 	26 [label="26
 <class 'Nodes.IfBranch'>
 [0, 18, 21, 26]
-[]"]
+[]
+False"]
 	27 [label="27
 <class 'Nodes.IfBranch'>
 [0, 18, 21, 27]
-[]"]
+[]
+False"]
 	28 [label="28
 <class 'Nodes.Var'>
 [0, 18, 21, 26]
-['flag']"]
+['flag']
+False"]
 	29 [label="29
 <class 'Nodes.Add'>
 [0, 18, 21, 26]
-['temp29', 'flag', 'temp30']"]
+['@29', 'flag', '@30']
+False"]
 	30 [label="30
 <class 'Nodes.Val'>
 [0, 18, 21, 26]
-['temp30']"]
+['@30']
+False"]
 	31 [label="31
 <class 'Nodes.Assignment'>
 [0, 18, 21, 26]
-['flag', 'temp29']"]
+['flag', '@29']
+False"]
 	32 [label="32
 <class 'Nodes.IfBranch'>
 [0, 18, 21, 27, 32]
-[]"]
+[]
+False"]
 	33 [label="33
 <class 'Nodes.IfBranch'>
 [0, 18, 21, 27, 33]
-[]"]
+[]
+False"]
 	34 [label="34
 <class 'Nodes.Var'>
 [0, 18, 21, 27, 32]
-['flag']"]
+['flag']
+False"]
 	35 [label="35
 <class 'Nodes.Add'>
 [0, 18, 21, 27, 32]
-['temp35', 'flag', 'temp36']"]
+['@35', 'flag', '@36']
+False"]
 	36 [label="36
 <class 'Nodes.Val'>
 [0, 18, 21, 27, 32]
-['temp36']"]
+['@36']
+False"]
 	37 [label="37
 <class 'Nodes.Assignment'>
 [0, 18, 21, 27, 32]
-['flag', 'temp35']"]
+['flag', '@35']
+False"]
 	38 [label="38
 <class 'Nodes.IfBranch'>
 [0, 18, 21, 27, 33, 38]
-[]"]
+[]
+False"]
 	39 [label="39
-<class 'Nodes.Break'>
+<class 'Nodes.MATMUL'>
 [0, 18, 21, 27, 33, 38]
-[]"]
+['@39', 'x', 'w']
+True"]
 	40 [label="40
+<class 'Nodes.Var'>
+[0, 18, 21, 27, 33, 38]
+['x']
+True"]
+	41 [label="41
+<class 'Nodes.Var'>
+[0, 18, 21, 27, 33, 38]
+['w']
+True"]
+	42 [label="42
+<class 'Nodes.Assignment'>
+[0, 18, 21, 27, 33, 38]
+['y', '@39']
+False"]
+	43 [label="43
 <class 'Nodes.IfEnd'>
 [0, 18]
-[]"]
-	0 -> 1 [label=no color=green]
-	1 -> 3 [label=no color=green]
-	2 -> 3 [label=no color=green]
-	0 -> 2 [label=no color=green]
-	0 -> 4 [label=no color=green]
-	4 -> 6 [label=no color=green]
-	5 -> 6 [label=no color=green]
-	0 -> 5 [label=no color=green]
-	0 -> 7 [label=no color=green]
-	0 -> 8 [label=no color=green]
-	0 -> 9 [label=no color=green]
-	9 -> 11 [label=no color=green]
-	10 -> 11 [label=no color=green]
-	0 -> 10 [label=no color=green]
-	0 -> 12 [label=no color=green]
-	12 -> 14 [label=no color=green]
-	13 -> 14 [label=no color=green]
-	0 -> 13 [label=no color=green]
-	0 -> 15 [label=no color=green]
-	15 -> 17 [label=no color=green]
-	16 -> 17 [label=no color=green]
-	0 -> 16 [label=no color=green]
-	6 -> 18 [label=no color=green]
-	11 -> 18 [label=no color=green]
-	14 -> 18 [label=no color=green]
-	7 -> 18 [label=no color=green]
-	8 -> 18 [label=no color=green]
-	17 -> 18 [label=no color=green]
-	3 -> 18 [label=no color=green]
-	18 -> 19 [label=no color=green]
+[]
+False"]
+	44 [label="44
+<class 'Nodes.LoopEnd'>
+[0, 44]
+[]
+False"]
+	0 -> 1 [color=green]
+	1 -> 3 [color=green]
+	2 -> 3 [color=green]
+	0 -> 2 [color=green]
+	0 -> 4 [color=green]
+	4 -> 6 [color=green]
+	5 -> 6 [color=green]
+	0 -> 5 [color=green]
+	0 -> 7 [color=green]
+	0 -> 8 [color=green]
+	0 -> 9 [color=green]
+	9 -> 11 [color=green]
+	10 -> 11 [color=green]
+	0 -> 10 [color=green]
+	0 -> 12 [color=green]
+	12 -> 14 [color=green]
+	13 -> 14 [color=green]
+	0 -> 13 [color=green]
+	0 -> 15 [color=green]
+	15 -> 17 [color=green]
+	16 -> 17 [color=green]
+	0 -> 16 [color=green]
+	6 -> 18 [color=green]
+	11 -> 18 [color=green]
+	14 -> 18 [color=green]
+	7 -> 18 [color=green]
+	8 -> 18 [color=green]
+	17 -> 18 [color=green]
+	3 -> 18 [color=green]
+	18 -> 19 [color=green]
 	19 -> 20 [label="flag<1" color=yellow]
 	19 -> 21 [label="!flag<1" color=red]
-	22 -> 23 [label=no color=green]
-	24 -> 23 [label=no color=green]
-	20 -> 22 [label=no color=green]
-	23 -> 25 [label=no color=green]
+	22 -> 23 [color=green]
+	24 -> 23 [color=green]
+	20 -> 22 [color=green]
+	20 -> 24 [color=green]
+	23 -> 25 [color=green]
 	21 -> 26 [label="flag<2" color=yellow]
 	21 -> 27 [label="!flag<2" color=red]
-	28 -> 29 [label=no color=green]
-	30 -> 29 [label=no color=green]
-	26 -> 28 [label=no color=green]
-	29 -> 31 [label=no color=green]
+	28 -> 29 [color=green]
+	30 -> 29 [color=green]
+	26 -> 28 [color=green]
+	26 -> 30 [color=green]
+	29 -> 31 [color=green]
 	27 -> 32 [label="flag<3" color=yellow]
 	27 -> 33 [label="!flag<3" color=red]
-	34 -> 35 [label=no color=green]
-	36 -> 35 [label=no color=green]
-	32 -> 34 [label=no color=green]
-	35 -> 37 [label=no color=green]
-	33 -> 38 [label=no color=green]
-	38 -> 39 [label=no color=green]
-	37 -> 40 [label=no color=green]
-	31 -> 40 [label=no color=green]
-	25 -> 40 [label=no color=green]
-	39 -> 40 [label=no color=green]
+	34 -> 35 [color=green]
+	36 -> 35 [color=green]
+	32 -> 34 [color=green]
+	32 -> 36 [color=green]
+	35 -> 37 [color=green]
+	33 -> 38 [color=green]
+	40 -> 39 [color=green]
+	41 -> 39 [color=green]
+	38 -> 40 [color=green]
+	38 -> 41 [color=green]
+	39 -> 42 [color=green]
+	37 -> 43 [color=green]
+	31 -> 43 [color=green]
+	25 -> 43 [color=green]
+	42 -> 43 [color=green]
+	43 -> 44 [color=green]
+	44 -> 18 [color=green]
 }

@@ -23,6 +23,7 @@ class Node:
         self.use_batch = True
         self.fathers = [edge.start for edge in self.in_edges]
         self.sons = [edge.end for edge in self.out_edges]
+        self.release_list = []
 
     @property
     def default_batch_size(self):

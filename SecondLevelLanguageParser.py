@@ -345,7 +345,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        loop_reg = '(LOOP|loop)[ \t]*[(]([1-9][0-9]*|TRUE)[)]{\n$'
+        loop_reg = '(LOOP|loop)[ \t]+[(]([1-9][0-9]*|TRUE)[)]{\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
             self.EndIf()
@@ -395,9 +395,9 @@ class Parser:
         :return:True 合法语句，False 非法语句
         """
         con_reg = '[a-zA-Z0-9_=!<> ]+'
-        if_reg = '(IF|if)[ \t]*[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
-        elif_reg = '(ELIF|elif)[ \t]*[(](.+)[)]{\n$'
-        else_reg = '(ELSE|else)[ \t]*{\n$'
+        if_reg = '(IF|if)[ \t]+[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
+        elif_reg = '(ELIF|elif)[ \t]+[(](.+)[)]{\n$'
+        else_reg = '(ELSE|else)[ \t]+{\n$'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
@@ -512,7 +512,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select) (.+) (AS|as) {variable_name_reg} (FROM|from) ([^ ]+)( (WITH|with) (GRAD|grad))?\n'
+        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}[ \t]+(FROM|from)[ \t]+(({variable_name_reg}[ \t]*,[ \t]*)*{variable_name_reg}*)([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
         if matchObj1:
@@ -541,7 +541,7 @@ class Parser:
                 else:
                     real_var.add(v_i)
             exp = v_name + ' = ' + matchObj2.group(2)
-            if re.search('WITH|with', query):
+            if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
             self.node_id += 1
             branches = self.branches.copy()
@@ -604,7 +604,7 @@ class Parser:
         :param query:
         :return: True 合法语句，False 非法语句
         """
-        c_o_reg = '(OPERATOR|operator)[ \t]*([a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*[(](.+)[)]{\n$'
+        c_o_reg = '(OPERATOR|operator)[ \t]+([a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*[(](.+)[)]{\n$'
         para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*[ \t]*,[ \t]*)*[a-zA-Z_]+[a-zA-Z0-9_]*'
         matchObj = re.match(c_o_reg, query)
         if matchObj:
