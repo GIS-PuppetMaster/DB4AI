@@ -345,15 +345,17 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        loop_reg = '(LOOP|loop)[ \t]+[(]([1-9][0-9]*|TRUE)[)]{\n$'
+        loop_reg = '(LOOP|loop)[ \t]*[(]([1-9][0-9]*|TRUE|true|[a-zA-Z_]+[a-zA-Z0-9_]*)[)]{\n$'
         matchObj = re.match(loop_reg, query)
         if matchObj:
             self.EndIf()
             loop_str = matchObj.group(2)
             if loop_str == 'true' or loop_str == 'TRUE':
                 condition = True
-            else:
+            elif re.search('[1-9][0-9]*', loop_str):
                 condition = int(loop_str)
+            else:
+                condition = loop_str
             self.node_id += 1
             root_id = self.root_id
             self.StateConvert('loop')

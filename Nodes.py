@@ -215,7 +215,7 @@ class Random(Node):
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
         super().__init__(5, **kwargs)
-        if condition:
+        if condition or isinstance(condition, str):
             self.dead_cycle = condition
             self.times = 0
         else:
@@ -240,6 +240,8 @@ class Loop(Node):
         end_nodes = [edge.end for edge in self.out_edges]
         if self.loop_pair in end_nodes:
             end_nodes.remove(self.loop_pair)
+        if isinstance(self.dead_cycle, str):
+            self.dead_cycle = self.executor.var_dict[self.dead_cycle]
         # 循环结束
         if self.dead_cycle < self.times:
             # 找到对应的Loop_End
@@ -656,6 +658,15 @@ def shallow_copy(fun):
         return fun(*list_args, **kwargs)
 
     return decorated
+
+
+class SHAPE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(40, **kwargs)
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].shape
 
 
 # 通过globals方法，以类名选择类进行实例化
