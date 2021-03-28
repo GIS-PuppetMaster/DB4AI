@@ -99,9 +99,9 @@ class Parser:
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
                                          self.in_var.copy(), self.branches.copy(), self.loop_id])
-                if c_state == 'loop':
-                    self.loop_id = self.node_id
-                    self.branches.append(self.root_id)
+            if c_state == 'loop':
+                self.loop_id = self.node_id
+                self.branches.append(self.root_id)
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
@@ -122,7 +122,6 @@ class Parser:
                         self.branches.pop(-1)
                         self.extra_pop_num += -1
                 self.state = ''
-                self.branches.append(self.root_id)
             else:
                 state_li = self.state_stack.pop(-1)
                 if state_li[1] == 'if_branch':
@@ -131,7 +130,7 @@ class Parser:
                 elif state_li[1] == 'loop':
                     self.loop_id = state_li[5]
                 self.branches = state_li[4]
-                self.in_var = state_li[3]
+                self.in_var = self.in_var + state_li[3]
                 self.out_var = state_li[2]
                 self.state = state_li[1]
                 self.loop_or_if_id = state_li[0]
@@ -166,6 +165,7 @@ class Parser:
         if self.state == 'if':
             self.node_id += 1
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
+            self.branches.append(self.root_id)
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
                 if l_n.type_id == 9:
@@ -365,8 +365,6 @@ class Parser:
             com_branches = self.branches.copy()
             self.StateConvert('loop')
             node = Nd.InstantiationClass(self.node_id, 'Loop', self.branches, condition=condition, loop_id=self.loop_id)
-            if self.graph.nodes[root_id].type_id == 6:
-                self.graph.InsertEdge(self.graph.nodes[root_id], node)
             for l_n in self.graph.GetNoOutNodes().copy():
                 if l_n.branches == com_branches:
                     self.graph.InsertEdge(l_n, node)
@@ -423,8 +421,6 @@ class Parser:
                 var_li = []
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
-            if self.graph.nodes[self.root_id].type_id == 6:
-                self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
             for l_n in self.graph.GetNoOutNodes().copy():
                 if l_n.branches == self.branches:
                     self.graph.InsertEdge(l_n, node)
@@ -502,6 +498,7 @@ class Parser:
             if self.state == 'loop':
                 self.node_id += 1
                 self.StateConvert('end')
+                self.branches.append(self.root_id)
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
                 for l_n in self.graph.GetNoOutNodes().copy():
                     if l_n.type_id == 9:
