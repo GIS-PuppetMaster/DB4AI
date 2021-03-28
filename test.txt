@@ -1,11 +1,27 @@
-operator logistic(x,y,w,learning_rate,threshold, iter_times){
-    LOOP(iter_times){
-        SELECT 1 / (1 + POW(CONSTANT.E, w * x)) AS hx FROM w, x
-        SELECT y * LOG(hx) + (1 - y) * (1 - hx) AS loss FROM y, hx
-        SELECT GRADIENT(loss, w) AS g FROM loss, w
-        SELECT learning_rate * g + w AS w FROM learning_rate, g, w
-        IF(loss<threshold){
-            BREAK
+CREATE TENSOR x(4,3) FROM RANDOM((4,3),(0,1)) with grad
+CREATE TENSOR w(3,5) FROM RANDOM((3,5),(0,1)) with grad
+CREATE TENSOR y(4,5)
+CREATE TENSOR z(4,3)
+CREATE TENSOR flag(1,) FROM 0
+CREATE TENSOR a(1,) FROM 1
+CREATE TENSOR b(1,) FROM 1
+if(b==2){
+    LOOP (5){
+        IF (flag<1){
+            SELECT flag + 1 AS flag FROM flag
+        }
+        ELIF (flag<2){
+            SELECT flag + 2 AS flag FROM flag
+        }
+        ELIF (flag<3){
+            SELECT flag + 3 AS flag FROM flag
+        }
+        ELSE {
+            select MATMUL(x, w) as y from x, w with grad
         }
     }
 }
+else{
+ SELECT flag + 3 AS flag FROM flag
+}
+select y as y from y
