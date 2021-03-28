@@ -24,4 +24,4 @@ if(b==2){
 else{
  SELECT flag + 3 AS flag FROM flag
 }
-select y as y from y
+select flag as flag from flag

@@ -22,7 +22,11 @@ class Executor:
     def init_executor(self):
         self.init_nodes()
         for var_name, node in self.last_use.items():
-            node.release_list.append(var_name)
+            if isinstance(node, If):
+                for edge in node.out_edges:
+                    edge.end.release_list.append(var_name)
+            else:
+                node.release_list.append(var_name)
 
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
@@ -53,8 +57,15 @@ class Executor:
                 in_loop = branch
                 break
         current_node.in_loop = in_loop
-        for var_name in current_node.vars[1:]:
-            self.last_use[var_name] = current_node
+        if isinstance(current_node, If):
+            for var_name, _ in current_node.out_edges[0].need_var:
+                self.last_use[var_name] = current_node
+        elif isinstance(current_node, Loop):
+            if isinstance(current_node.dead_cycle, str):
+                self.last_use[current_node.dead_cycle] = current_node
+        else:
+            for var_name in current_node.vars[1:]:
+                self.last_use[var_name] = current_node
 
         return True
 
