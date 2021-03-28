@@ -603,16 +603,24 @@ class GRADIENT(Node):
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[2]].grad
 
 
-# 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
-class Blank(Node):
+class SHAPE(Node):
     def __init__(self, **kwargs):
         super().__init__(37, **kwargs)
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].shape
+
+
+class EXP(Node):
+    def __init__(self, **kwargs):
+        super().__init__(38, **kwargs)
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
+        super().__init__(39, **kwargs)
         self.name = ''
         self.slice_info = None
         self.slice_index = None
@@ -638,29 +646,15 @@ class Slice(Node):
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
-        super().__init__(39, **kwargs)
+        super().__init__(40, **kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
 
 
-class EXP(Node):
-    def __init__(self, **kwargs):
-        super().__init__(40, **kwargs)
-
-
-class Sum(Node):
+# 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
+class Blank(Node):
     def __init__(self, **kwargs):
         super().__init__(41, **kwargs)
-        self.axis = 0
-
-    def set_axis(self, axis):
-        self.axis = axis
-
-
-class Shape(Node):
-    def __init__(self, **kwargs):
-        super().__init__(41, **kwargs)
-        self.axis = 0
 
 
 def shallow_copy(fun):
@@ -678,15 +672,6 @@ def shallow_copy(fun):
         return fun(*list_args, **kwargs)
 
     return decorated
-
-
-class SHAPE(Node):
-    def __init__(self, **kwargs):
-        super().__init__(40, **kwargs)
-
-    @check_using
-    def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].shape
 
 
 # 通过globals方法，以类名选择类进行实例化

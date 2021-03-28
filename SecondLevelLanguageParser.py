@@ -622,7 +622,7 @@ class Parser:
             self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
-                node = Nd.InstantiationClass(self.node_id, 'Var', self.branches)
+                node = Nd.InstantiationClass(self.node_id, 'Var', self.branches, vars=p)
                 self.graph.InsertNode(node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])
