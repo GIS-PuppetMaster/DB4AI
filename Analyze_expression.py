@@ -85,7 +85,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
-                       'TRANSPOSE')
+                       'TRANSPOSE', 'SHAPE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
@@ -242,7 +242,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
         # 对于constant.PI和constant.E，节点值为对应张量，操作节点转移到父节点
         elif i in constant_dict.keys():
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches,
-                                                        value=constant_dict.get(i), with_grad=requires_grad))
+                                                        val=constant_dict.get(i), with_grad=requires_grad))
             x += 1
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
@@ -472,7 +472,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             parent = new_stack.pop()
             if parent.keynode.type_id != 37:
                 G.InsertEdge(list(operator_info[0])[0], parent.keynode)
-            list(operator_info[0])[0].set_vars('temp' + str(list(operator_info[0])[0].id))
+            list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
             cnt += 1
             for v in var:
                 list(operator_info[0])[0].set_vars(v.strip())
@@ -519,14 +519,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if len(top_node.get_vars()) == 0:
             top_node.set_vars(top_node.get_val())
     elif top_node.type_id == 2 or 12 <= top_node.type_id <= 36:
-        top_node.set_vars('temp' + str(top_node.id))
+        top_node.set_vars('@' + str(top_node.id))
     for e in G.edges:
         if e.GetStart().type_id == 39:
             if len(e.GetStart().get_vars()) == 0:
-                e.GetStart().set_vars(e.GetStart().get_val())
+                e.GetStart().set_vars(e.GetStart().get_vars())
         elif e.GetStart().type_id == 2 or 12 <= e.GetStart().type_id <= 36:
             if len(e.GetStart().get_vars()) == 0:
-                e.GetStart().set_vars('temp' + str(e.GetStart().id))
+                e.GetStart().set_vars('@' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
         if 12 <= e.GetEnd().type_id <= 36:

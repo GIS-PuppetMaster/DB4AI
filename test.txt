@@ -1,8 +1,11 @@
-operator    test (z){
-create TENSOR x(10,4) from random((10,4),(0,1))
-create tensor w(4,1) FROM random((4,1),(0,1))
-create tensor y(10,1) from random((10,1),(0,1))
-if(true){
-select MATMUL(x, w) as y_pred from x, w
-}
+operator logistic(x,y,w,learning_rate,threshold, iter_times){
+    LOOP(iter_times){
+        SELECT 1 / (1 + POW(CONSTANT.E, w * x)) AS hx FROM w, x
+        SELECT y * LOG(hx) + (1 - y) * (1 - hx) AS loss FROM y, hx
+        SELECT GRADIENT(loss, w) AS g FROM loss, w
+        SELECT learning_rate * g + w AS w FROM learning_rate, g, w
+        IF(loss<threshold){
+            BREAK
+        }
+    }
 }

@@ -80,16 +80,6 @@ class Graph:
         self.without_out.add(node)
         return True
 
-    def GetNode(self, id):
-        if len(self.nodes):
-            for node in self.nodes:
-                if id == node.id:
-                    return node
-            else:
-                return False
-        else:
-            return False
-
     def GetSet(self):
         return self.nodes, self.edges
 
@@ -97,10 +87,11 @@ class Graph:
     def Show(self):
         dot = Digraph(name="computation graph", format="png")
         for node in self.nodes:
-            id = node.id
-            dot.node(name=str(id), label=str(id) + '\n' + str(node.__class__) + '\n' + str(node.branches) + '\n' + str(node.vars))
+            node_info = str(node.id) + '\n' + str(node.__class__) + '\n' + str(node.branches) + \
+                        '\n' + str(node.vars) + '\n' + str(node.with_grad)
+            dot.node(name=str(node.id), label=node_info)
         for edge in self.edges:
-            if edge.GetCondition()[1] == 'no':
+            if not edge.GetCondition()[1]:
                 dot.edge(str(edge.GetStart().id), str(edge.GetEnd().id),
                          label=edge.GetCondition()[1], color='green')
             elif edge.GetCondition()[0]:
@@ -124,10 +115,11 @@ class Graph:
     def GetNoOutNodes(self):
         return self.without_out
 
-    def ReplaceNodeId(self, s_id, branches):
+    def ChangeNodeInfo(self, s_id, branches, with_grad):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
             self.nodes[i].branches = branches + self.nodes[i].branches
+            # self.nodes[i].with_grad = with_grad
 
 
 if __name__ == '__main__':

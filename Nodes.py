@@ -3,6 +3,15 @@ from functools import wraps
 from copy import copy
 
 
+def check_using(fun):
+    @wraps(fun)
+    def decorated(node, **kwargs):
+        if len(node.vars) == 0 or node.vars[0] in node.executor.last_use.keys():
+            return fun(node, **kwargs)
+
+    return decorated
+
+
 class Node:
     # 计算图中节点类的父类
     def __init__(self, type_id, with_grad=False, physic_algorithm='relational', **kwargs):
@@ -23,6 +32,8 @@ class Node:
         self.use_batch = True
         self.fathers = [edge.start for edge in self.in_edges]
         self.sons = [edge.end for edge in self.out_edges]
+        self.release_list = []
+        self.in_loop = -1
 
     @property
     def default_batch_size(self):
@@ -52,6 +63,7 @@ class Node:
             else:
                 self.input_data_edges.append(in_edge)
 
+    @check_using
     def run(self, **kwargs):
         pass
 
@@ -108,6 +120,7 @@ class CreateTensor(Node):
         # TODO: infer data_shape
         self.vars = var
 
+    @check_using
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
         # self.executor.var_dict[self.vars[0]] = None
@@ -133,6 +146,7 @@ class Val(Node):
     def set_val(self, value):
         self.value = value
 
+    @check_using
     def run(self, **kwargs):
         if self.vars[0] not in self.executor.var_dict:
             self.executor.var_dict[self.vars[0]] = torch.tensor(self.value)
@@ -153,6 +167,7 @@ class Sql(Node):
         self.shape = None
         # self.batch_size = None  # TODO: 自动选择batch_size
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = None  # TODO:get data
 
@@ -178,6 +193,7 @@ class Random(Node):
         else:
             self.distribution = distribution
 
+    @check_using
     def run(self, **kwargs):
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
@@ -199,15 +215,17 @@ class Random(Node):
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
         super().__init__(5, **kwargs)
-        if condition:
+        if condition or isinstance(condition, str):
             self.dead_cycle = condition
             self.times = 0
         else:
             self.dead_cycle = False
             self.times = condition
         self.loop_id = loop_id
+        assert self.loop_id == self.id
         self.loop_pair = None
 
+    @check_using
     def run(self, **kwargs):
         visited = kwargs['visited']
         executor = kwargs['executor']
@@ -222,6 +240,8 @@ class Loop(Node):
         end_nodes = [edge.end for edge in self.out_edges]
         if self.loop_pair in end_nodes:
             end_nodes.remove(self.loop_pair)
+        if isinstance(self.dead_cycle, str):
+            self.dead_cycle = self.executor.var_dict[self.dead_cycle]
         # 循环结束
         if self.dead_cycle < self.times:
             # 找到对应的Loop_End
@@ -237,6 +257,7 @@ class LoopEnd(Node):
         self.loop_id = loop_id
         self.loop_pair = None
 
+    @check_using
     def run(self, **kwargs):
         visited = kwargs['visited']
         executor = kwargs['executor']
@@ -322,6 +343,7 @@ class Assignment(Node):
         super().__init__(11, **kwargs)
         self.vars = var_li
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
 
@@ -330,6 +352,7 @@ class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
             self.vars[2]]
@@ -339,6 +362,7 @@ class Sub(Node):
     def __init__(self, **kwargs):
         super().__init__(13, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[
             self.vars[2]]
@@ -348,6 +372,7 @@ class Mul(Node):
     def __init__(self, **kwargs):
         super().__init__(14, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
             self.vars[2]]
@@ -357,6 +382,7 @@ class Div(Node):
     def __init__(self, **kwargs):
         super().__init__(15, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[
             self.vars[2]]
@@ -366,6 +392,7 @@ class LOG(Node):
     def __init__(self, **kwargs):
         super().__init__(16, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
 
@@ -374,6 +401,7 @@ class POW(Node):
     def __init__(self, **kwargs):
         super().__init__(17, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]],
                                                          self.executor.var_dict[self.vars[2]])
@@ -383,6 +411,7 @@ class SQRT(Node):
     def __init__(self, **kwargs):
         super().__init__(18, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.sqrt(self.executor.var_dict[self.vars[1]])
 
@@ -391,6 +420,7 @@ class MATMUL(Node):
     def __init__(self, **kwargs):
         super().__init__(19, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.matmul(self.executor.var_dict[self.vars[1]],
                                                             self.executor.var_dict[self.vars[2]])
@@ -400,6 +430,7 @@ class DOT(Node):
     def __init__(self, **kwargs):
         super().__init__(20, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.dot(self.executor.var_dict[self.vars[1]],
                                                          self.executor.var_dict[self.vars[2]])
@@ -409,6 +440,7 @@ class INNER(Node):
     def __init__(self, **kwargs):
         super().__init__(21, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.inn(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
         raise Exception('暂不支持inner')
@@ -418,6 +450,7 @@ class OUTER(Node):
     def __init__(self, **kwargs):
         super().__init__(22, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         raise Exception('暂不支持outer')
 
@@ -426,6 +459,7 @@ class TENSORDOT(Node):
     def __init__(self, **kwargs):
         super().__init__(23, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensordot(self.executor.var_dict[self.vars[1]],
                                                                self.executor.var_dict[self.vars[2]])
@@ -462,6 +496,7 @@ class SVD(Node):
         self.compute_uv = bool(compute_uv)
         self.hermitian = bool(hermitian)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.linalg.svd(self.executor.var_dict[self.vars[1]],
                                                                 full_matrices=self.full_matrices,
@@ -492,6 +527,7 @@ class DET(Node):
     def __init__(self, **kwargs):
         super().__init__(30, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.det(self.executor.var_dict[self.vars[1]])
 
@@ -500,6 +536,7 @@ class RANK(Node):
     def __init__(self, **kwargs):
         super().__init__(31, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.rank(self.executor.var_dict[self.vars[1]])
         raise Exception('暂不支持rank')
@@ -517,6 +554,7 @@ class TRACE(Node):
         self.parameter_dict['dtype'] = dtype
         self.parameter_dict['out'] = out
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.trace(self.executor.var_dict[self.vars[1]])
 
@@ -531,6 +569,7 @@ class RESHAPE(Node):
         self.new_shape = newshape
         self.order = order
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.reshape(self.executor.var_dict[self.vars[1]], self.new_shape)
 
@@ -554,6 +593,7 @@ class GRADIENT(Node):
     def __init__(self, **kwargs):
         super().__init__(36, **kwargs)
 
+    @check_using
     def run(self, **kwargs):
         if len(self.vars) == 2:
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].grad
@@ -590,6 +630,7 @@ class Slice(Node):
                 total_slice.append(int(idx))
         self.slice_index = total_slice
 
+    @check_using
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
 
@@ -637,6 +678,15 @@ def shallow_copy(fun):
         return fun(*list_args, **kwargs)
 
     return decorated
+
+
+class SHAPE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(40, **kwargs)
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].shape
 
 
 # 通过globals方法，以类名选择类进行实例化
