@@ -563,7 +563,6 @@ class GRADIENT(Node):
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[2]].grad
 
 
-
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
@@ -601,6 +600,26 @@ class Var(Node):
         super().__init__(39, **kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
+
+
+class EXP(Node):
+    def __init__(self, **kwargs):
+        super().__init__(40, **kwargs)
+
+
+class Sum(Node):
+    def __init__(self, **kwargs):
+        super().__init__(41, **kwargs)
+        self.axis = 0
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class Shape(Node):
+    def __init__(self, **kwargs):
+        super().__init__(41, **kwargs)
+        self.axis = 0
 
 
 def shallow_copy(fun):
