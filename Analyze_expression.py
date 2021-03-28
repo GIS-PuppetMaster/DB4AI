@@ -289,7 +289,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if j == 'POW':
                 exp = var[1]
                 if re.fullmatch(re.compile('\d+'), exp.strip()):
-                    exp_node = nd.InstantiationClass(x, 'Val', branches, value=eval(exp))
+                    exp_node = nd.InstantiationClass(x, 'Val', branches, val=eval(exp))
                     exp_node.set_val(eval(exp))
                     x += 1
                     G.InsertNode(exp_node)
@@ -394,7 +394,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 if j == 'TENSORDOT' and var.index(v) == 2:
                     axes = var[1]
                     if re.fullmatch(re.compile('\d+'), axes.strip()):
-                        axes_node = nd.InstantiationClass(x, 'Val', branches, value=eval(axes))
+                        axes_node = nd.InstantiationClass(x, 'Val', branches, val=eval(axes))
                         x += 1
                         G.InsertNode(axes_node)
                         G.InsertEdge(axes_node, current_graph.keynode)
@@ -442,7 +442,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ReplaceNodeId(len(G.nodes) - len(operator_info[1]) + x, branches)
+            operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
