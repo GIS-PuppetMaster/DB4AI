@@ -4,19 +4,24 @@ CREATE TENSOR y(4,5)
 CREATE TENSOR z(4,3)
 CREATE TENSOR flag(1,) FROM 0
 CREATE TENSOR a(1,) FROM 1
-CREATE TENSOR b(1,) FROM 2
-LOOP (5){
-    IF (flag<1){
-        SELECT flag + 1 AS flag FROM flag
+CREATE TENSOR b(1,) FROM 1
+if(b==2){
+    LOOP (5){
+        IF (flag<1){
+            SELECT flag + 1 AS flag FROM flag
+        }
+        ELIF (flag<2){
+            SELECT flag + 2 AS flag FROM flag
+        }
+        ELIF (flag<3){
+            SELECT flag + 3 AS flag FROM flag
+        }
+        ELSE {
+            select MATMUL(x, w) as y from x, w with grad
+        }
     }
-    ELIF (flag<2){
-        SELECT flag + 2 AS flag FROM flag
-    }
-    ELIF (flag<3){
-        SELECT flag + 3 AS flag FROM flag
-    }
-    ELSE {
-        select MATMUL(x, w) as y from x, w with grad
-    }
+}
+else{
+ SELECT flag + 3 AS flag FROM flag
 }
 select y as y from y

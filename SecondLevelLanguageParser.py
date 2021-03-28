@@ -395,9 +395,9 @@ class Parser:
         :return:True 合法语句，False 非法语句
         """
         con_reg = '[a-zA-Z0-9_=!<> ]+'
-        if_reg = '(IF|if)[ \t]+[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
-        elif_reg = '(ELIF|elif)[ \t]+[(](.+)[)]{\n$'
-        else_reg = '(ELSE|else)[ \t]+{\n$'
+        if_reg = '(IF|if)[ \t]*[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
+        elif_reg = '(ELIF|elif)[ \t]*[(](.+)[)]{\n$'
+        else_reg = '(ELSE|else)[ \t]*{\n$'
         matchObj_if = re.match(if_reg, query)
         matchObj_elif = re.match(elif_reg, query)
         matchObj_else = re.match(else_reg, query)
