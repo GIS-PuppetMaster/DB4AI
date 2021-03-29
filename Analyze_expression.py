@@ -87,6 +87,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
+    all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
+                    'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER',
+                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -130,18 +133,22 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if expression[- 3] == 'WITH' and expression[- 2] == 'GRAD':
             expression.pop(- 3)
             expression.pop(- 2)
-
-    new_expression = []
-    for i in expression:
-        if i.startswith('(') and len(i) != 1:
-            new_expression.append('(')
-            new_expression.append(i[1:])
-        elif i.endswith(')') and len(i) != 1:
-            new_expression.append(i[0:-1])
-            new_expression.append(')')
-        else:
-            new_expression.append(i)
-    expression = new_expression
+    flag = 1
+    while flag == 1:
+        flag = 0
+        new_expression = []
+        for i in expression:
+            if i.startswith('(') and len(i) != 1:
+                new_expression.append('(')
+                new_expression.append(i[1:])
+                flag = 1
+            elif i.endswith(')') and len(i) != 1:
+                new_expression.append(i[0:-1])
+                new_expression.append(')')
+                flag = 1
+            else:
+                new_expression.append(i)
+        expression = new_expression
 
     for i in expression:
         if len(replace) == 0:
@@ -175,22 +182,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 expression.pop(begin + 1)
                 count += 1
 
-    # 对优先级较高的算式添加括号
-    # new_expression = expression
     count = 0
-    label = 0
-    for e in expression:
-        if e in ['+', '-']:
-            label = 1
-    while count < len(expression) and label == 1:
-        if expression[count] in ['*', '/']:
-            if expression[count - 1] != ')' and expression[count + 1] != '(':
-                expression.insert(count - 1, '(')
-                expression.insert(count + 3, ')')
-            count += 1
-        count += 1
-    count = 0
-
     # 如果产生多重括号，去重
     while count + 3 < len(expression):
         if expression[count] == '(' and expression[count + 1] == '(':
@@ -205,6 +197,64 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     expression.pop(count + 1)
                     expression.pop(new_count)
         count += 1
+
+    # 对优先级较高的算式添加括号
+    # new_expression = expression
+    count = 0
+    label = 0
+    for e in expression:
+        if e in ['+', '-']:
+            label = 1
+            break
+    while count < len(expression) and label == 1:
+        if expression[count] in ['*', '/']:
+            flag = 0
+            front = count - 1
+            cnt = 0
+            while front >= 0:
+                if expression[front] == '(':
+                    cnt += 1
+                if expression[front] == ')':
+                    cnt -= 1
+                front -= 1
+            if cnt > 1:
+                flag = 1
+            cnt = 0
+            if flag == 0:
+                if expression[count - 1] != ')':
+                    expression.insert(count - 1, '(')
+                    count += 1
+                else:
+                    cnt = 1
+                    t = count - 2
+                    while t >= 0:
+                        if expression[t] == ')':
+                            cnt += 1
+                        if expression[t] == '(':
+                            cnt -= 1
+                        if cnt == 0:
+                            break
+                        t -= 1
+                    expression.insert(t, '(')
+                    count += 1
+                if expression[count + 1] != '(':
+                    expression.insert(count + 2, ')')
+                    count += 1
+                else:
+                    cnt = 1
+                    t = count + 2
+                    while t < len(expression):
+                        if expression[t] == '(':
+                            cnt += 1
+                        if expression[t] == ')':
+                            cnt -= 1
+                        if cnt == 0:
+                            break
+                        t += 1
+                    expression.insert(t, ')')
+                    count += 1
+        count += 1
+
     # 初始化
     new_stack = Stack()
     G = Digraph.Graph()
@@ -245,7 +295,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
             if len(new_stack.items) != 0 and label == 1:
                 parent = new_stack.pop()
-                if current_graph != parent and isinstance(current_graph.keynode, nd.Blank) is not True:
+                if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                     G.InsertEdge(current_graph.keynode, parent.keynode)
                 new_stack.push(parent)
             current_graph.insert(x, 'Blank', branches, grad=requires_grad)
@@ -332,7 +382,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 mode = var[1]
                 if var[1].find('mode') != -1:
                     mode = var[1].split('=')[1].strip()
-                current_graph.keynode.set_base(mode)
+                current_graph.keynode.set_mode(mode)
             if j == 'SVD':
                 count = 1
                 full_matrices = 1
@@ -397,7 +447,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 while count < len(var):
                     order = var[count]
                     if var[count].find('order') != -1:
-                        order = var[count].split(',')[1].strip()
+                        order = var[count].split('=')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(newshape, order)
             current_graph = new_stack.pop()
@@ -545,15 +595,15 @@ def analyze_expression(expression, x, branches: list, replace=None):
     # 返回生成解析树上最上层顶点
     top_node = G.GetNoOutNodes().pop()
     # 对算子节点添加输入输出信息
-    if isinstance(top_node, nd.Val) or 12 <= top_node.type_id <= 38:
+    if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
         top_node.set_vars('@' + str(top_node.id))
     for e in G.edges:
-        if isinstance(e.GetStart(), nd.Val) or 12 <= e.GetStart().type_id <= 38:
+        if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetStart().set_vars('@' + str(e.GetStart().id))
     # G.Show()
     for e in G.edges:
-        if 12 <= e.GetEnd().type_id <= 38:
+        if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
@@ -561,13 +611,17 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    s = 'hx =  1 / (1 + POW(CONSTANT.E, w * x))'
-    # s = "s=first(a,b,c)*POW(t,3)"
-    # s = "X=Y+LOG(Z+Q) WITH GRAD"
-    # s = "d = x + 1"
-    # s = "X = Y+GRADIENT(a,CONSTANT.PI)+3"
+    s = 'hx=1/(1+POW(CONSTANT.E,w*x))'
+    # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
+    # s = "g=GRADIENT(loss,w)"
+    # s = "w=learning_rate*g+w"
+    # s = "X =Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
-    p = analyze_expression(s, 10, [0])
+    # s = 's = 1/((c+d)*(e+f))'
+    # s = 's = a[i,1:3]'
+    # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
+    # s = 's= 5 + RESHAPE(a,order='F') * d'
+    p = analyze_expression(s, 0, [0])
     p[3].Show()
     print(p[1])
     print(p[2])
