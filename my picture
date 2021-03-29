@@ -1,28 +1,28 @@
 digraph "computation graph" {
 	10 [label="10
-<class 'Nodes.Val'>
+<class 'Nodes.Var'>
 [0]
-['@10']
+['y']
 False"]
 	11 [label="11
-<class 'Nodes.Div'>
+<class 'Nodes.Mul'>
 [0]
-['@11', '@10', '@13']
+['@11', 'y', '@12']
 False"]
 	12 [label="12
-<class 'Nodes.Val'>
+<class 'Nodes.LOG'>
 [0]
-['@12']
+['@12', 'hx']
 False"]
 	13 [label="13
-<class 'Nodes.Add'>
+<class 'Nodes.Var'>
 [0]
-['@13', '@12', '@14']
+['hx']
 False"]
 	14 [label="14
-<class 'Nodes.POW'>
+<class 'Nodes.Add'>
 [0]
-['@14', '@15', 'w * x']
+['@14', '@11', '@16']
 False"]
 	15 [label="15
 <class 'Nodes.Val'>
@@ -30,14 +30,45 @@ False"]
 ['@15']
 False"]
 	16 [label="16
+<class 'Nodes.Sub'>
+[0]
+['@16', '@15', 'y']
+False"]
+	17 [label="17
 <class 'Nodes.Var'>
 [0]
-['w * x']
+['y']
+False"]
+	18 [label="18
+<class 'Nodes.Mul'>
+[0]
+['@18', '@14', '@20']
+False"]
+	19 [label="19
+<class 'Nodes.Val'>
+[0]
+['@19']
+False"]
+	20 [label="20
+<class 'Nodes.Sub'>
+[0]
+['@20', '@19', 'hx']
+False"]
+	21 [label="21
+<class 'Nodes.Var'>
+[0]
+['hx']
 False"]
 	10 -> 11 [color=green]
-	12 -> 13 [color=green]
-	13 -> 11 [color=green]
-	14 -> 13 [color=green]
-	15 -> 14 [color=green]
+	11 -> 10 [color=green]
+	12 -> 11 [color=green]
+	13 -> 12 [color=green]
+	11 -> 14 [color=green]
+	15 -> 16 [color=green]
 	16 -> 14 [color=green]
+	17 -> 16 [color=green]
+	14 -> 18 [color=green]
+	19 -> 20 [color=green]
+	20 -> 18 [color=green]
+	21 -> 20 [color=green]
 }

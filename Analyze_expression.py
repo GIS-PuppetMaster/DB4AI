@@ -561,7 +561,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    s = 'hx =  1 / (1 + POW(CONSTANT.E, w * x))'
+    s = 'kernel_cache[i,j]=linear_kernel(x[i,:],x[j:])'
     # s = "s=first(a,b,c)*POW(t,3)"
     # s = "X=Y+LOG(Z+Q) WITH GRAD"
     # s = "d = x + 1"
