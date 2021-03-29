@@ -295,7 +295,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 if flag == 0:
                     G.InsertEdge(k, current_graph.keynode)
             for k in temp[0][1]:
-                G.InsertEdge(k)
+                G.edges.append(k)
             for t in temp[1]:
                 vallist.append(t)
 
@@ -309,10 +309,25 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
                 else:
-                    exp_node = nd.InstantiationClass(x, 'Var', branches, vars=exp.strip(), with_grad=requires_grad)
-                    x += 1
-                    G.InsertNode(exp_node)
-                    G.InsertEdge(exp_node, current_graph.keynode)
+                    exp_expression = val_name + ' = ' + exp
+                    if requires_grad:
+                        exp_expression = exp_expression + ' WITH GRAD'
+                    temp = analyze_expression(exp_expression, x, branches, replace)
+                    for k in temp[0][0]:
+                        G.InsertNode(k)
+                        G.without_out.remove(k)
+                    for k in temp[0][0]:
+                        flag = 0
+                        for e in temp[0][1]:
+                            if e.GetStart() is k:
+                                flag = 1
+                                break
+                        if flag == 0:
+                            G.InsertEdge(k, current_graph.keynode)
+                    for k in temp[0][1]:
+                        G.edges.append(k)
+                    for t in temp[1]:
+                        vallist.append(t)
             if j == 'QR':
                 mode = var[1]
                 if var[1].find('mode') != -1:
