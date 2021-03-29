@@ -546,13 +546,13 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    s = "a=x+POW(T,3)+y/z-x*E"
+    s = 'hx =  1 / (1 + POW(CONSTANT.E, w * x))'
     # s = "s=first(a,b,c)*POW(t,3)"
     # s = "X=Y+LOG(Z+Q) WITH GRAD"
     # s = "d = x + 1"
     # s = "X = Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
-    p = analyze_expression(s, 10, [], {"x": 't'})
+    p = analyze_expression(s, 10, [0])
     p[3].Show()
     print(p[1])
     print(p[2])

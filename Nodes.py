@@ -118,7 +118,7 @@ class CreateTensor(Node):
         elif data_shape is None:
             self.data_shape = None
         # TODO: infer data_shape
-        self.vars = var
+        self.set_vars(var)
 
     @check_using
     def run(self, **kwargs):
