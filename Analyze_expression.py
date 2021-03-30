@@ -613,7 +613,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
-    return G.GetSet(), vallist, top_node, G
+    return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
@@ -628,6 +628,6 @@ if __name__ == '__main__':
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
     # s = 's= 5 + RESHAPE(a,order='F') * d'
     p = analyze_expression(s, 0, [0])
-    p[3].Show()
+    # p[3].Show()
     print(p[1])
     print(p[2])
