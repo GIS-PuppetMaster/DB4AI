@@ -1,43 +1,7 @@
 digraph "computation graph" {
-	10 [label="10
-<class 'Nodes.Val'>
+	0 [label="0
+<class 'Nodes.Slice'>
 [0]
-['@10']
+[]
 False"]
-	11 [label="11
-<class 'Nodes.Div'>
-[0]
-['@11', '@10', '@13']
-False"]
-	12 [label="12
-<class 'Nodes.Val'>
-[0]
-['@12']
-False"]
-	13 [label="13
-<class 'Nodes.Add'>
-[0]
-['@13', '@12', '@14']
-False"]
-	14 [label="14
-<class 'Nodes.POW'>
-[0]
-['@14', '@15', 'w * x']
-False"]
-	15 [label="15
-<class 'Nodes.Val'>
-[0]
-['@15']
-False"]
-	16 [label="16
-<class 'Nodes.Var'>
-[0]
-['w * x']
-False"]
-	10 -> 11 [color=green]
-	12 -> 13 [color=green]
-	13 -> 11 [color=green]
-	14 -> 13 [color=green]
-	15 -> 14 [color=green]
-	16 -> 14 [color=green]
 }
