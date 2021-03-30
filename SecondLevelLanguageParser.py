@@ -529,7 +529,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}[ \t]+(FROM|from)[ \t]+(({variable_name_reg}[ \t]*,[ \t]*)*{variable_name_reg}*)([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
+        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}([ \t]+(FROM|from)[ \t]+(.+))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
         if matchObj1:
@@ -545,18 +545,16 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif matchObj2:
             self.EndIf()
-            var_str = matchObj2.group(6)
+            var_str = matchObj2.group(7)
             v_name = matchObj2.group(4)
-            var_info = list(map(lambda x: x.strip(), var_str.split(',')))
-            real_var = set()
             as_replace = dict()
-            for v_i in var_info:
-                if re.search(' AS | as ', v_i):
-                    rep = v_i.split(' AS ')
-                    as_replace[rep[0]] = rep[1]
-                    real_var.add(rep[1])
-                else:
-                    real_var.add(v_i)
+            if var_str is not None:
+                var_info = list(map(lambda x: x.strip(), var_str.split(',')))
+                for v_i in var_info:
+                    v_i = re.sub('[ \t]+',' ',v_i)
+                    if re.search(' ', v_i):
+                        rep = v_i.split(' ')
+                        as_replace[rep[1]] = rep[0]
             exp = v_name + ' = ' + matchObj2.group(2)
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
@@ -570,7 +568,7 @@ class Parser:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     var_li = self.var_dict.get(in_v[0], None)
-                    if var_li and in_v[0] in real_var:
+                    if var_li:
                         last_use = var_li[-1]
                         if self.graph.nodes[last_use].branches == in_v[1].branches:
                             self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
