@@ -1,3 +1,5 @@
+import re
+
 import torch
 from functools import wraps
 from copy import copy
@@ -634,9 +636,13 @@ class Slice(Node):
         total_slice = []
         for idx in self.slice_info:
             if ':' in idx:
-                total_slice.append(slice(*list(map(lambda x: None if x == '' else int(x), idx.split(':')))))
+                total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
+                                                                                   else int(x)), idx.split(':')))))
             else:
-                total_slice.append(int(idx))
+                if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), idx):
+                    total_slice.append(idx)
+                else:
+                    total_slice.append(int(idx))
         self.slice_index = total_slice
 
     @check_using
