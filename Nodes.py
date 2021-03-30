@@ -626,8 +626,7 @@ class Slice(Node):
         self.name = ''
         self.slice_info = None
         self.slice_index = None
-        import sklearn
-        sklearn.svm.SVC()
+
     def set_name(self, name):
         self.name = name
 
