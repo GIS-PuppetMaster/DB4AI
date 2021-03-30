@@ -623,12 +623,8 @@ class EXP(Node):
 class Slice(Node):
     def __init__(self, **kwargs):
         super().__init__(39, **kwargs)
-        self.name = ''
         self.slice_info = None
         self.slice_index = None
-
-    def set_name(self, name):
-        self.name = name
 
     def set_slice(self, slice_info):
         self.slice_info = slice_info
