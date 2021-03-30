@@ -165,15 +165,15 @@ class Parser:
         if self.state == 'if':
             self.node_id += 1
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
-            self.branches.append(self.root_id)
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if l_n.type_id == 9:
+                if isinstance(l_n, Nd.IfBranch):
                     com_branches = l_n.branches.copy()
                     com_branches.pop(-1)
                     if node.branches != com_branches:
                         continue
                 self.graph.InsertEdge(l_n, node)
+            self.branches.append(self.root_id)
             self.graph.InsertNode(node)
             self.ConnInVar(self.node_id)
 
@@ -500,15 +500,15 @@ class Parser:
             if self.state == 'loop':
                 self.node_id += 1
                 self.StateConvert('end')
-                self.branches.append(self.root_id)
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
                 for l_n in self.graph.GetNoOutNodes().copy():
-                    if l_n.type_id == 9:
+                    if isinstance(l_n, Nd.IfBranch):
                         com_branches = l_n.branches.copy()
                         com_branches.pop(-1)
                         if node.branches != com_branches:
                             continue
                     self.graph.InsertEdge(l_n, node)
+                self.branches.append(self.root_id)
                 self.graph.InsertNode(node)
                 self.ConnInVar(self.node_id)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
@@ -529,9 +529,12 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}([ \t]+(FROM|from)[ \t]+(.+))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
+        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}' \
+                   f'([ \t]+(FROM|from)[ \t]+(.+))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
+        is_slice = False
+        slice_info = list()
         if matchObj1:
             self.EndIf()
             v_name = matchObj1.group(1)
@@ -547,6 +550,10 @@ class Parser:
             self.EndIf()
             var_str = matchObj2.group(7)
             v_name = matchObj2.group(4)
+            searchObj = re.search('[(.+)]', v_name)
+            if searchObj:
+                is_slice = True
+                slice_info = searchObj.group(1).split(',')
             as_replace = dict()
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
@@ -574,7 +581,7 @@ class Parser:
                             self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
                         else:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                    elif in_v[1].type_id == 2:
+                    elif isinstance(in_v[1], Nd.Val):
                         self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
                         return False
@@ -587,11 +594,20 @@ class Parser:
         else:
             return False
         var_li = self.var_dict.get(v_name, None)
+        if is_slice:
+            self.node_id += 1
+            slice_node = Nd.InstantiationClass(self.node_id, 'Slice', self.branches)
+            slice_node.set_slice(slice_info)
+            self.graph.InsertNode(slice_node)
+        else:
+            slice_node = None
         if var_li:
             self.node_id += 1
             # print(self.node_id)
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
             self.graph.InsertNode(ass_n)
+            if slice_node:
+                self.graph.InsertEdge(slice_node, ass_n)
             self.DealInVar(v_name, False)
         else:
             self.node_id += 1
@@ -606,7 +622,11 @@ class Parser:
             else:
                 self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
             self.DealInVar(v_name, True)
-            self.graph.InsertEdge(node_l, ass_n)
+            if slice_node:
+                self.graph.InsertEdge(node_l, slice_node)
+                self.graph.InsertEdge(slice_node, ass_n)
+            else:
+                self.graph.InsertEdge(node_l, ass_n)
         self.UpdateVarList(v_name, self.node_id)
         self.graph.InsertEdge(e_node, ass_n)
         return True
