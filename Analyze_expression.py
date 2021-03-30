@@ -85,10 +85,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
-                       'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'Save_table')
+                       'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'Save_table',
+                       'SUM')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
-                    'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER',
+                    'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM'
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
@@ -337,7 +338,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
             temp = analyze_expression(new_expression, x, branches, replace)
-            x += 1
+            # temp[3].Show()
+            x += len(temp[0][0])
             for k in temp[0][0]:
                 G.InsertNode(k)
                 G.without_out.remove(k)
@@ -456,6 +458,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         order = var[count].split('=')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(newshape, order)
+            if j == 'SUM':
+                if len(var) != 1:
+                    if type(var[1]) == str:
+                        current_graph.keynode.set_axis(eval(var[1]))
+                    else:
+                        current_graph.keynode.set_axis(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -617,7 +625,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    s = 's = Save_table(x,"y")'
+    s = 'y = SUM(n*y*(xa*x))+b'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
@@ -627,6 +635,7 @@ if __name__ == '__main__':
     # s = 's = a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
     # s = 's= 5 + RESHAPE(a,order='F') * d'
+
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
