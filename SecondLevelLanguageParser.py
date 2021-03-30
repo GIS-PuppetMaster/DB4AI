@@ -666,7 +666,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('test.txt', 'r') as f:
+    with open('logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

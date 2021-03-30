@@ -1,3 +1,1 @@
-create tensor z(4,1)
-create tensor b(1,4)
-SELECT z / (1 + POW(CONSTANT.E, w * z)) AS hx from b w
+SELECT 1 / (1 + POW(CONSTANT.E, w * x)) AS hx FROM w, x
