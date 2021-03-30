@@ -229,76 +229,74 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         # 用于匹配的正则表达式
-        variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
+        variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
         data_list_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
-        create_tensor_reg = f'^(CREATE|create) (TENSOR|tensor) {variable_name_reg}[^ ]*' \
-                            f'( (FROM|from) [^ ]+)?( (WITH|with) (GRAD|grad))?\n$'
+        create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[^ ]*)' \
+                            f'([ \t]*(FROM|from)[ \t]*[^ ]+)?([ \t]*(WITH|with)[ \t]*(GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = '(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = f'^(RANDOM|random)([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
         hasWith = False  # 是否需要记录梯度
-        hasFrom = 0  # 赋值结点类型
+        from_str = ''  # 赋值结点类型
+        from_type = 0
         legal_info = []  # 记录合法的信息
         matchObj = re.match(create_tensor_reg, query)
         if matchObj:
             query = matchObj.group()
             if re.search('WITH|with', query):
                 hasWith = True
-            T_name = matchObj.group(3)
+            fromObj = re.search('(FROM|from)[ \t]*([^ ]+)', query)
+            if fromObj:
+                from_str = fromObj.group(2)
+            T_info = matchObj.group(3)
+            T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_dict.get(T_name, None):
                 return False
-            li = query.split(' ')
-            data = re.search(data_list_reg, li[2])
+            data = re.search(data_list_reg, T_info)
             if data:
                 data_shape = data.group()
                 legal_info.append(T_name)
                 legal_info.append(data_shape)
             else:
                 return False
-            if len(li) > 3:
-                from_str = ''
-                for i in range(3, len(li) - 1):
-                    if 'FROM' == li[i] or 'from' == li[i]:
-                        j = i + 1
-                        from_str = li[j].split('\n')[0]
-                if len(from_str) != 0:
-                    match1 = re.match(val_info_reg1, from_str)
-                    match2 = re.match(val_info_reg2, from_str)
-                    match3 = re.match(val_info_reg3, from_str)
-                    if match1:
-                        value_str = match1.group()
-                        if re.search('[.]', value_str):
-                            value = float(value_str)
-                        else:
-                            value = int(value_str)
-                        legal_info.append(value)
-                        hasFrom = 1
-                    elif match3:
-                        in_random_str = match3.group(2)
-                        type_search_Obj = re.search(',\'([a-zA-z]+)\'[)]', in_random_str)
-                        if type_search_Obj:
-                            type = type_search_Obj.group(1)
-                        else:
-                            type = ''
-                        ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).*[)]', in_random_str)
-                        if ran_matchObj:
-                            data_shape = ran_matchObj.group(1)
-                            boundary = ran_matchObj.group(2)
-                        else:
-                            return False
-                        legal_info.append([data_shape, boundary, type])
-                        hasFrom = 3
-                    elif match2:
-                        t_info = match2.group(1)
-                        legal_info.append(t_info)
-                        hasFrom = 2
+            if len(from_str) != 0:
+                match1 = re.match(val_info_reg1, from_str)
+                match2 = re.match(val_info_reg2, from_str)
+                match3 = re.match(val_info_reg3, from_str)
+                if match1:
+                    value_str = match1.group()
+                    if re.search('[.]', value_str):
+                        value = float(value_str)
+                    else:
+                        value = int(value_str)
+                    legal_info.append(value)
+                    from_type = 1
+                elif match3:
+                    in_random_str = match3.group(2)
+                    type_search_Obj = re.search(',\'([a-zA-z]+)\'[)]', in_random_str)
+                    if type_search_Obj:
+                        type = type_search_Obj.group(1)
+                    else:
+                        type = ''
+                    ran_matchObj = re.match('[(]([(].+[)]),([(].+[)]).*[)]', in_random_str)
+                    if ran_matchObj:
+                        data_shape = ran_matchObj.group(1)
+                        boundary = ran_matchObj.group(2)
                     else:
                         return False
+                    legal_info.append([data_shape, boundary, type])
+                    from_type = 3
+                elif match2:
+                    t_info = match2.group(1)
+                    legal_info.append(t_info)
+                    from_type = 2
+                else:
+                    return False
         else:
             return False
         # 对上一步的结果进行处理
@@ -315,14 +313,14 @@ class Parser:
             pass
         else:
             self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
-        if hasFrom != 0:
+        if from_type != 0:
             from_info = legal_info[2]
             node1_id = self.node_id
             self.node_id += 1
-            if hasFrom == 1:
+            if from_type == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
                                               var=['@' + str(self.node_id)], val=legal_info[2])
-            elif hasFrom == 2:
+            elif from_type == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
             else:
