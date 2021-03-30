@@ -124,9 +124,7 @@ class CreateTensor(Node):
 
     @check_using
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
-        # self.executor.var_dict[self.vars[0]] = None
-        pass
+        self.executor.var_shape[self.vars[0]] = self.data_shape
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -371,6 +369,8 @@ class Assignment(Node):
         if self.slice is None:
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
         else:
+            if self.vars[0] not in self.executor.var_dict:
+                self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
             self.executor.var_dict[self.vars[0]].__setitem__(self.slice, self.executor.var_dict[self.vars[1]])
 
 

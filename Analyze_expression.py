@@ -611,7 +611,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    s = 's = a[0]'
+    s = 's = a[i,1:3]'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
