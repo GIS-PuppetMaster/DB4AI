@@ -85,11 +85,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
-                       'TRANSPOSE', 'SHAPE', 'EXP')
+                       'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'Save_table')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER',
-                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Slice'}
+                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -320,6 +320,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, j, branches, with_grad=requires_grad))
                     x += 1
                     break
+            j = j.strip()
             G.InsertNode(current_graph.keynode)
             parent = new_stack.pop()
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
@@ -327,6 +328,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
+            if j == 'Save_table':
+                current_graph.keynode.set_name(var[1])
+                current_graph.keynode.set_vars([None, var[0]])
+                current_graph = new_stack.pop()
+                continue
             new_expression = val_name + ' = ' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
@@ -522,7 +528,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
+            operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches,with_grad=requires_grad)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
@@ -564,6 +570,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
         elif re.search(re.compile(r'\[(.*?)\]', re.S), i):
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Slice', branches, with_grad=requires_grad))
             x += 1
+            current_graph.keynode.set_name(i[:i.index('[')])
             slice_info = re.findall(re.compile(r'\[(.*?)\]', re.S), i)
             new_slice_info = []
             for s in slice_info[0].split(','):
@@ -574,10 +581,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
-            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
-            x += 1
-            G.InsertNode(a)
-            G.InsertEdge(a, current_graph.keynode)
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -614,14 +617,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
 
 if __name__ == '__main__':
-    # s = 'hx=1/(1+POW(CONSTANT.E,w*x))'
+    s = 's = Save_table(x,"y")'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
     # s = "X =Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
     # s = 's = 1/((c+d)*(e+f))'
-    s = 's = MATMUL(x,a[i,1:3])'
+    # s = 's = a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
     # s = 's= 5 + RESHAPE(a,order='F') * d'
     p = analyze_expression(s, 0, [0])

@@ -659,6 +659,43 @@ class Blank(Node):
         super().__init__(41, **kwargs)
 
 
+class Deepcopy(Node):
+    def __init__(self, **kwargs):
+        super().__init__(42, **kwargs)
+
+
+class Shallowcopy(Node):
+    def __init__(self, **kwargs):
+        super().__init__(43, **kwargs)
+
+
+class Argmax(Node):
+    def __init__(self, **kwargs):
+        super().__init__(44, **kwargs)
+
+
+class Argmin(Node):
+    def __init__(self, **kwargs):
+        super().__init__(45, **kwargs)
+
+
+class Sign(Node):
+    def __init__(self, **kwargs):
+        super().__init__(46, **kwargs)
+
+
+class Save_table(Node):
+    def __init__(self, **kwargs):
+        super().__init__(47, **kwargs)
+        self.table_name = None
+
+    def set_name(self, table_name):
+        self.table_name = table_name
+
+    def get_name(self):
+        return self.table_name
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
