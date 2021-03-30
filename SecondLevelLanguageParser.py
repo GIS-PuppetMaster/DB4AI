@@ -527,7 +527,7 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+{variable_name_reg}' \
+        ass_reg2 = f'^(SELECT|select)[ \t]+(.+)[ \t]+(AS|as)[ \t]+(.+)' \
                    f'([ \t]+(FROM|from)[ \t]+(.+))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         matchObj1 = re.match(ass_reg1, query)
         matchObj2 = re.match(ass_reg2, query)
@@ -548,10 +548,11 @@ class Parser:
             self.EndIf()
             var_str = matchObj2.group(7)
             v_name = matchObj2.group(4)
-            searchObj = re.search('[(.+)]', v_name)
+            searchObj = re.search(f'^{variable_name_reg}\[(.+)]', v_name)
             if searchObj:
                 is_slice = True
-                slice_info = searchObj.group(1).split(',')
+                v_name = searchObj.group(1)
+                slice_info = searchObj.group(2).split(',')
             as_replace = dict()
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
@@ -605,7 +606,9 @@ class Parser:
             ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
             self.graph.InsertNode(ass_n)
             if slice_node:
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], slice_node)
                 self.graph.InsertEdge(slice_node, ass_n)
+                ass_n.slice = slice_info
             self.DealInVar(v_name, False)
         else:
             self.node_id += 1
@@ -623,6 +626,7 @@ class Parser:
             if slice_node:
                 self.graph.InsertEdge(node_l, slice_node)
                 self.graph.InsertEdge(slice_node, ass_n)
+                ass_n.slice = slice_info
             else:
                 self.graph.InsertEdge(node_l, ass_n)
         self.UpdateVarList(v_name, self.node_id)
