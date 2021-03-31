@@ -4,7 +4,6 @@ import pickle
 import re
 import Nodes as nd
 import Digraph
-import math
 import numpy
 
 '''
@@ -20,7 +19,10 @@ class Stack:
         self.items.append(item)
 
     def pop(self):
-        return self.items.pop()
+        try:
+            return self.items.pop()
+        except KeyError:
+            print("栈为空，无法pop")
 
 
 '''
@@ -79,7 +81,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches:list, replace=None):
+def analyze_expression(expression, x, branches: list, replace=None):
     if replace is None:
         replace = {}
     simple_operator = ('+', '-', '*', '/')
@@ -202,12 +204,14 @@ def analyze_expression(expression, x, branches:list, replace=None):
     # 对优先级较高的算式添加括号
     # new_expression = expression
     count = 0
-    label = 0
+    label0 = 0
+    label1 = 0
     for e in expression:
         if e in ['+', '-']:
-            label = 1
-            break
-    while count < len(expression) and label == 1:
+            label0 = 1
+        if e in ['*', '/'] and label0 == 1:
+            label1 = 1
+    while count < len(expression) and label1 == 1:
         if expression[count] in ['*', '/']:
             flag = 0
             front = count - 1
@@ -310,7 +314,7 @@ def analyze_expression(expression, x, branches:list, replace=None):
             x += 1
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
-            if current_graph != parent and isinstance(current_graph.keynode, nd.Blank) is not True:
+            if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
@@ -328,7 +332,7 @@ def analyze_expression(expression, x, branches:list, replace=None):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
-            var = re.findall(pattern, i)[0].split(',')
+            var = re.findall(pattern, i)[0].split(',', 1)
             if j == 'Save_table':
                 current_graph.keynode.set_name(var[1])
                 current_graph.keynode.set_vars([None, var[0]])
@@ -612,7 +616,11 @@ def analyze_expression(expression, x, branches:list, replace=None):
             current_graph = parent
 
     # 返回生成解析树上最上层顶点
-    top_node = G.GetNoOutNodes().pop()
+    top_node = None
+    try:
+        top_node = G.GetNoOutNodes().pop()
+    except KeyError:
+        print("栈为空，无法pop")
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
         top_node.set_vars('@' + str(top_node.id))
@@ -630,7 +638,7 @@ def analyze_expression(expression, x, branches:list, replace=None):
 
 
 if __name__ == '__main__':
-    s = 'y = SUM(n*y*(xa*x))+b'
+    # s = 'y = SUM(n*y*(xa*x))+b'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
@@ -639,7 +647,10 @@ if __name__ == '__main__':
     # s = 's = 1/((c+d)*(e+f))'
     # s = 's = a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
-    # s = 's= 5 + RESHAPE(a,order='F') * d'
+    s = 'hx = 1 / (1 + POW(CONSTANT.E, MATMUL(x, w))) WITH GRAD'
+    # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
+    # s = 'g = GRADIENT(loss, w)'
+    # s = 'w = learning_rate * g + w'
 
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
