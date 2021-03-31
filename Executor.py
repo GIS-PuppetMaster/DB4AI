@@ -16,6 +16,7 @@ class Executor:
         self.finished_loop_id = set()
         self.finished_nodes = set()
         self.last_use = {}
+        self.var_shape = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
         self.init_executor()
 

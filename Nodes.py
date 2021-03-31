@@ -124,9 +124,7 @@ class CreateTensor(Node):
 
     @check_using
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
-        # self.executor.var_dict[self.vars[0]] = None
-        pass
+        self.executor.var_shape[self.vars[0]] = self.data_shape
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -371,6 +369,8 @@ class Assignment(Node):
         if self.slice is None:
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
         else:
+            if self.vars[0] not in self.executor.var_dict:
+                self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
             self.executor.var_dict[self.vars[0]].__setitem__(self.slice, self.executor.var_dict[self.vars[1]])
 
 
@@ -647,12 +647,8 @@ class EXP(Node):
 class Slice(Node):
     def __init__(self, **kwargs):
         super().__init__(39, **kwargs)
-        self.name = ''
         self.slice_info = None
         self.slice_index = None
-
-    def set_name(self, name):
-        self.name = name
 
     def set_slice(self, slice_info):
         self.slice_info = slice_info
@@ -685,6 +681,43 @@ class Var(Node):
 class Blank(Node):
     def __init__(self, **kwargs):
         super().__init__(41, **kwargs)
+
+
+class Deepcopy(Node):
+    def __init__(self, **kwargs):
+        super().__init__(42, **kwargs)
+
+
+class Shallowcopy(Node):
+    def __init__(self, **kwargs):
+        super().__init__(43, **kwargs)
+
+
+class Argmax(Node):
+    def __init__(self, **kwargs):
+        super().__init__(44, **kwargs)
+
+
+class Argmin(Node):
+    def __init__(self, **kwargs):
+        super().__init__(45, **kwargs)
+
+
+class Sign(Node):
+    def __init__(self, **kwargs):
+        super().__init__(46, **kwargs)
+
+
+class Save_table(Node):
+    def __init__(self, **kwargs):
+        super().__init__(47, **kwargs)
+        self.table_name = None
+
+    def set_name(self, table_name):
+        self.table_name = table_name
+
+    def get_name(self):
+        return self.table_name
 
 
 def shallow_copy(fun):
