@@ -1,7 +1,0 @@
-digraph "computation graph" {
-	0 [label="0
-<class 'Nodes.Slice'>
-[0]
-[]
-False"]
-}
