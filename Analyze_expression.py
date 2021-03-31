@@ -79,7 +79,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches: list, replace=None):
+def analyze_expression(expression, x, branches:list, replace=None):
     if replace is None:
         replace = {}
     simple_operator = ('+', '-', '*', '/')
@@ -578,7 +578,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
         elif re.search(re.compile(r'\[(.*?)\]', re.S), i):
             current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Slice', branches, with_grad=requires_grad))
             x += 1
-            current_graph.keynode.set_name(i[:i.index('[')])
             slice_info = re.findall(re.compile(r'\[(.*?)\]', re.S), i)
             new_slice_info = []
             for s in slice_info[0].split(','):
@@ -589,6 +588,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
+
+            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
+            G.InsertNode(a)
+            G.InsertEdge(a, current_graph.keynode)
+            x += 1
+
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
