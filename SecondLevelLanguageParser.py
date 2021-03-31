@@ -345,7 +345,9 @@ class Parser:
             self.StateConvert('loop')
             node = Nd.InstantiationClass(self.node_id, 'Loop', self.branches, condition=condition, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if l_n.branches == com_branches:
+                if isinstance(l_n, Nd.IfBranch):
+                    continue
+                elif l_n.branches == com_branches:
                     self.graph.InsertEdge(l_n, node)
             if len(node.in_edges) == 0:
                 self.graph.InsertEdge(self.graph.nodes[root_id], node)
@@ -401,7 +403,9 @@ class Parser:
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if l_n.branches == self.branches:
+                if isinstance(l_n, Nd.IfBranch):
+                    continue
+                elif l_n.branches == self.branches:
                     self.graph.InsertEdge(l_n, node)
             if len(node.in_edges) == 0:
                 self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
@@ -480,10 +484,7 @@ class Parser:
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
                 for l_n in self.graph.GetNoOutNodes().copy():
                     if isinstance(l_n, Nd.IfBranch):
-                        com_branches = l_n.branches.copy()
-                        com_branches.pop(-1)
-                        if node.branches != com_branches:
-                            continue
+                        continue
                     self.graph.InsertEdge(l_n, node)
                 self.branches.append(self.root_id)
                 self.graph.InsertNode(node)
@@ -538,10 +539,10 @@ class Parser:
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
                 for v_i in var_info:
-                    v_i = re.sub('[ \t]+',' ',v_i)
-                    if re.search(' ', v_i):
-                        rep = v_i.split(' ')
-                        as_replace[rep[1]] = rep[0]
+                    v_i = re.sub('[ \t]+','',v_i)
+                    as_obj = re.search('(.+?)AS|as(.+?)', v_i)
+                    if as_obj:
+                        as_replace[as_obj.group(2)] = as_obj.group(1)
             exp = v_name + ' = ' + match_obj2.group(2)
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
@@ -554,17 +555,26 @@ class Parser:
             if p[0] and p[1] and p[2]:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
-                    var_li = self.var_dict.get(in_v[0], None)
-                    if var_li:
-                        last_use = var_li[-1]
-                        if self.graph.nodes[last_use].branches == in_v[1].branches:
-                            self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
-                        else:
+                    if isinstance(in_v[1], Nd.Loop) or isinstance(in_v[1], Nd.If):
+                        for l_n in self.graph.GetNoOutNodes().copy():
+                            if isinstance(l_n, Nd.IfBranch):
+                                continue
+                            elif l_n.branches == branches:
+                                self.graph.InsertEdge(l_n, in_v[1])
+                        if len(in_v[1].in_edges) == 0:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                    elif isinstance(in_v[1], Nd.Val):
-                        self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
-                        return False
+                        var_li = self.var_dict.get(in_v[0], None)
+                        if var_li:
+                            last_use = var_li[-1]
+                            if self.graph.nodes[last_use].branches == in_v[1].branches:
+                                self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                            else:
+                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                        elif isinstance(in_v[1], Nd.Val):
+                            self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                        else:
+                            return False
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
                 r_var = e_node.get_vars()[0]
@@ -691,7 +701,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('./test.txt', 'r') as f:
+    with open('test.txt', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

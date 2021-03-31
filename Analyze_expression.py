@@ -647,7 +647,7 @@ if __name__ == '__main__':
     # s = 's = 1/((c+d)*(e+f))'
     # s = 's = a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
-    s = 'hx = 1 / (1 + POW(CONSTANT.E, MATMUL(x, w))) WITH GRAD'
+    s = '$ = logistic(x,y,w, lr, threshold, iter_times)'
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
