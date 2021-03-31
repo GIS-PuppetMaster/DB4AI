@@ -6,5 +6,5 @@ create tensor threshold(1,) from 1
 create tensor iter_times(1,) from 10
 select x[0]+y as z[0] from w x, y with grad
 select logistic(x,y,w, lr, threshold, iter_times)
-select SAVETABLE(w, 'logistic_w')
+
 
