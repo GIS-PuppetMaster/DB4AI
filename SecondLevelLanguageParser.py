@@ -30,7 +30,6 @@ class Parser:
         self.input = list()
         self.operator = ''
         self.isCu = False
-        self.end = False
 
     def __call__(self, **kwargs):
         """
@@ -60,12 +59,6 @@ class Parser:
                 pass
             elif self.CuOperator(query):
                 pass
-            elif self.end:
-                output = self.graph.GetNoOutNodes()
-                if not output:
-                    output = copy.copy(self.graph.nodes[self.node_id])
-                self.AddUserOperator(output, self.input, self.graph, self.operator)
-                self.Reset()
             elif query == '$':
                 self.EndIf()
             else:
@@ -133,7 +126,11 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.end = True
+                output = self.graph.GetNoOutNodes()
+                if not output:
+                    output = copy.copy(self.graph.nodes[self.node_id])
+                self.AddUserOperator(output, self.input, self.graph, self.operator)
+                self.Reset()
             else:
                 raise Exception('多余括号！')
 
@@ -667,7 +664,6 @@ class Parser:
         self.input = list()
         self.operator = ''
         self.isCu = False
-        self.end = False
         root = Nd.InstantiationClass(self.node_id, 'Root', self.branches)
         self.graph.InsertNode(root)
         self.branches.append(0)
