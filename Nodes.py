@@ -124,9 +124,7 @@ class CreateTensor(Node):
 
     @check_using
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.empty(size=self.data_shape, requires_grad=self.with_grad)
-        # self.executor.var_dict[self.vars[0]] = None
-        pass
+        self.executor.var_shape[self.vars[0]] = self.data_shape
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -344,10 +342,36 @@ class Assignment(Node):
     def __init__(self, var_li, **kwargs):
         super().__init__(11, **kwargs)
         self.vars = var_li
+        self._slice = None
+        if 'slice' in kwargs.keys():
+            self.slice = kwargs['slice']
+
+    @property
+    def slice(self):
+        return self._slice
+
+    @slice.setter
+    def slice(self, slice_info):
+        total_slice = []
+        for idx in slice_info:
+            if ':' in idx:
+                total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
+                                                                                   else int(x)), idx.split(':')))))
+            else:
+                if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), idx):
+                    total_slice.append(idx)
+                else:
+                    total_slice.append(int(idx))
+        self._slice = total_slice
 
     @check_using
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
+        if self.slice is None:
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
+        else:
+            if self.vars[0] not in self.executor.var_dict:
+                self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
+            self.executor.var_dict[self.vars[0]].__setitem__(self.slice, self.executor.var_dict[self.vars[1]])
 
 
 class Add(Node):

@@ -1,16 +1,16 @@
-operator linear_kernel(x1, x2){
+operator linear_kernel(linear_kernel_value, x1, x2){
     select TRANSPOSE(x1) * x2 as linear_kernel_value
 }
 
-operator SVM_fast_predict(non_zero_a, x_a, y_a, b, x){
+operator SVM_fast_predict(y_pred, non_zero_a, x_a, y_a, b, x){
     select SUM(non_zero_a * y_a * (x_a * x)) + b as y_pred
 }
 
-operator SVM_predict(w,b,x){
+operator SVM_predict(y_pred,w,b,x){
     select TRANSPOSE(w)*x+b as y_pred
 }
 
-operator SMO(i, j, w,b, a, y, y_pred, c, eps, kernel_cache, error_cache){
+operator take_step(i, j, w,b, a, y,  eps, kernel_cache, error_cache){
     if(i!=j){
         select a[i] as alpha1
         select a[j] as alpha2
@@ -53,10 +53,12 @@ operator SMO(i, j, w,b, a, y, y_pred, c, eps, kernel_cache, error_cache){
                 }
             }
             if(ABS(a2-alpha2)>=eps*(a2+alpha2+eps)){
-                select alpha1+s*(alpha2-a2) as a1
-                select e1+y1*(a1-alpha1)*k11+y2*(a2-alpha2)*k12+b as b[i]
-                select e2+y1*(a1-alpha1)*k12+y2*(a2-alpha2)*k22+b as b[j]
-                select w+y1*(a1-alpha1)*x1 + y2*(a2-alpha2)*x2 as w
+                select a1-alpha1 as delta_a1
+                select a2-alpha2 as delta_a2
+                select alpha1+s*(0-delta_a2) as a1
+                select e1+y1*delta_a1*k11+y2*delta_a2*k12+b as b[i]
+                select e2+y1*delta_a1*k12+y2*delta_a2*k22+b as b[j]
+                select w+y1*delta_a1*x1 + y2*delta_a2*x2 as w
                 select SVM_predict(w,b,x1) as y_pred_1
                 select SVM_predict(w,b,x2) as y_pred_2
                 select y_pred_1 - y1 as error_cache[i]
@@ -68,10 +70,15 @@ operator SMO(i, j, w,b, a, y, y_pred, c, eps, kernel_cache, error_cache){
     }
 }
 
-operator SVM(x, y, c, eps){
+
+operator SVM(x, y, c, eps, iter_times){
     select SHAPE(x)[0] as n
+    select SHAPE(x)[1] as m
     create tensor kernel_cache(n,n)
     create tensor error_cache(n,)
+    create tensor w(m,) from RANDOM((m,),(0,1))
+    create tensor b(n,) from RANDOM((n,),(0,1))
+    create tensor a(n,) from 0
     create tensor i from 0
     LOOP(n){
         create tensor j from 0
@@ -81,5 +88,35 @@ operator SVM(x, y, c, eps){
         }
         select i+1 as i
     }
-    # TODO
+    select 0 as t
+    create tensor g(n,)
+    select SUM(a*y*x) as tmp
+    LOOP(iter_times){
+        create tensor j(1,) from 0
+        loop(n){
+            select tmp*x[j]+b as g[j]
+            select j+1 as j
+        }
+        select y*g as tmp2
+        select POW(tmp2-1,2) as c1
+        select COPY(c1) as c2
+        select COPY(c1) as c3
+        select 0 as j
+        loop(n){
+            if(a[j]>0 or tmp2[j]>=1){
+                select 0 as c1[j]
+            }
+            elif(a[j]==0 or a[j]==c or tmp2[j]==1){
+                select 0 as c2[j]
+            }
+            elif(a[j]<C or tmp2[j]<=1){
+                select 0 as c3[j]
+            }
+            select j+1 as j
+        }
+        select ARGMAX(c1+c2+c3) as i
+        select random((1,),(0,n),'uniform') as j
+        select take_step(i,j,w,b,a,y,eps,kernel_cache,error_cache)
+        select t+1 as t
+    }
 }

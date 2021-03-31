@@ -61,7 +61,7 @@ class Graph:
             self.edges.append(edge)
             end_dict = {end.id: 1}
             self.exist_edge[start.id] = end_dict
-            if start in self.without_out and (start.type_id != 6 and end.type_id != 5):
+            if start in self.without_out and not (isinstance(start, nd.LoopEnd) and isinstance(end, nd.Loop)):
                 self.without_out.remove(start)
             start.out_edges.append(edge)
             end.in_edges.append(edge)
