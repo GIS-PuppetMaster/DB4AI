@@ -541,7 +541,7 @@ class Parser:
                     v_i = re.sub('[ \t]+',' ',v_i)
                     if re.search(' ', v_i):
                         rep = v_i.split(' ')
-                        as_replace[rep[2]] = rep[0]
+                        as_replace[rep[1]] = rep[0]
             exp = v_name + ' = ' + match_obj2.group(2)
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
@@ -691,7 +691,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('test.txt', 'r') as f:
+    with open('./operators/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

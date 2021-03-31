@@ -625,12 +625,12 @@ def analyze_expression(expression, x, branches:list, replace=None):
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
-    s = 's = a[0]'
+    s = 'x = logistic(x,y,w, lr, threshold, iter_times)'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
