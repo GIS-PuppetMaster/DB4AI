@@ -720,6 +720,15 @@ class Save_table(Node):
         return self.table_name
 
 
+class SUM(Node):
+    def __init__(self, **kwargs):
+        super().__init__(46, **kwargs)
+        self.axis = None
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):

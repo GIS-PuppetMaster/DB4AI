@@ -597,7 +597,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
             G.InsertNode(a)
             G.InsertEdge(a, current_graph.keynode)
-            vallist.append([i[:i.index('[')], current_graph.keynode])
+            vallist.append([i[:i.index('[')], a])
             x += 1
             current_graph = parent
 
