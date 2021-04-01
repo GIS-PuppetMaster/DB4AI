@@ -377,11 +377,11 @@ class Parser:
         :param query: 需要解析的语句
         :return: True 合法语句 False 非法语句
         """
-        if self.loop_id == 0:
-            raise Exception('非loop内使用break：')
         break_reg = 'BREAK\n$|break\n$'
         match_obj = re.match(break_reg, query)
         if match_obj:
+            if self.loop_id == 0:
+                raise Exception('非loop内使用break：')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', self.branches, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
