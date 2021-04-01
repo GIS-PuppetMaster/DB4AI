@@ -645,6 +645,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             G.InsertEdge(a, current_graph.keynode)
             vallist.append([i[:i.index('[')], a])
             x += 1
+
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -692,13 +693,13 @@ if __name__ == '__main__':
     # s = "X =Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
     # s = 's = 1/((c+d)*(e+f))'
-    # s = 's =  xx * Zeros(3,7)'
+    # s = 's = a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
-    # s = 'hx = 1 / (1 + POW(CONSTANT.E, MATMUL(x, w))) WITH GRAD'
+    s = '$ = logistic(x,y,w, lr, threshold, iter_times)'
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'w = Elu(s,5)*Adam(x,y,z)'
+
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])

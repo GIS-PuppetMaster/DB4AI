@@ -603,6 +603,9 @@ class Parser:
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
+                last_use = var_li[-1]
+                if self.graph.nodes[last_use].branches == self.branches:
+                    self.graph.InsertEdge(self.graph.nodes[last_use], ass_n)
             else:
                 self.node_id += 1
                 node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
