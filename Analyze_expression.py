@@ -635,7 +635,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
-    G.Show()
     return G.GetSet(), vallist, top_node
 
 

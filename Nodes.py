@@ -201,6 +201,8 @@ class Random(Node):
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
             tensor = torch.randn() * self.boundary[1] + self.boundary[0]
+        elif self.distribution =='int':
+            tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         self.executor.var_dict[self.vars[0]] = tensor
@@ -720,13 +722,30 @@ class Save_table(Node):
         return self.table_name
 
 
-class SUM(Node):
-    def __init__(self, **kwargs):
-        super().__init__(46, **kwargs)
-        self.axis = None
+class Ones(Node):
+    def __init__(self, data_shape, var, **kwargs):
+        super().__init__(48, **kwargs)
+        if isinstance(data_shape, tuple):
+            self.data_shape = data_shape
+        elif isinstance(data_shape, str):
+            self.data_shape = eval(data_shape)
+        elif data_shape is None:
+            self.data_shape = None
+        # TODO: infer data_shape
+        self.set_vars(var)
 
-    def set_axis(self, axis):
-        self.axis = axis
+
+class Zeros(Node):
+    def __init__(self, data_shape, var, **kwargs):
+        super().__init__(49, **kwargs)
+        if isinstance(data_shape, tuple):
+            self.data_shape = data_shape
+        elif isinstance(data_shape, str):
+            self.data_shape = eval(data_shape)
+        elif data_shape is None:
+            self.data_shape = None
+        # TODO: infer data_shape
+        self.set_vars(var)
 
 
 def shallow_copy(fun):
@@ -749,7 +768,7 @@ def shallow_copy(fun):
 # 通过globals方法，以类名选择类进行实例化
 @shallow_copy
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
-    if nodeType == 'CreateTensor':
+    if nodeType == 'CreateTensor' or nodeType == 'Zeros' or nodeType == 'Ones':
         data_shape = otherField['data_shape']
         var = otherField['var']
         node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
