@@ -52,14 +52,14 @@ class BuildGraph:
 
 '''
 analyze_expression()负责处理输入和输出
-输入包括输入语句和所期望的节点初始序号，如0, 1
-其中输入语句是符合规定的DEF表达式语句，示例如下:
+输入包括输入语句和所期望的节点初始序号，如0, 1，以及所在分支branches列表和replace集合
+其中输入语句是DEF表达式语句，示例如下:
 A=B+C*D
 X=Y+LOG(Z+Q)
-M = N * POW(J , 3) WITH GRAD
-A = (B + C) * D WITH GRAD
-M = N * TENSORDOT(J , F , ([1,0],[0,1]) WITH GRAD
-A = B / NORM(c , ord=1 , axis=0) WITH GRAD
+M = N * POW(J,3) WITH GRAD
+A = (B+C)*D WITH GRAD
+M = N * TENSORDOT(J, F, ([1,0],[0,1]) WITH GRAD
+A = B/NORM(c,ord=1,axis=0) WITH GRAD
 A = a[4:-3,5:-7]
 输出图G，变量列表(包括表达式中出现的变量和其生成Val节点对应序号），图G顶端的最上层顶点；
 图G叶节点全部为张量或张量切片，非叶节点全部为算子，叶节点通过非叶节点相连，张量因此可以通过连接彼此的算子进行计算
@@ -76,7 +76,7 @@ TRACE : offset, axis1, axis2, dtype, out
 RESHAPE : order
 TENSORDOT : axes
 STACK : axis
-其中节点存在多个参数时输入参数需要提供参数名，如： DEF A = B / NORM(C , ord=1 , axis=0) WITH GRAD
+其中节点存在多个参数时输入参数需要提供参数名，如：A = B/NORM(C,ord=1,axis=0) WITH GRAD
 当某一参数输入值包括多种类型，如COND类中p参数可以为int值或"inf"值等，统一按字符串存储
 '''
 
@@ -85,14 +85,16 @@ def analyze_expression(expression, x, branches: list, replace=None):
     if replace is None:
         replace = {}
     simple_operator = ('+', '-', '*', '/')
-    # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子
+    # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子以及零元算子
+    none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'Save_table',
-                       'SUM')
-    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
+                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu')
+    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM'
-                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign'}
+                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
+                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -164,7 +166,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
         # 将分散为多个字符串的算子内部表达式整合为一个字符串
         begin = expression.index(i)
         end = 0
-        if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator):
+        if i.startswith(single_operator) or i.startswith(multiple_operator) or i.startswith(user_operator) \
+                or i.startswith(none_operator):
             flag = 0
             count = begin
             while count < len(expression):
@@ -468,6 +471,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         current_graph.keynode.set_axis(eval(var[1]))
                     else:
                         current_graph.keynode.set_axis(var[1])
+            if j == 'Elu':
+                current_graph.keynode.set_alpha(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -481,6 +486,21 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
 
+            # Adam算子目前可选参数仅支持learning_rate
+            if j == 'Adam':
+                var = i[len(j) + 1:-1].strip().split(',')
+                for v in var:
+                    v = v.strip()
+                    if v.startswith('learning_rate'):
+                        current_graph.keynode.set_learning_rate(v.split('=')[1])
+                    else:
+                        input_node = nd.InstantiationClass(x, 'Var', branches, vars=v)
+                        x += 1
+                        G.InsertNode(input_node)
+                        G.InsertEdge(input_node, current_graph.keynode)
+                        vallist.append([v,input_node])
+                current_graph = new_stack.pop()
+                continue
             # 关于后续是否直接输入张量
             if j == 'TENSORDOT':
                 var = i[len(j) + 1:-1].strip().split(',', 2)
@@ -530,6 +550,33 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     G.edges.append(k)
             current_graph = new_stack.pop()
 
+        # 该部分支持直接生成张量算子，目前有Ones和Zeros
+        elif i.startswith(none_operator):
+            for j in none_operator:
+                if i.startswith(j):
+                    params = i[len(j) + 1:-1]
+                    pattern = re.compile(r'[(](.*?)[)]', re.S)
+                    if re.search(pattern, params):
+                        data_shape = re.search(pattern, params)
+                        print(data_shape)
+                        print(data_shape.group(0))
+                        new_params = params[data_shape.end(0)+1:-1]
+                        param = new_params.strip().split(',')
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, j, branches,
+                                                                    with_grad=requires_grad, data_shape=data_shape.group(0),
+                                                                    var=param[0].strip()))
+                    else:
+                        param = params.split(',')
+                        current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, j, branches,
+                                                                    with_grad=requires_grad, data_shape=param[0].strip(),
+                                                                    var=param[1].strip()))
+                    x += 1
+                    break
+            parent = new_stack.pop()
+            G.InsertNode(current_graph.keynode)
+            if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
+                G.InsertEdge(current_graph.keynode, parent.keynode)
+            current_graph = parent
         # 自定义算子，通过访问SecondLevelLanguageParser.py文件生成的UserOperatorName.json以及UserOperatorInfo
         # 获取文件名和对应自定义算子内容，即输入、输出和图，该部分在SecondLevelLanguageParser.py的AddUserOperator函数中实现
         elif i.startswith(user_operator):
@@ -540,7 +587,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
-            operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches,with_grad=requires_grad)
+            operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
 
@@ -596,8 +643,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
             a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
             G.InsertNode(a)
             G.InsertEdge(a, current_graph.keynode)
+            vallist.append([i[:i.index('[')], a])
             x += 1
-
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -645,13 +692,13 @@ if __name__ == '__main__':
     # s = "X =Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
     # s = 's = 1/((c+d)*(e+f))'
-    # s = 's = a[i,1:3]'
+    # s = 's =  xx * Zeros(3,7)'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
-    s = '$ = logistic(x,y,w, lr, threshold, iter_times)'
+    # s = 'hx = 1 / (1 + POW(CONSTANT.E, MATMUL(x, w))) WITH GRAD'
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-
+    s = 'w = Elu(s,5)*Adam(x,y,z)'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
