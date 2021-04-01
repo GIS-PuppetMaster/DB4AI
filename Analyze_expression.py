@@ -613,8 +613,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 flag = 0
                 for input in operator_info[1]:
                     # 比对成功
-                    if e.GetStart() == input[1] or e.GetEnd() == input[1]:
+                    if e.GetStart() == input[1]:
                         flag = 1
+                        for in_edge in e.GetEnd().in_edges:
+                            if in_edge.GetStart() == input[1]:
+                                e.GetEnd().in_edges.remove(in_edge)
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.InsertEdge(e.GetStart(), e.GetEnd())
@@ -702,7 +705,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'w = SaveTable(x,"s")'
+    s = 'w = logistic(x,y,w,learning_rate,threshold, iter_times)'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
