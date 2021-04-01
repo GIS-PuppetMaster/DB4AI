@@ -118,8 +118,11 @@ class Graph:
     def ChangeNodeInfo(self, s_id, branches, with_grad):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
+            del self.nodes[i].branches[0]
+            for j in range(len(self.nodes[i].branches)):
+                self.nodes[i].branches[j] += s_id
             self.nodes[i].branches = branches + self.nodes[i].branches
-            # self.nodes[i].with_grad = with_grad
+            self.nodes[i].with_grad = with_grad
 
 
 if __name__ == '__main__':

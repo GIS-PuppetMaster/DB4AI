@@ -130,6 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
+                self.graph.Show()
                 self.Reset()
             else:
                 raise Exception('多余括号！')
@@ -210,7 +211,7 @@ class Parser:
         """
         # 用于匹配的正则表达式
         variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-        data_list_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
+        data_shape_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
@@ -218,7 +219,7 @@ class Parser:
                             f'([ \t]*(FROM|from)[ \t]*[^ ]+)?([ \t]*(WITH|with)[ \t]*(GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
         val_info_reg2 = '(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
-        val_info_reg3 = f'^(RANDOM|random)([(]({data_list_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
+        val_info_reg3 = f'^(RANDOM|random)([(]({data_shape_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
         hasWith = False  # 是否需要记录梯度
@@ -236,18 +237,20 @@ class Parser:
             T_info = match_obj.group(3)
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_dict.get(T_name, None):
-                return False
-            data = re.search(data_list_reg, T_info)
+                raise Exception('重复创建张量：' + T_name + '，语句为：' + query)
+            data = re.search(data_shape_reg, T_info)
             if data:
                 data_shape = data.group()
                 legal_info.append(T_name)
                 legal_info.append(data_shape)
             else:
-                return False
+                raise Exception('张量data_shape错误：' + T_info + '，语句为：' + query)
             if len(from_str) != 0:
                 match1 = re.match(val_info_reg1, from_str)
                 match2 = re.match(val_info_reg2, from_str)
                 match3 = re.match(val_info_reg3, from_str)
+                match4 = re.match(f'^(ZEROS|zeros)[(]({data_shape_reg})[)]', from_str)
+                match5 = re.match(f'^(ONES|ones)[(]({data_shape_reg})[)]', from_str)
                 if match1:
                     value_str = match1.group()
                     if re.search('[.]', value_str):
@@ -268,15 +271,21 @@ class Parser:
                         data_shape = ran_match_obj.group(1)
                         boundary = ran_match_obj.group(2)
                     else:
-                        return False
+                        raise Exception('RANDOM信息错误：' + in_random_str + '，语句为：' + query)
                     legal_info.append([data_shape, boundary, type])
                     from_type = 3
                 elif match2:
                     t_info = match2.group(1)
                     legal_info.append(t_info)
                     from_type = 2
+                elif match4:
+                    legal_info.append(match4.group(2))
+                    from_type = 4
+                elif match5:
+                    legal_info.append(match5.group(2))
+                    from_type = 5
                 else:
-                    return False
+                    raise Exception('FROM信息错误：' + from_str + '，语句为：' + query)
         else:
             return False
         # 对上一步的结果进行处理
@@ -303,9 +312,15 @@ class Parser:
             elif from_type == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
                                               var=['@' + str(self.node_id)])
-            else:
+            elif from_type == 3:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
+            elif from_type == 4:
+                node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info[0],
+                                              var=['@' + str(self.node_id)])
+            else:
+                node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info[0],
+                                              var=['@' + str(self.node_id)])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)
@@ -363,7 +378,7 @@ class Parser:
         :return: True 合法语句 False 非法语句
         """
         if self.loop_id == 0:
-            return False
+            raise Exception('非loop内使用break：')
         break_reg = 'BREAK\n$|break\n$'
         match_obj = re.match(break_reg, query)
         if match_obj:
@@ -397,7 +412,7 @@ class Parser:
             if condition != 'true' and condition != 'TRUE':
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
-                    return False
+                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query)
             else:
                 var_li = []
             self.node_id += 1
@@ -432,7 +447,7 @@ class Parser:
                 condition = re.search(con_reg, if_str).group()
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
-                    return False
+                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query)
                 self.node_id += 1
                 self.branches.append(self.oth_branch)
                 branches = self.branches.copy()
@@ -451,7 +466,7 @@ class Parser:
                 self.extra_pop_num += 1
                 return True
             else:
-                return False
+                raise Exception('elif在使用if前使用，语句为：' + query)
         elif match_obj_else:
             if self.state == 'if':
                 self.node_id += 1
@@ -464,7 +479,7 @@ class Parser:
                 self.extra_pop_num += 1
                 return True
             else:
-                return False
+                raise Exception('else在使用if前使用')
         else:
             return False
 
@@ -510,7 +525,6 @@ class Parser:
                    f'([ \t]+(FROM|from)[ \t]+(.+?))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         match_obj1 = re.match(ass_reg1, query)
         match_obj2 = re.match(ass_reg2, query)
-        is_slice = False
         slice_info = list()
         if match_obj1:
             self.EndIf()
@@ -530,7 +544,6 @@ class Parser:
             if v_name:
                 match_obj = re.match(f'^{variable_name_reg}\[(.+)]', v_name)
                 if match_obj:
-                    is_slice = True
                     v_name = match_obj.group(1)
                     slice_info = match_obj.group(2).split(',')
             else:
@@ -574,33 +587,22 @@ class Parser:
                         elif isinstance(in_v[1], Nd.Val):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                         else:
-                            return False
+                            raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
                 r_var = e_node.get_vars()[0]
                 self.UpdateVarList(r_var, e_node.id)
             else:
-                return False
+                raise Exception('=右侧表达式拼写错误，语句为：' + query)
         else:
             return False
         if v_name != '$':
             var_li = self.var_dict.get(v_name, None)
-            if is_slice:
-                self.node_id += 1
-                slice_node = Nd.InstantiationClass(self.node_id, 'Slice', self.branches)
-                slice_node.set_slice(slice_info)
-                self.graph.InsertNode(slice_node)
-            else:
-                slice_node = None
             if var_li:
                 self.node_id += 1
-                # print(self.node_id)
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
                 self.graph.InsertNode(ass_n)
-                if slice_node:
-                    self.graph.InsertEdge(self.graph.nodes[self.root_id], slice_node)
-                    self.graph.InsertEdge(slice_node, ass_n)
-                    ass_n.slice = slice_info
+                ass_n.slice = slice_info
             else:
                 self.node_id += 1
                 node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
@@ -609,20 +611,16 @@ class Parser:
                 self.node_id += 1
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
                 self.graph.InsertNode(ass_n)
+                ass_n.slice = slice_info
                 if self.isCu and self.root_id == 0:
                     pass
                 else:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
-                if slice_node:
-                    self.graph.InsertEdge(node_l, slice_node)
-                    self.graph.InsertEdge(slice_node, ass_n)
-                    ass_n.slice = slice_info
-                else:
-                    self.graph.InsertEdge(node_l, ass_n)
+                self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
             self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
-        else:
+        elif self.state == 'loop' or self.state == 'if_branch':
             self.graph.without_out.add(e_node)
         return True
 
@@ -643,7 +641,7 @@ class Parser:
                 self.operator = match_obj.group(2)
                 parameter_str = re.search(para_reg, match_obj.group(3)).group()
             else:
-                return False
+                raise Exception('自定义算子参数为空，语句为：' + query)
             parameter_li = parameter_str.replace(' ', '').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
