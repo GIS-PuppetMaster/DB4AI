@@ -502,7 +502,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         x += 1
                         G.InsertNode(input_node)
                         G.InsertEdge(input_node, current_graph.keynode)
-                        vallist.append([v,input_node])
+                        vallist.append([v, input_node])
                 current_graph = new_stack.pop()
                 continue
             # 关于后续是否直接输入张量
@@ -601,11 +601,13 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 for op in operator_info[1]:
                     if e.GetStart() in op:
                         # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
-                        # 则加入
+                        # 则将实参加入变量列表
                         if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
                             vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
             # print(operator_info[1])
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
+                operator_info[2].nodes[len(operator_info[1]) + n].out_edges = []
+                operator_info[2].nodes[len(operator_info[1]) + n].in_edges = []
                 G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
             x += len(operator_info[2].nodes) - len(operator_info[1])
             # 遍历图中每条边
