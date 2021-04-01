@@ -748,6 +748,53 @@ class Zeros(Node):
         self.set_vars(var)
 
 
+class Sum(Node):
+    def __init__(self, **kwargs):
+        super().__init__(50, **kwargs)
+        self.axis = None
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class Relu(Node):
+    def __init__(self, **kwargs):
+        super().__init__(51, **kwargs)
+
+
+class Tanh(Node):
+    def __init__(self, **kwargs):
+        super().__init__(52, **kwargs)
+
+
+class Softmax(Node):
+    def __init__(self, **kwargs):
+        super().__init__(53, **kwargs)
+
+
+class Sigmod(Node):
+    def __init__(self, **kwargs):
+        super().__init__(54, **kwargs)
+
+
+class Elu(Node):
+    def __init__(self, **kwargs):
+        super().__init__(55, **kwargs)
+        self.alpha = None
+
+    def set_alpha(self, alpha):
+        self.alpha = eval(alpha)
+
+
+class Adam(Node):
+    def __init__(self, **kwargs):
+        super().__init__(56, **kwargs)
+        self.learning_rate = None
+
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = eval(learning_rate)
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
