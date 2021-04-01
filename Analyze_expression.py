@@ -702,7 +702,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'w = Save_table(x,"s")'
+    s = 'w = SaveTable(x,"s")'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
