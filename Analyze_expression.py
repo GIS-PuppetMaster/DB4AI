@@ -339,6 +339,10 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if j == 'Save_table':
                 current_graph.keynode.set_name(var[1])
                 current_graph.keynode.set_vars([None, var[0]])
+                input_node = nd.InstantiationClass(x, 'Var', branches, vars=var[0], with_grad=requires_grad)
+                G.InsertNode(input_node)
+                G.InsertEdge(input_node, current_graph.keynode)
+                vallist.append([var[0], input_node])
                 current_graph = new_stack.pop()
                 continue
             new_expression = val_name + ' = ' + var[0]
@@ -494,7 +498,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     if v.startswith('learning_rate'):
                         current_graph.keynode.set_learning_rate(v.split('=')[1])
                     else:
-                        input_node = nd.InstantiationClass(x, 'Var', branches, vars=v)
+                        input_node = nd.InstantiationClass(x, 'Var', branches, vars=v, with_grad=requires_grad)
                         x += 1
                         G.InsertNode(input_node)
                         G.InsertEdge(input_node, current_graph.keynode)
@@ -511,12 +515,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 if j == 'TENSORDOT' and var.index(v) == 2:
                     axes = var[1]
                     if re.fullmatch(re.compile('\d+'), axes.strip()):
-                        axes_node = nd.InstantiationClass(x, 'Val', branches, val=eval(axes), )
+                        axes_node = nd.InstantiationClass(x, 'Val', branches, val=eval(axes), with_grad=requires_grad)
                         x += 1
                         G.InsertNode(axes_node)
                         G.InsertEdge(axes_node, current_graph.keynode)
                     else:
-                        axes_node = nd.InstantiationClass(x, 'Var', branches, vars=axes.strip())
+                        axes_node = nd.InstantiationClass(x, 'Var', branches, vars=axes.strip(), with_grad=requires_grad)
                         x += 1
                         G.InsertNode(axes_node)
                         G.InsertEdge(axes_node, current_graph.keynode)
@@ -698,7 +702,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'w = Elu(s,5)*Adam(x,y,z)'
+    s = 'w = Save_table(x,"s")'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
