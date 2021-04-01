@@ -8,8 +8,7 @@ from copy import copy
 def check_using(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
-        if len(node.vars) == 0 or node.vars[0] in node.executor.last_use.keys():
-            return fun(node, **kwargs)
+        return fun(node, **kwargs)
 
     return decorated
 
@@ -201,7 +200,7 @@ class Random(Node):
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
             tensor = torch.randn() * self.boundary[1] + self.boundary[0]
-        elif self.distribution =='int':
+        elif self.distribution == 'int':
             tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
@@ -710,7 +709,7 @@ class Sign(Node):
         super().__init__(46, **kwargs)
 
 
-class Save_table(Node):
+class SaveTable(Node):
     def __init__(self, **kwargs):
         super().__init__(47, **kwargs)
         self.table_name = None
@@ -734,6 +733,15 @@ class Ones(Node):
         # TODO: infer data_shape
         self.set_vars(var)
 
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_shape[self.vars[0]] = self.data_shape
+        self.executor.var_dict[self.vars[0]] = torch.ones(self.data_shape)
+
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_shape = self.data_shape
+
 
 class Zeros(Node):
     def __init__(self, data_shape, var, **kwargs):
@@ -746,6 +754,15 @@ class Zeros(Node):
             self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_shape[self.vars[0]] = self.data_shape
+        self.executor.var_dict[self.vars[0]] = torch.zeros(self.data_shape)
+
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_shape = self.data_shape
 
 
 class Sum(Node):

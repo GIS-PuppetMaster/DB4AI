@@ -88,7 +88,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子以及零元算子
     none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
-                       'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'Save_table',
+                       'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
@@ -336,7 +336,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',', 1)
-            if j == 'Save_table':
+            if j == 'SaveTable':
                 current_graph.keynode.set_name(var[1])
                 current_graph.keynode.set_vars([None, var[0]])
                 current_graph = new_stack.pop()

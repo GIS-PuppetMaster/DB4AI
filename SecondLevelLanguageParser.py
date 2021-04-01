@@ -316,10 +316,10 @@ class Parser:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
             elif from_type == 4:
-                node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info[0],
+                node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info[0],
+                node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
@@ -699,7 +699,7 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('test.txt', 'r') as f:
+    with open('./test/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

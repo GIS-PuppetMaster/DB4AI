@@ -1,5 +1,5 @@
-create tensor x(10,) from 0
-create tensor z(10,) from 1
+create tensor x(10,) from zeros((10,))
+create tensor z(10,) from ones((10,))
 select x[0] as z[0] with grad
 
 

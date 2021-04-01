@@ -99,9 +99,9 @@ class Executor:
                 else:
                     # loop结束后再回收
                     self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
-        for var_name in list(self.var_dict.keys()):
-            if var_name not in self.last_use.keys():
-                self.var_dict.pop(var_name)
+        # for var_name in list(self.var_dict.keys()):
+        #     if var_name not in self.last_use.keys():
+        #         self.var_dict.pop(var_name)
         if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
             for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
                 self.var_dict.pop(var_name)

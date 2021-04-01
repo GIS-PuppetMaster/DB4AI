@@ -5,5 +5,5 @@ create tensor lr(1,) from 0.01
 create tensor threshold(1,) from 1
 create tensor iter_times(1,) from 10
 select logistic(x,y,w, lr, threshold, iter_times)
-select SAVETABLE(w, 'logistic_w')
+
 
