@@ -201,6 +201,8 @@ class Random(Node):
         elif self.distribution == 'gauss':
             # boundary[0]=mu, boundary[1]=sigma
             tensor = torch.randn() * self.boundary[1] + self.boundary[0]
+        elif self.distribution =='int':
+            tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         self.executor.var_dict[self.vars[0]] = tensor
