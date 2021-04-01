@@ -92,7 +92,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM'
-                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign'}
+                    'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
+                    'Slice'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -596,8 +597,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
             a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
             G.InsertNode(a)
             G.InsertEdge(a, current_graph.keynode)
+            vallist.append([i[:i.index('[')], current_graph.keynode])
             x += 1
-
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -634,6 +635,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
+    G.Show()
     return G.GetSet(), vallist, top_node
 
 
@@ -645,9 +647,9 @@ if __name__ == '__main__':
     # s = "X =Y+GRADIENT(a,CONSTANT.PI)+3"
     # s = "z = MATMUL(x,w)"
     # s = 's = 1/((c+d)*(e+f))'
-    # s = 's = a[i,1:3]'
+    s = 's =  xx * a[i,1:3]'
     # s = 's= 5 + TRACE(a,offset=1,axis1=1,axis2=0,dtype=1,out=1) * d'
-    s = '$ = logistic(x,y,w, lr, threshold, iter_times)'
+    # s = 'hx = 1 / (1 + POW(CONSTANT.E, MATMUL(x, w))) WITH GRAD'
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
