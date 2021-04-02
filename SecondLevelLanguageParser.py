@@ -702,10 +702,11 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('./test/logistic.sql', 'r') as f:
+    with open('./operators/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    result.InsertEdge(result.nodes[19], result.nodes[25])
     executor = Executor(result)
     executor.run()
     print(executor.var_dict)
