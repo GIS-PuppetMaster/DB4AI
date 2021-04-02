@@ -31,8 +31,8 @@ class Node:
         self._default_batch_size = 0
         self.batch_size = 0
         self.use_batch = True
-        self.fathers = [edge.start for edge in self.in_edges]
-        self.sons = [edge.end for edge in self.out_edges]
+        self.fathers = list(set([edge.start for edge in self.in_edges]))
+        self.sons = list(set([edge.end for edge in self.out_edges]))
         self.release_list = []
         self.in_loop = -1
 
@@ -204,6 +204,8 @@ class Random(Node):
             tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
+        if self.with_grad:
+            tensor.requires_grad=True
         self.executor.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
@@ -363,7 +365,8 @@ class Assignment(Node):
                     total_slice.append(idx)
                 else:
                     total_slice.append(int(idx))
-        self._slice = total_slice
+        if len(total_slice)>0:
+            self._slice = total_slice
 
     @check_using
     def run(self, **kwargs):
@@ -736,7 +739,10 @@ class Ones(Node):
     @check_using
     def run(self, **kwargs):
         self.executor.var_shape[self.vars[0]] = self.data_shape
-        self.executor.var_dict[self.vars[0]] = torch.ones(self.data_shape)
+        tensor = torch.ones(self.data_shape)
+        if self.with_grad:
+            tensor.requires_grad=True
+        self.executor.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -758,14 +764,17 @@ class Zeros(Node):
     @check_using
     def run(self, **kwargs):
         self.executor.var_shape[self.vars[0]] = self.data_shape
-        self.executor.var_dict[self.vars[0]] = torch.zeros(self.data_shape)
+        tensor = torch.zeros(self.data_shape)
+        if self.with_grad:
+            tensor.requires_grad = True
+        self.executor.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
 
 
-class Sum(Node):
+class SUM(Node):
     def __init__(self, **kwargs):
         super().__init__(50, **kwargs)
         self.axis = None
@@ -811,6 +820,17 @@ class Adam(Node):
     def set_learning_rate(self, learning_rate):
         self.learning_rate = eval(learning_rate)
 
+class MEAN(Node):
+    def __init__(self, **kwargs):
+        super().__init__(57, **kwargs)
+        self.axis = 0
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.mean(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self,axis):
+        self.axis = axis
 
 def shallow_copy(fun):
     @wraps(fun)

@@ -2,6 +2,8 @@ import json
 import os
 import pickle
 import re
+from collections import defaultdict
+
 import Nodes as nd
 import Digraph
 import numpy
@@ -89,7 +91,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
     none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
-                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu')
+                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM'
@@ -397,12 +399,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         G.edges.append(k)
                     for t in temp[1]:
                         vallist.append(t)
-            if j == 'QR':
+            elif j == 'QR':
                 mode = var[1]
                 if var[1].find('mode') != -1:
                     mode = var[1].split('=')[1].strip()
                 current_graph.keynode.set_mode(mode)
-            if j == 'SVD':
+            elif j == 'SVD':
                 count = 1
                 full_matrices = 1
                 compute_uv = 1
@@ -417,7 +419,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         hermitian = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(full_matrices, compute_uv, hermitian)
-            if j == 'NORM':
+            elif j == 'NORM':
                 count = 1
                 ord = None
                 axis = None
@@ -431,7 +433,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         keepdims = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(ord, axis, keepdims)
-            if j == 'COND':
+            elif j == 'COND':
                 count = 1
                 p = var[count].strip()
                 while count < len(var):
@@ -439,7 +441,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         p = var[count].split('=')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(p)
-            if j == 'TRACE':
+            elif j == 'TRACE':
                 count = 1
                 offset = 0
                 axis1 = 0
@@ -459,7 +461,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         out = eval(var[count].split('=')[1].strip())
                     count += 1
                 current_graph.keynode.set_param(offset, axis1, axis2, dtype, out)
-            if j == 'RESHAPE':
+            elif j == 'RESHAPE':
                 count = 2
                 newshape = var[1]
                 order = 'C'
@@ -469,14 +471,20 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         order = var[count].split('=')[1].strip()
                     count += 1
                 current_graph.keynode.set_param(newshape, order)
-            if j == 'SUM':
+            elif j == 'SUM':
                 if len(var) != 1:
                     if type(var[1]) == str:
                         current_graph.keynode.set_axis(eval(var[1]))
                     else:
                         current_graph.keynode.set_axis(var[1])
-            if j == 'Elu':
+            elif j == 'Elu':
                 current_graph.keynode.set_alpha(var[1])
+            elif j=='MEAN':
+                if len(var) != 1:
+                    if type(var[1]) == str:
+                        current_graph.keynode.set_axis(eval(var[1]))
+                    else:
+                        current_graph.keynode.set_axis(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -605,9 +613,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
                             vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
             # print(operator_info[1])
+            if_out_edges=defaultdict(dict)
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
-                operator_info[2].nodes[len(operator_info[1]) + n].out_edges = []
-                operator_info[2].nodes[len(operator_info[1]) + n].in_edges = []
+                node = operator_info[2].nodes[len(operator_info[1]) + n]
+                if isinstance(node, nd.If):
+                    for edge in node.out_edges:
+                        if_out_edges[node][edge.end] = edge
+                node.out_edges = []
+                node.in_edges = []
                 G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
             x += len(operator_info[2].nodes) - len(operator_info[1])
             # 遍历图中每条边
@@ -623,6 +636,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.InsertEdge(e.GetStart(), e.GetEnd())
+                    if isinstance(e.GetStart(), nd.If):
+                        old_edge = if_out_edges[e.GetStart()][e.GetEnd()]
+                        G.edges[-1].condition = old_edge.condition
+                        G.edges[-1].reverse = old_edge.reverse
+                        G.edges[-1].need_var = old_edge.need_var
             parent = new_stack.pop()
             if isinstance(parent.keynode.type_id, nd.Blank) is not True:
                 G.InsertEdge(list(operator_info[0])[0], parent.keynode)
