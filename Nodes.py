@@ -820,6 +820,7 @@ class Adam(Node):
     def set_learning_rate(self, learning_rate):
         self.learning_rate = eval(learning_rate)
 
+
 class MEAN(Node):
     def __init__(self, **kwargs):
         super().__init__(57, **kwargs)

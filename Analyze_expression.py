@@ -4,6 +4,8 @@ import pickle
 import re
 from collections import defaultdict
 
+import numpy as np
+
 import Nodes as nd
 import Digraph
 import numpy
@@ -86,6 +88,7 @@ STACK : axis
 def analyze_expression(expression, x, branches: list, replace=None):
     if replace is None:
         replace = {}
+    print(replace)
     simple_operator = ('+', '-', '*', '/')
     # 在高级算子中划分单元算子(单个变量，不包括属性值）和多元算子以及零元算子
     none_operator = ('Ones', 'Zeros')
@@ -94,9 +97,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
-                    'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM'
+                    'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam'}
+                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -337,10 +340,23 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
-            pattern = re.compile(r'[(](.*?)[)]', re.S)
-            if re.findall(pattern, i)[0].find(all_operator):
-                print(666)
-            var = re.findall(pattern, i)[0].split(',', 1)
+            temp_i = i[len(j)+1:-1].strip()
+            cnt = 0
+            begin = 0
+            var = []
+            for l in range(len(temp_i)):
+                if temp_i[l] == '(':
+                    cnt += 1
+                if temp_i[l] == ')':
+                    cnt -= 1
+                if temp_i[l] == ',' and cnt == 0:
+                    end = l
+                    var.append(temp_i[begin:end])
+                    begin = l + 1
+                if l == len(temp_i) - 1:
+                    var.append(temp_i[begin:])
+            if len(var) == 0:
+                var.append(temp_i)
             if j == 'SaveTable':
                 current_graph.keynode.set_name(var[1])
                 current_graph.keynode.set_vars([None, var[0]])
@@ -482,7 +498,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         current_graph.keynode.set_axis(var[1])
             elif j == 'Elu':
                 current_graph.keynode.set_alpha(var[1])
-            elif j=='MEAN':
+            elif j == 'MEAN':
                 if len(var) != 1:
                     if type(var[1]) == str:
                         current_graph.keynode.set_axis(eval(var[1]))
@@ -516,12 +532,23 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         vallist.append([v, input_node])
                 current_graph = new_stack.pop()
                 continue
-            # 关于后续是否直接输入张量
-            if j == 'TENSORDOT':
-                var = i[len(j) + 1:-1].strip().split(',', 2)
-            else:
-                var = i[len(j) + 1:-1].strip().split(',', 1)
-
+            temp_i = i[len(j)+1:-1].strip()
+            cnt = 0
+            begin = 0
+            var = []
+            for l in range(len(temp_i)):
+                if temp_i[l] == '(':
+                    cnt += 1
+                if temp_i[l] == ')':
+                    cnt -= 1
+                if temp_i[l] == ',' and cnt == 0:
+                    end = l
+                    var.append(temp_i[begin:end])
+                    begin = l + 1
+                if l == len(temp_i) - 1:
+                    var.append(temp_i[begin:])
+            if len(var) == 0:
+                var.append(temp_i)
             for v in var:
                 if j == 'TENSORDOT' and var.index(v) == 2:
                     axes = var[1]
@@ -593,7 +620,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
         # 自定义算子，通过访问SecondLevelLanguageParser.py文件生成的UserOperatorName.json以及UserOperatorInfo
-        # 获取文件名和对应自定义算子内容，即输入、输出和图，该部分在SecondLevelLanguageParser.py的AddUserOperator函数中实现
+        # 获取文件名和对应自定义算子内容，即输出、输入和图，该部分在SecondLevelLanguageParser.py的AddUserOperator函数中实现
         elif i.startswith(user_operator):
             for j in user_operator:
                 if i.startswith(j):
@@ -622,9 +649,10 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 if isinstance(node, nd.If):
                     for edge in node.out_edges:
                         if_out_edges[node][edge.end] = edge
-                node.out_edges = []
-                node.in_edges = []
+                # node.out_edges = []
+                # node.in_edges = []
                 G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
+
             x += len(operator_info[2].nodes) - len(operator_info[1])
             # 遍历图中每条边
             for e in operator_info[2].edges:
@@ -697,8 +725,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
     try:
         top_node = G.GetNoOutNodes().pop()
     except KeyError:
-        print("栈为空，无法pop")
+        print("无top_node")
     # 对算子节点添加输入输出信息
+    # print(top_node.__class__.__name__)
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
         top_node.set_vars('@' + str(top_node.id))
     for e in G.edges:
@@ -711,11 +740,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     # G.Show()
-    return G.GetSet(), vallist, top_node
+    return G.GetSet(), vallist, top_node, G
 
 
 if __name__ == '__main__':
-    # s = 'y = SUM(n*y*(xa*x))+b'
+    s = 'y = SUM(n*y*(xa*x))+b'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
@@ -728,7 +757,11 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'y = SUM(MATMUL(x,w))'
+    # s = 'y = POW(MATMUL(x,w),1)'
+    # s = 's = logistic(x,y,w,learning_rate,threshold, iter_times)'
+    # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
+    # now2 = np.mat(num1)
+    s = 's = SUM(MEAN(now2,1))'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
