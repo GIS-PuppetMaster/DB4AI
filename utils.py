@@ -28,7 +28,8 @@ def bfs(all_sons):
                         if node not in visited:
                             queue.put(node)
                             visited.add(node)
-
+                a = 1
+                # assert not queue.empty()
         return decorated
 
     return bfs_

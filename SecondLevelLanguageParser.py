@@ -316,10 +316,10 @@ class Parser:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
             elif from_type == 4:
-                node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info[0],
+                node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
             else:
-                node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info[0],
+                node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
@@ -377,11 +377,11 @@ class Parser:
         :param query: 需要解析的语句
         :return: True 合法语句 False 非法语句
         """
-        if self.loop_id == 0:
-            raise Exception('非loop内使用break：')
         break_reg = 'BREAK\n$|break\n$'
         match_obj = re.match(break_reg, query)
         if match_obj:
+            if self.loop_id == 0:
+                raise Exception('非loop内使用break：')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', self.branches, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
@@ -603,6 +603,9 @@ class Parser:
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
+                last_use = var_li[-1]
+                if self.graph.nodes[last_use].branches == self.branches:
+                    self.graph.InsertEdge(self.graph.nodes[last_use], ass_n)
             else:
                 self.node_id += 1
                 node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
@@ -699,10 +702,11 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('test.txt', 'r') as f:
+    with open('./operators/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    result.InsertEdge(result.nodes[19], result.nodes[25])
     executor = Executor(result)
     executor.run()
     print(executor.var_dict)

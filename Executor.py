@@ -46,8 +46,8 @@ class Executor:
             if 'break' not in kwargs['info'].keys():
                 kwargs['info']['break'] = {}
             kwargs['info']['break'][current_node.loop_id] = current_node
-        current_node.fathers = [edge.start for edge in current_node.in_edges]
-        current_node.sons = [edge.end for edge in current_node.out_edges]
+        current_node.fathers =list(set([edge.start for edge in current_node.in_edges]))
+        current_node.sons = list(set([edge.end for edge in current_node.out_edges]))
         current_node.branches_set = set(current_node.branches)
         current_node.infer_data()
         current_node.executor = self
@@ -99,9 +99,9 @@ class Executor:
                 else:
                     # loop结束后再回收
                     self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
-        for var_name in list(self.var_dict.keys()):
-            if var_name not in self.last_use.keys():
-                self.var_dict.pop(var_name)
+        # for var_name in list(self.var_dict.keys()):
+        #     if var_name not in self.last_use.keys():
+        #         self.var_dict.pop(var_name)
         if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
             for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
                 self.var_dict.pop(var_name)

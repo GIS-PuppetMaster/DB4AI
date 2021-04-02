@@ -1,5 +1,6 @@
-create tensor x(10,) from 0
-create tensor z(10,) from 1
-select x[0] as z[0] with grad
+create tensor x(1,4) from random((1,4),(0,1))
+create tensor w(4,1) from random((4,1),(0,1)) with grad
+select MATMUL(x,w) as y with grad
+select GRADIENT(y,w) as g
 
 
