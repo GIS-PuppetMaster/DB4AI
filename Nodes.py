@@ -748,7 +748,7 @@ class Zeros(Node):
         self.set_vars(var)
 
 
-class Sum(Node):
+class SUM(Node):
     def __init__(self, **kwargs):
         super().__init__(50, **kwargs)
         self.axis = None

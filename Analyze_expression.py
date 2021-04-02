@@ -319,6 +319,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
+            vallist.append([i, current_graph.keynode])
             current_graph = parent
 
         # 对于算子，设置当前节点值，识别自带括号内内容，新建子图G’，连接G和G'
@@ -335,6 +336,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
+            if re.findall(pattern, i)[0].find(all_operator):
+                print(666)
             var = re.findall(pattern, i)[0].split(',', 1)
             if j == 'Save_table':
                 current_graph.keynode.set_name(var[1])
@@ -707,7 +710,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'w = logistic(x,y,w,learning_rate,threshold, iter_times)'
+    s = 'y = SUM(MATMUL(x,w))'
     p = analyze_expression(s, 0, [0])
     # p[3].Show()
     print(p[1])
