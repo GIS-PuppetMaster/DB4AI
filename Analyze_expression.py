@@ -628,7 +628,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         t = pickle.load(f)
                         operator_info = t.get(j)
                     break
-            # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
@@ -636,12 +635,17 @@ def analyze_expression(expression, x, branches: list, replace=None):
             # 将算子输入的实际参数变量加入表达式出现的变量列表
             for e in operator_info[2].edges:
                 # 如果形参出现
-                for op in operator_info[1]:
-                    if e.GetStart() in op:
+                for inp in operator_info[1]:
+                    if e.GetStart() in inp:
                         # 如果变量列表中事先未出现与形参对应的实参(如定义形式为first(a,...)，对应实际调用为first(x,...),则a与x相对应)，
                         # 则将实参加入变量列表
-                        if [var[operator_info[1].index(op)].strip(), e.GetEnd()] not in vallist:
-                            vallist.append([var[operator_info[1].index(op)].strip(), e.GetEnd()])
+                        if [var[operator_info[1].index(inp)].strip(), e.GetEnd()] not in vallist:
+                            vallist.append([var[operator_info[1].index(inp)].strip(), e.GetEnd()])
+            for n in operator_info[2].nodes:
+                for v in range(len(n.vars)):
+                    for inp in operator_info[1]:
+                        if n.vars[v] == inp[0]:
+                            n.vars[v] = var[operator_info[1].index(inp)]
             # print(operator_info[1])
             if_out_edges=defaultdict(dict)
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
@@ -649,8 +653,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 if isinstance(node, nd.If):
                     for edge in node.out_edges:
                         if_out_edges[node][edge.end] = edge
-                # node.out_edges = []
-                # node.in_edges = []
+                node.out_edges = []
+                node.in_edges = []
                 G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
 
             x += len(operator_info[2].nodes) - len(operator_info[1])
@@ -758,11 +762,11 @@ if __name__ == '__main__':
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
     # s = 'y = POW(MATMUL(x,w),1)'
-    # s = 's = logistic(x,y,w,learning_rate,threshold, iter_times)'
+    s = 's = logistic(x,y,w,z,threshold, iter_times)'
     # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
     # now2 = np.mat(num1)
-    s = 's = SUM(MEAN(now2,1))'
+    # s = 'loss = SUM(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
     p = analyze_expression(s, 0, [0])
-    # p[3].Show()
+    p[3].Show()
     print(p[1])
     print(p[2])

@@ -118,6 +118,9 @@ class Graph:
     def ChangeNodeInfo(self, s_id, branches, with_grad):
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
+            for v in range(len(self.nodes[i].vars)):
+                if self.nodes[i].vars[v].startswith('@'):
+                    self.nodes[i].vars[v] = '@' + str(eval(self.nodes[i].vars[v][1:]) + s_id)
             del self.nodes[i].branches[0]
             for j in range(len(self.nodes[i].branches)):
                 self.nodes[i].branches[j] += s_id
