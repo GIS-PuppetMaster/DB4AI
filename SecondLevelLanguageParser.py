@@ -6,7 +6,7 @@ import Analyze_expression as A_e
 import json
 import os
 import pickle
-
+from line_profiler import LineProfiler
 from Executor import Executor
 
 
@@ -709,6 +709,8 @@ if __name__ == '__main__':
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    # lp = LineProfiler()
+    # lp.add_function()
     executor = Executor(result)
     s = time()
     executor.run()

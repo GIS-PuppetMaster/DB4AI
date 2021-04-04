@@ -6,15 +6,15 @@ from copy import copy
 
 
 def preprocessing(fun):
-    @wraps(fun)
+    # @wraps(fun)
     def decorated(node, **kwargs):
         if not node.with_grad and not isinstance(node, GRADIENT):
             with torch.no_grad():
                 return fun(node, **kwargs)
         else:
             return fun(node, **kwargs)
-    return decorated
 
+    return decorated
 
 
 class Node:
@@ -39,6 +39,7 @@ class Node:
         self.sons = list(set([edge.end for edge in self.out_edges]))
         self.release_list = []
         self.in_loop = -1
+        self.finished = False
 
     @property
     def default_batch_size(self):
@@ -209,7 +210,7 @@ class Random(Node):
         else:
             raise Exception(f'Not supported distribution:{self.distribution}')
         if self.with_grad:
-            tensor.requires_grad=True
+            tensor.requires_grad = True
         self.executor.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
@@ -238,8 +239,7 @@ class Loop(Node):
         executor = kwargs['executor']
         if self.loop_pair in visited:
             visited.remove(self.loop_pair)
-        if self.loop_pair in executor.finished_nodes:
-            executor.finished_nodes.remove(self.loop_pair)
+        self.loop_pair.finished=False
         self.times += 1
 
     def next_nodes(self):
@@ -270,7 +270,7 @@ class LoopEnd(Node):
         executor = kwargs['executor']
         # 从visited中删除对应的LoopEnd
         visited.remove(self.loop_pair)
-        executor.finished_nodes.remove(self.loop_pair)
+        self.loop_pair.finished = False
         # 移除loop内的节点
         nodes_in_loop = []
         for node in visited:
@@ -279,8 +279,7 @@ class LoopEnd(Node):
         for node in nodes_in_loop:
             if node in visited:
                 visited.remove(node)
-            if node in executor.finished_nodes:
-                executor.finished_nodes.remove(node)
+            node.finished = False
 
     def next_nodes(self):
         assert self.loop_pair is not None
@@ -371,7 +370,7 @@ class Assignment(Node):
                     total_slice.append(idx)
                 else:
                     total_slice.append(int(idx))
-        if len(total_slice)>0:
+        if len(total_slice) > 0:
             self._slice = total_slice
 
     @preprocessing
@@ -749,7 +748,7 @@ class Ones(Node):
         self.executor.var_shape[self.vars[0]] = self.data_shape
         tensor = torch.ones(self.data_shape)
         if self.with_grad:
-            tensor.requires_grad=True
+            tensor.requires_grad = True
         self.executor.var_dict[self.vars[0]] = tensor
 
     def infer_data(self):
@@ -838,8 +837,9 @@ class MEAN(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.mean(self.executor.var_dict[self.vars[1]])
 
-    def set_axis(self,axis):
+    def set_axis(self, axis):
         self.axis = axis
+
 
 def shallow_copy(fun):
     @wraps(fun)

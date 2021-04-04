@@ -14,7 +14,6 @@ class Executor:
         self.graph = graph
         self.var_dict = dict()
         self.finished_loop_id = set()
-        self.finished_nodes = set()
         self.last_use = {}
         self.var_shape = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
@@ -86,12 +85,13 @@ class Executor:
                 self.init_branches(next_node, current_branch)
 
     @bfs(False)
+    # @profile
     def execute(self, current_node, **kwargs):
         visited = kwargs['visited']
         # 确保父节点都执行完了再执行他
         if not isinstance(current_node, IfEnd) and not isinstance(current_node, LoopEnd):
             for father in current_node.fathers:
-                if father not in self.finished_nodes and not isinstance(father, LoopEnd):
+                if not father.finished and not isinstance(father, LoopEnd):
                     return False
         current_node.run(visited=visited, executor=self)
         # TODO: 对requires_grad对象的回收
@@ -108,7 +108,7 @@ class Executor:
         if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
             for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
                 self.var_dict.pop(var_name)
-        self.finished_nodes.add(current_node)
+        current_node.finished = True
         return True
 
     def run(self):
