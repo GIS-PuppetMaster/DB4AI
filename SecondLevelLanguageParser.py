@@ -130,7 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                self.graph.Show()
+                # self.graph.Show()
                 self.Reset()
             else:
                 raise Exception('多余括号！')

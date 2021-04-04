@@ -504,6 +504,13 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         current_graph.keynode.set_axis(eval(var[1]))
                     else:
                         current_graph.keynode.set_axis(var[1])
+            elif j == 'Argmax' or j=='Argmin':
+                if len(var)!=1:
+                    if len(var) != 1:
+                        if type(var[1]) == str:
+                            current_graph.keynode.set_axis(eval(var[1]))
+                        else:
+                            current_graph.keynode.set_axis(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:

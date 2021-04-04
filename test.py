@@ -1,6 +1,13 @@
 import torch
 import numpy as np
 from time import time
+class A:
+    def __init__(self):
+        pass
+    def __getitem__(self, item):
+        print(item)
+a = A()
+b = a[1,:,...]
 s = time()
 x = torch.randn((1000, 4))
 y = torch.randint(low=0, high=2, size=(1000, 1))

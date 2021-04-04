@@ -15,7 +15,7 @@ def bfs(all_sons):
             visited.add(root)
             info = {}
             while not len(queue)==0:
-                current_node = queue.pop(-1)
+                current_node = queue.pop(0)
                 success = fun(executor, current_node, visited=visited, info=info)
                 if not success:
                     visited.remove(current_node)
