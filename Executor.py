@@ -58,6 +58,9 @@ class Executor:
                 in_loop = branch
                 break
         current_node.in_loop = in_loop
+        # loop end
+        if isinstance(current_node, LoopEnd):
+            current_node.in_loop = current_node.loop_id
         if isinstance(current_node, If):
             for var_name, _ in current_node.out_edges[0].need_var:
                 self.last_use[var_name] = current_node

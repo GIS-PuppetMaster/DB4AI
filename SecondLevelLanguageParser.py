@@ -704,10 +704,13 @@ class Parser:
 
 
 if __name__ == '__main__':
+    from time import time
     with open('./test/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     executor = Executor(result)
+    s = time()
     executor.run()
-    print(executor.var_dict)
+    print(f'time:{time()-s} s')
+    print(executor.var_dict['loss'])
