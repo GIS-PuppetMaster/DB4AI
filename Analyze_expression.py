@@ -94,12 +94,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
     none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
-                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN')
+                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN'}
+                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -763,10 +763,10 @@ if __name__ == '__main__':
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
     # s = 'y = POW(MATMUL(x,w),1)'
-    s = 's = logistic(a  ,y,w,  z,  threshold, iter_times)'
+    # s = 's = logistic(a  ,y,w,  z,  threshold, iter_times)'
     # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
     # now2 = np.mat(num1)
-    # s = 'loss = SUM(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
+    s = 'loss = MAX(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
     p = analyze_expression(s, 0, [])
     p[3].Show()
     print(p[1])

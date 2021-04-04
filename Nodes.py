@@ -830,8 +830,35 @@ class MEAN(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.mean(self.executor.var_dict[self.vars[1]])
 
-    def set_axis(self,axis):
+    def set_axis(self, axis):
         self.axis = axis
+
+
+class MAX(Node):
+    def __init__(self, **kwargs):
+        super().__init__(58, **kwargs)
+        self.axis = 0
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.max(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class MIN(Node):
+    def __init__(self, **kwargs):
+        super().__init__(59, **kwargs)
+        self.axis = 0
+
+    @check_using
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.min(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
 
 def shallow_copy(fun):
     @wraps(fun)
