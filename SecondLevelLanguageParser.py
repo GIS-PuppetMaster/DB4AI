@@ -6,7 +6,7 @@ import Analyze_expression as A_e
 import json
 import os
 import pickle
-
+from line_profiler import LineProfiler
 from Executor import Executor
 
 
@@ -130,7 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                self.graph.Show()
+                # self.graph.Show()
                 self.Reset()
             else:
                 raise Exception('多余括号！')
@@ -526,6 +526,7 @@ class Parser:
         match_obj1 = re.match(ass_reg1, query)
         match_obj2 = re.match(ass_reg2, query)
         slice_info = list()
+        with_grad = False
         if match_obj1:
             self.EndIf()
             v_name = match_obj1.group(1)
@@ -559,6 +560,7 @@ class Parser:
             exp = v_name + ' = ' + match_obj2.group(2)
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
+                with_grad = True
             self.node_id += 1
             branches = self.branches.copy()
             p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
@@ -600,7 +602,7 @@ class Parser:
             var_li = self.var_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
-                ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
+                ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var], with_grad=with_grad)
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
                 last_use = var_li[-1]
@@ -612,7 +614,7 @@ class Parser:
                 self.graph.InsertNode(node_l)
                 self.UpdateVarList(v_name, self.node_id)
                 self.node_id += 1
-                ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var])
+                ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var], with_grad=with_grad)
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
                 if self.isCu and self.root_id == 0:
@@ -702,11 +704,15 @@ class Parser:
 
 
 if __name__ == '__main__':
-    with open('./operators/logistic.sql', 'r') as f:
+    from time import time
+    with open('./operators/SVM.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    result.InsertEdge(result.nodes[19], result.nodes[25])
+    # lp = LineProfiler()
+    # lp.add_function()
     executor = Executor(result)
+    s = time()
     executor.run()
-    print(executor.var_dict)
+    print(f'time:{time()-s} s')
+    print(executor.var_dict['loss'])

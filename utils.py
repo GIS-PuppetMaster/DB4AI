@@ -6,16 +6,16 @@ from copy import copy, deepcopy
 
 def bfs(all_sons):
     def bfs_(fun):
-        @wraps(fun)
+        # @wraps(fun)
         def decorated(executor):
-            queue = Queue()
+            queue = []
             visited = set()
             root = executor.graph.nodes[0]
-            queue.put(root)
+            queue.append(root)
             visited.add(root)
             info = {}
-            while not queue.empty():
-                current_node = queue.get()
+            while not len(queue)==0:
+                current_node = queue.pop(0)
                 success = fun(executor, current_node, visited=visited, info=info)
                 if not success:
                     visited.remove(current_node)
@@ -26,10 +26,8 @@ def bfs(all_sons):
                         next_nodes = current_node.next_nodes()
                     for node in next_nodes:
                         if node not in visited:
-                            queue.put(node)
+                            queue.append(node)
                             visited.add(node)
-                a = 1
-                # assert not queue.empty()
         return decorated
 
     return bfs_
