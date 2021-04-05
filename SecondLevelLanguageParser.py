@@ -6,7 +6,6 @@ import Analyze_expression as A_e
 import json
 import os
 import pickle
-from line_profiler import LineProfiler
 from Executor import Executor
 
 
