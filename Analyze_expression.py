@@ -45,7 +45,10 @@ class BuildGraph:
         self.children.append(child)
 
     def get_child(self):
-        return self.children[- 1]
+        try:
+            return self.children[- 1]
+        except IndexError:
+            print('无子节点')
 
     def get_children(self):
         return self.children
@@ -125,7 +128,12 @@ def analyze_expression(expression, x, branches: list, replace=None):
     for i in range(len(y)):
         new_i = y[i]
         if y[i] in simple_operator:
-            if y[i - 1] != ' ' or y[i + 1] != ' ':
+
+            # 避免在负数加入空格
+            if y[i] == '-' and re.fullmatch(re.compile('\\d'), y[i + 1]):
+                pass
+
+            elif y[i - 1] != ' ' or y[i + 1] != ' ':
                 if y[i - 1] != ' ':
                     new_i = ' ' + new_i
                 if y[i + 1] != ' ':
@@ -167,7 +175,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
             expression[expression.index(i)] = replace.get(i)
     cnt = 1
     for i in expression:
-
         # 将分散为多个字符串的算子内部表达式整合为一个字符串
         begin = expression.index(i)
         end = 0
@@ -210,7 +217,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
         count += 1
 
     # 对优先级较高的算式添加括号
-    # new_expression = expression
     count = 0
     label0 = 0
     label1 = 0
@@ -272,7 +278,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
     new_stack = Stack()
     G = Digraph.Graph()
     new_graph = BuildGraph(x, 'Blank', branches, with_grad=requires_grad)
-    # x += 1
     new_stack.push(new_graph)
     current_graph = new_graph
     vallist = []
@@ -305,7 +310,10 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         parent_graph.get_children().append(current_graph)
                         current_graph = parent_graph
             G.InsertNode(current_graph.keynode)
-            G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
+            try:
+                G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
+            except AttributeError:
+                print('无子图')
             if len(new_stack.items) != 0 and label == 1:
                 parent = new_stack.pop()
                 if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
@@ -370,7 +378,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
             temp = analyze_expression(new_expression, x, branches, replace)
-            # temp[3].Show()
             x += len(temp[0][0])
             for k in temp[0][0]:
                 G.InsertNode(k)
@@ -626,6 +633,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
+
         # 自定义算子，通过访问SecondLevelLanguageParser.py文件生成的UserOperatorName.json以及UserOperatorInfo
         # 获取文件名和对应自定义算子内容，即输出、输入和图，该部分在SecondLevelLanguageParser.py的AddUserOperator函数中实现
         elif i.startswith(user_operator):
@@ -654,7 +662,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     for inp in operator_info[1]:
                         if n.vars[v] == inp[0]:
                             n.vars[v] = var[operator_info[1].index(inp)]
-            # print(operator_info[1])
             if_out_edges=defaultdict(dict)
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
                 node = operator_info[2].nodes[len(operator_info[1]) + n]
@@ -719,7 +726,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:
-            if re.fullmatch(re.compile('[-]?\\d+'), i):
+            if re.fullmatch(re.compile('[-]?\\d+([\\.]\\d+)?'), i):
                 current_graph.set_val(nd.InstantiationClass(current_graph.keynode.id, 'Val', branches, val=eval(i), with_grad=requires_grad))
                 x += 1
             else:
@@ -773,7 +780,8 @@ if __name__ == '__main__':
     # s = 's = logistic(a  ,y,w,  z,  threshold, iter_times)'
     # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
     # now2 = np.mat(num1)
-    s = 'loss = MAX(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
+    # s = 'loss = MAX(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
+    s = 's = -3.4'
     p = analyze_expression(s, 0, [])
     p[3].Show()
     print(p[1])
