@@ -3,7 +3,7 @@ import re
 import torch
 from functools import wraps
 from copy import copy
-from copy import deepcopy
+from copy import copy, deepcopy
 
 def preprocessing(fun):
     # @wraps(fun)
@@ -389,7 +389,7 @@ class Assignment(Node):
         if self.slice is None:
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
         else:
-            s = deepcopy(self.slice)
+            s = copy(self.slice)
             for idx in range(len(s)):
                 if isinstance(s[idx], str):
                     s[idx] = int(self.executor.var_dict[s[idx]])
@@ -682,7 +682,7 @@ class Slice(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        s = deepcopy(self.slice_index)
+        s = copy(self.slice_index)
         for idx in range(len(s)):
             if isinstance(s[idx], str):
                 s[idx] = int(self.executor.var_dict[s[idx]])
