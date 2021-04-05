@@ -745,21 +745,19 @@ def analyze_expression(expression, x, branches: list, replace=None):
         top_node = G.GetNoOutNodes().pop()
     except KeyError:
         print("无top_node")
+    
     # 对算子节点添加输入输出信息
-    # print(top_node.__class__.__name__)
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
         top_node.set_vars('@' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) == 0:
                 e.GetStart().set_vars('@' + str(e.GetStart().id))
-    # G.Show()
     for e in G.edges:
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
-    return G.GetSet(), vallist, top_node, G
+    return G.GetSet(), vallist, top_node
 
 
 if __name__ == '__main__':
@@ -783,6 +781,5 @@ if __name__ == '__main__':
     # s = 'loss = MAX(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
     s = 's = -3.4'
     p = analyze_expression(s, 0, [])
-    p[3].Show()
     print(p[1])
     print(p[2])
