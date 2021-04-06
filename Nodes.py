@@ -890,6 +890,19 @@ class MIN(Node):
         self.axis = axis
 
 
+class Abs(Node):
+    def __init__(self, **kwargs):
+        super().__init__(60, **kwargs)
+        self.axis = 0
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.abs(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
