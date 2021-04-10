@@ -63,8 +63,8 @@ operator take_step(i, j, w,b, a, x, y, c, eps, kernel_cache, error_cache){
                 select e1+y1*delta_a1*k11+y2*delta_a2*k12+b as b[i]
                 select e2+y1*delta_a1*k12+y2*delta_a2*k22+b as b[j]
                 select w+y1*delta_a1*x1 + y2*delta_a2*x2 as w
-                select SVM_predict(w,b,x1) as y_pred_1
-                select SVM_predict(w,b,x2) as y_pred_2
+                select TRANSPOSE(w)*x1+b as y_pred_1
+                select TRANSPOSE(w)*x2+b as y_pred_2
                 select y_pred_1 - y1 as error_cache[i]
                 select y_pred_2 - y2 as error_cache[j]
                 select a1 as a[i]
