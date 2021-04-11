@@ -126,11 +126,11 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                # self.graph.Show()
                 self.Reset()
             else:
                 raise Exception('多余括号！')
@@ -684,23 +684,23 @@ class Parser:
     @staticmethod
     def AddUserOperator(output, input, graph, operator):
         if os.path.exists('UserOperatorName.json'):
-            with open('UserOperatorName.json', 'r') as f:
-                load_dict = json.load(f)
+            with open('UserOperatorName.json', 'r') as f1:
+                load_dict = json.load(f1)
             if operator not in load_dict.get('name'):
                 load_dict.get('name').append(operator)
-            with open('UserOperatorName.json', 'w') as f:
-                json.dump(load_dict, f)
-            with open('UserOperatorInfo', 'rb') as f:
-                data = pickle.load(f)
-            with open('UserOperatorInfo', 'wb+') as f:
+            with open('UserOperatorName.json', 'w') as f2:
+                json.dump(load_dict, f2)
+            with open('UserOperatorInfo', 'rb') as f3:
+                data = pickle.load(f3)
+            with open('UserOperatorInfo', 'wb+') as f4:
                 data[operator] = [output, input, graph]
-                pickle.dump(data, f)
+                pickle.dump(data, f4)
         else:
-            with open('UserOperatorName.json', 'w') as f:
-                json.dump({'name': [operator]}, f)
-                with open('UserOperatorInfo', 'wb+') as f:
+            with open('UserOperatorName.json', 'w') as f1:
+                json.dump({'name': [operator]}, f1)
+                with open('UserOperatorInfo', 'wb+') as f2:
                     data = {operator: [output, input, graph]}
-                    pickle.dump(data, f)
+                    pickle.dump(data, f2)
 
 
 if __name__ == '__main__':

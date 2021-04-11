@@ -673,6 +673,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             for v in range(len(var)):
                 var[v] = var[v].strip()
             # 将算子输入的实际参数变量加入表达式出现的变量列表
+            # operator_info[2].Show()
             for e in operator_info[2].edges:
                 # 如果形参出现
                 for inp in operator_info[1]:
@@ -719,7 +720,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             if isinstance(parent.keynode.type_id, nd.Blank) is not True:
                 G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
-            cnt += 1
+            # cnt += 1
             for v in var:
                 list(operator_info[0])[0].set_vars(v.strip())
             # G.Show()
@@ -801,7 +802,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'y = POW(MATMUL(x,w), -3) WITH GRAD'
+    s = 'y = TRANSPOSE(w)*x+b'
     # s = 's = logistic(a  ,y,w,  z,  threshold, iter_times)'
     # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
     # now2 = np.mat(num1)
@@ -809,6 +810,7 @@ if __name__ == '__main__':
     # s = 's = k11+k22-2*k12'
     # s = 's=5*-3'
     # s = 's=Abs(-1)'
+    s = 's = SVM(x, y, c, eps, iter_times)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])
