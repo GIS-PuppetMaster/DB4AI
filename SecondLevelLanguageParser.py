@@ -43,7 +43,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
-            if len(query) == 0:
+            if len(query) == 0 or query[0]=='#':
                 continue
             if self.CreateTensor(query):
                 pass
