@@ -85,7 +85,6 @@ class Executor:
                 self.init_branches(next_node, current_branch)
 
     @bfs(False)
-    # @profile
     def execute(self, current_node, **kwargs):
         visited = kwargs['visited']
         # 确保父节点都执行完了再执行他

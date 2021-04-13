@@ -10,10 +10,12 @@ operator SVM_predict(y_pred,w,b,x){
     select TRANSPOSE(w)*x+b as y_pred
 }
 
-operator take_step(i, j, w,b, a, y,  eps, kernel_cache, error_cache){
+operator take_step(i, j, w,b, a, x, y, c, eps, kernel_cache, error_cache){
     if(i!=j){
         select a[i] as alpha1
         select a[j] as alpha2
+        select x[i] as x1
+        select x[j] as x2
         select y[i] as y1
         select y[j] as y2
         select error_cache[i] as e1
@@ -25,9 +27,9 @@ operator take_step(i, j, w,b, a, y,  eps, kernel_cache, error_cache){
             select kernel_cache[i,i] as k11
             select kernel_cache[i,j] as k12
             select kernel_cache[j,j] as k22
-            select k11+k22-2*k12 as eta
+            select k11+k22 - 2 * k12 as eta
             if(eta>0){
-                a2 = alpha2 + y2*(e1-e2)/eta
+                select alpha2 + y2*(e1-e2)/eta as a2
                 if(a2<l){
                     select a2 as l
                 }
@@ -52,15 +54,17 @@ operator take_step(i, j, w,b, a, y,  eps, kernel_cache, error_cache){
                     select alpha2 as a2
                 }
             }
-            if(ABS(a2-alpha2)>=eps*(a2+alpha2+eps)){
-                select a1-alpha1 as delta_a1
+            select Abs(a2-alpha2) as l_tmp
+            select eps*(a2+alpha2+eps) as r_tmp
+            if(l_tmp>=r_tmp){
                 select a2-alpha2 as delta_a2
                 select alpha1+s*(0-delta_a2) as a1
+                select a1-alpha1 as delta_a1
                 select e1+y1*delta_a1*k11+y2*delta_a2*k12+b as b[i]
                 select e2+y1*delta_a1*k12+y2*delta_a2*k22+b as b[j]
                 select w+y1*delta_a1*x1 + y2*delta_a2*x2 as w
-                select SVM_predict(w,b,x1) as y_pred_1
-                select SVM_predict(w,b,x2) as y_pred_2
+                select TRANSPOSE(w)*x1+b as y_pred_1
+                select TRANSPOSE(w)*x2+b as y_pred_2
                 select y_pred_1 - y1 as error_cache[i]
                 select y_pred_2 - y2 as error_cache[j]
                 select a1 as a[i]
@@ -72,8 +76,9 @@ operator take_step(i, j, w,b, a, y,  eps, kernel_cache, error_cache){
 
 
 operator SVM(x, y, c, eps, iter_times){
-    select SHAPE(x)[0] as n
-    select SHAPE(x)[1] as m
+    select SHAPE(x) as sx
+    select sx[0] as n
+    select sx[1] as m
     create tensor kernel_cache(n,n)
     create tensor error_cache(n,)
     create tensor w(m,) from RANDOM((m,),(0,1))
@@ -99,8 +104,8 @@ operator SVM(x, y, c, eps, iter_times){
         }
         select y*g as tmp2
         select POW(tmp2-1,2) as c1
-        select COPY(c1) as c2
-        select COPY(c1) as c3
+        select Deepcopy(c1) as c2
+        select Deepcopy(c1) as c3
         select 0 as j
         loop(n){
             if(a[j]>0 or tmp2[j]>=1){
@@ -116,7 +121,7 @@ operator SVM(x, y, c, eps, iter_times){
         }
         select ARGMAX(c1+c2+c3) as i
         select random((1,),(0,n),'uniform') as j
-        select take_step(i,j,w,b,a,y,eps,kernel_cache,error_cache)
+        select take_step(i,j,w,b,a,x,y,eps,kernel_cache,error_cache)
         select t+1 as t
     }
 }

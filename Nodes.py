@@ -3,7 +3,7 @@ import re
 import torch
 from functools import wraps
 from copy import copy
-
+from copy import copy, deepcopy
 
 def preprocessing(fun):
     # @wraps(fun)
@@ -16,6 +16,26 @@ def preprocessing(fun):
 
     return decorated
 
+def parse_slice(node, slice_info):
+    total_slice = []
+    for idx in slice_info:
+        idx = idx.strip()
+        if idx == ':':
+            total_slice.append(slice(None, None, None))
+        elif idx == '...':
+            total_slice.append(...)
+        elif ':' in idx:
+            total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
+                                                                               else int(x)), idx.split(':')))))
+        else:
+            if re.fullmatch(re.compile(r'([a-zA-Z_]+[a-zA-Z0-9_]*)', re.S), idx):
+                total_slice.append(idx)
+                # if len(node.vars)==0:
+                #     node.vars.append(None)
+                # node.vars.append(idx)
+            else:
+                total_slice.append(int(idx))
+    return total_slice
 
 class Node:
     # 计算图中节点类的父类
@@ -360,16 +380,7 @@ class Assignment(Node):
 
     @slice.setter
     def slice(self, slice_info):
-        total_slice = []
-        for idx in slice_info:
-            if ':' in idx:
-                total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
-                                                                                   else int(x)), idx.split(':')))))
-            else:
-                if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), idx):
-                    total_slice.append(idx)
-                else:
-                    total_slice.append(int(idx))
+        total_slice = parse_slice(self, slice_info)
         if len(total_slice) > 0:
             self._slice = total_slice
 
@@ -378,9 +389,13 @@ class Assignment(Node):
         if self.slice is None:
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
         else:
+            s = copy(self.slice)
+            for idx in range(len(s)):
+                if isinstance(s[idx], str):
+                    s[idx] = int(self.executor.var_dict[s[idx]])
             if self.vars[0] not in self.executor.var_dict:
                 self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-            self.executor.var_dict[self.vars[0]].__setitem__(self.slice, self.executor.var_dict[self.vars[1]])
+            self.executor.var_dict[self.vars[0]].__setitem__(s, self.executor.var_dict[self.vars[1]])
         if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
 
@@ -662,22 +677,16 @@ class Slice(Node):
         self.slice_index = None
 
     def set_slice(self, slice_info):
-        self.slice_info = slice_info
-        total_slice = []
-        for idx in self.slice_info:
-            if ':' in idx:
-                total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
-                                                                                   else int(x)), idx.split(':')))))
-            else:
-                if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), idx):
-                    total_slice.append(idx)
-                else:
-                    total_slice.append(int(idx))
+        total_slice = parse_slice(self, slice_info)
         self.slice_index = total_slice
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(self.slice_index)
+        s = copy(self.slice_index)
+        for idx in range(len(s)):
+            if isinstance(s[idx], str):
+                s[idx] = int(self.executor.var_dict[s[idx]])
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(s)
 
 
 # 该类用来存储参数变量，如x，y
@@ -707,12 +716,26 @@ class Shallowcopy(Node):
 class Argmax(Node):
     def __init__(self, **kwargs):
         super().__init__(44, **kwargs)
+        self.axis = 0
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.argmax(self.executor.var_dict[self.vars[1]], self.axis)
+
+    def set_axis(self, axis):
+        self.axis = axis
 
 class Argmin(Node):
     def __init__(self, **kwargs):
         super().__init__(45, **kwargs)
+        self.axis = 0
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.argmin(self.executor.var_dict[self.vars[1]], self.axis)
+
+    def set_axis(self, axis):
+        self.axis = axis
 
 class Sign(Node):
     def __init__(self, **kwargs):
@@ -836,6 +859,45 @@ class MEAN(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.mean(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class MAX(Node):
+    def __init__(self, **kwargs):
+        super().__init__(58, **kwargs)
+        self.axis = 0
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.max(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class MIN(Node):
+    def __init__(self, **kwargs):
+        super().__init__(59, **kwargs)
+        self.axis = 0
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.min(self.executor.var_dict[self.vars[1]])
+
+    def set_axis(self, axis):
+        self.axis = axis
+
+
+class Abs(Node):
+    def __init__(self, **kwargs):
+        super().__init__(60, **kwargs)
+        self.axis = 0
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.abs(self.executor.var_dict[self.vars[1]])
 
     def set_axis(self, axis):
         self.axis = axis
