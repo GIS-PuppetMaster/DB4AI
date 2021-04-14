@@ -76,8 +76,9 @@ operator take_step(i, j, w,b, a, x, y, c, eps, kernel_cache, error_cache){
 
 
 operator SVM(x, y, c, eps, iter_times){
-    select SHAPE(x)[0] as n
-    select SHAPE(x)[1] as m
+    select SHAPE(x) as sx
+    select sx[0] as n
+    select sx[1] as m
     create tensor kernel_cache(n,n)
     create tensor error_cache(n,)
     create tensor w(m,) from RANDOM((m,),(0,1))

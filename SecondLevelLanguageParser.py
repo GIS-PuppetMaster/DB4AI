@@ -6,7 +6,6 @@ import Analyze_expression as A_e
 import json
 import os
 import pickle
-from line_profiler import LineProfiler
 from Executor import Executor
 
 
@@ -211,7 +210,7 @@ class Parser:
         """
         # 用于匹配的正则表达式
         variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-        data_shape_reg = '[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
+        data_shape_reg = f'^[(]([1-9][0-9]*,|-1,|{variable_name_reg})+([1-9][0-9]*|-1|{variable_name_reg})?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0))[)]'
