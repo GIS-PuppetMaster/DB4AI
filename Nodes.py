@@ -16,7 +16,7 @@ def preprocessing(fun):
 
     return decorated
 
-def parse_slice(node, slice_info):
+def parse_slice(slice_info):
     total_slice = []
     for idx in slice_info:
         idx = idx.strip()
@@ -30,9 +30,6 @@ def parse_slice(node, slice_info):
         else:
             if re.fullmatch(re.compile(r'([a-zA-Z_]+[a-zA-Z0-9_]*)', re.S), idx):
                 total_slice.append(idx)
-                # if len(node.vars)==0:
-                #     node.vars.append(None)
-                # node.vars.append(idx)
             else:
                 total_slice.append(int(idx))
     return total_slice
@@ -137,22 +134,24 @@ class Root(Node):
 class CreateTensor(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(1, **kwargs)
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        elif isinstance(data_shape, str):
-            self.data_shape = eval(data_shape)
-        elif data_shape is None:
-            self.data_shape = None
+        # if isinstance(data_shape, tuple):
+        #     self.data_shape = data_shape
+        # elif isinstance(data_shape, str):
+        #     self.data_shape = eval(data_shape)
+        # elif data_shape is None:
+        #     self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_shape[self.vars[0]] = self.data_shape
+        # self.executor.var_shape[self.vars[0]] = self.data_shape
+        pass
 
     def infer_data(self):
-        for edge in self.out_edges:
-            edge.data_shape = self.data_shape
+        # for edge in self.out_edges:
+        #     edge.data_shape = self.data_shape
+        pass
 
 
 # 该类用来存储常量，常见如constant.PI、constant.E
@@ -209,8 +208,17 @@ class Random(Node):
             boundary = eval(boundary)
         self.boundary = boundary
         self.vars = var
+        # 记录data shape中可能出现的变量名
+        self.data_shape_var={}
         if isinstance(data_shape, str):
-            data_shape = eval(data_shape)
+            # 如果不包含变量名
+            if re.match(r'[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]', data_shape):
+                data_shape = eval(data_shape)
+            # 提取data shape中的变量名
+            else:
+                match_obj = re.match(r'[a-zA-Z_]+[a-zA-Z0-9_]*', data_shape)
+                for obj in match_obj.group():
+                    self.data_shape_var[obj] = None
         self.data_shape = data_shape
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 'normal'
@@ -219,6 +227,13 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        # 如果data shape中包含var
+        if isinstance(self.data_shape, str):
+            # 运行时使用变量的值填充变量名
+            for name in self.data_shape_var.keys():
+                self.data_shape_var[name] = int(self.executor.var_dict[name])
+            # 转换
+            self.data_shape = eval(self.data_shape, self.data_shape_var)
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
             tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
@@ -393,8 +408,8 @@ class Assignment(Node):
             for idx in range(len(s)):
                 if isinstance(s[idx], str):
                     s[idx] = int(self.executor.var_dict[s[idx]])
-            if self.vars[0] not in self.executor.var_dict:
-                self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
+            # if self.vars[0] not in self.executor.var_dict:
+            #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
             self.executor.var_dict[self.vars[0]].__setitem__(s, self.executor.var_dict[self.vars[1]])
         if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
