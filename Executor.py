@@ -16,10 +16,14 @@ class Executor:
         self.finished_loop_id = set()
         self.last_use = {}
         self.var_shape = {}
+        # self.parameter_set = set()
+        self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
         self.init_executor()
 
     def init_executor(self):
+        # for _, para in self.parameters:
+        #     self.parameter_set.add(para)
         self.init_nodes()
         for var_name, node in self.last_use.items():
             if isinstance(node, If):
@@ -66,6 +70,9 @@ class Executor:
         elif isinstance(current_node, Loop):
             if isinstance(current_node.dead_cycle, str):
                 self.last_use[current_node.dead_cycle] = current_node
+        elif isinstance(current_node, SaveParameters):
+            for var_name in self.parameters[current_node.set_name]:
+                self.last_use[var_name] = current_node
         else:
             for var_name in current_node.vars[1:]:
                 self.last_use[var_name] = current_node
