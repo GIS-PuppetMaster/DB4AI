@@ -42,7 +42,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
-            if len(query) == 0:
+            if len(query) == 0 or query[0]=='#':
                 continue
             if self.CreateTensor(query):
                 pass
@@ -704,7 +704,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('./operators/SVM.sql', 'r') as f:
+    with open('./operators/logistic.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

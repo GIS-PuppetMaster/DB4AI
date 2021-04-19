@@ -1,13 +1,16 @@
 import re
-
 import torch
 from functools import wraps
 from copy import copy
 from copy import copy, deepcopy
+import sklearn
+import pickle as pk
+
 
 def preprocessing(fun):
-    # @wraps(fun)
+    @wraps(fun)
     def decorated(node, **kwargs):
+        # todo 自动类型转换
         if not node.with_grad and not isinstance(node, GRADIENT):
             with torch.no_grad():
                 return fun(node, **kwargs)
@@ -16,7 +19,18 @@ def preprocessing(fun):
 
     return decorated
 
-def parse_slice(node, slice_info):
+
+def dump_tensor(tensors: dict, path: str):
+    with open(path, 'wb') as f:
+        pk.dump(tensors, f)
+
+
+def load_tensor(path):
+    with open(path, 'rb') as f:
+        return pk.load(f)
+
+
+def parse_slice(slice_info):
     total_slice = []
     for idx in slice_info:
         idx = idx.strip()
@@ -30,12 +44,10 @@ def parse_slice(node, slice_info):
         else:
             if re.fullmatch(re.compile(r'([a-zA-Z_]+[a-zA-Z0-9_]*)', re.S), idx):
                 total_slice.append(idx)
-                # if len(node.vars)==0:
-                #     node.vars.append(None)
-                # node.vars.append(idx)
             else:
                 total_slice.append(int(idx))
     return total_slice
+
 
 class Node:
     # 计算图中节点类的父类
@@ -137,22 +149,24 @@ class Root(Node):
 class CreateTensor(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(1, **kwargs)
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        elif isinstance(data_shape, str):
-            self.data_shape = eval(data_shape)
-        elif data_shape is None:
-            self.data_shape = None
+        # if isinstance(data_shape, tuple):
+        #     self.data_shape = data_shape
+        # elif isinstance(data_shape, str):
+        #     self.data_shape = eval(data_shape)
+        # elif data_shape is None:
+        #     self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_shape[self.vars[0]] = self.data_shape
+        # self.executor.var_shape[self.vars[0]] = self.data_shape
+        pass
 
     def infer_data(self):
-        for edge in self.out_edges:
-            edge.data_shape = self.data_shape
+        # for edge in self.out_edges:
+        #     edge.data_shape = self.data_shape
+        pass
 
 
 # 该类用来存储常量，常见如constant.PI、constant.E
@@ -209,8 +223,17 @@ class Random(Node):
             boundary = eval(boundary)
         self.boundary = boundary
         self.vars = var
+        # 记录data shape中可能出现的变量名
+        self.data_shape_var = {}
         if isinstance(data_shape, str):
-            data_shape = eval(data_shape)
+            # 如果不包含变量名
+            if re.match(r'[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]', data_shape):
+                data_shape = eval(data_shape)
+            # 提取data shape中的变量名
+            else:
+                match_obj = re.match(r'[a-zA-Z_]+[a-zA-Z0-9_]*', data_shape)
+                for obj in match_obj.group():
+                    self.data_shape_var[obj] = None
         self.data_shape = data_shape
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 'normal'
@@ -219,6 +242,13 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        # 如果data shape中包含var
+        if isinstance(self.data_shape, str):
+            # 运行时使用变量的值填充变量名
+            for name in self.data_shape_var.keys():
+                self.data_shape_var[name] = int(self.executor.var_dict[name])
+            # 转换
+            self.data_shape = eval(self.data_shape, self.data_shape_var)
         if self.distribution == 'normal':
             # boundary[0]=lower_boundary, boundary[1]=upper_boundary
             tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
@@ -259,7 +289,7 @@ class Loop(Node):
         executor = kwargs['executor']
         if self.loop_pair in visited:
             visited.remove(self.loop_pair)
-        self.loop_pair.finished=False
+        self.loop_pair.finished = False
         self.times += 1
 
     def next_nodes(self):
@@ -380,7 +410,7 @@ class Assignment(Node):
 
     @slice.setter
     def slice(self, slice_info):
-        total_slice = parse_slice(self, slice_info)
+        total_slice = parse_slice(slice_info)
         if len(total_slice) > 0:
             self._slice = total_slice
 
@@ -393,8 +423,8 @@ class Assignment(Node):
             for idx in range(len(s)):
                 if isinstance(s[idx], str):
                     s[idx] = int(self.executor.var_dict[s[idx]])
-            if self.vars[0] not in self.executor.var_dict:
-                self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
+            # if self.vars[0] not in self.executor.var_dict:
+            #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
             self.executor.var_dict[self.vars[0]].__setitem__(s, self.executor.var_dict[self.vars[1]])
         if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
@@ -677,7 +707,7 @@ class Slice(Node):
         self.slice_index = None
 
     def set_slice(self, slice_info):
-        total_slice = parse_slice(self, slice_info)
+        total_slice = parse_slice(slice_info)
         self.slice_index = total_slice
 
     @preprocessing
@@ -725,6 +755,7 @@ class Argmax(Node):
     def set_axis(self, axis):
         self.axis = axis
 
+
 class Argmin(Node):
     def __init__(self, **kwargs):
         super().__init__(45, **kwargs)
@@ -736,6 +767,7 @@ class Argmin(Node):
 
     def set_axis(self, axis):
         self.axis = axis
+
 
 class Sign(Node):
     def __init__(self, **kwargs):
@@ -811,6 +843,10 @@ class SUM(Node):
 
     def set_axis(self, axis):
         self.axis = axis
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.SUM(self.executor.var_dict[self.vars[1]], self.axis)
 
 
 class Relu(Node):
@@ -901,6 +937,94 @@ class Abs(Node):
 
     def set_axis(self, axis):
         self.axis = axis
+
+
+class SplitDataset(Node):
+    def __init__(self, **kwargs):
+        # SplitDataset(data:variable, size:tensor)
+        super().__init__(61, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        res = torch.utils.data.random_split(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
+        self.executor.var_dict[self.vars[0]] = torch.stack([tensor for tensor in res])
+
+
+class Parameters(Node):
+    def __init__(self, **kwargs):
+        # Parameters(set_name, var1, var2, ......)
+        # 用来声明参数并对参数打包
+        super().__init__(62, **kwargs)
+        # TODO: 解析参数集合的名字, 把vari存入self.vars[i]
+        self.set_name = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.parameters[self.set_name] = self.vars[1:]
+
+
+class SaveParameters(Node):
+    def __init__(self, **kwargs):
+        # SaveParameters(set_name, path)
+        # 用来保存指定名称的参数集
+        super().__init__(63, **kwargs)
+        # TODO: 解析参数集合的名字和存储路径
+        self.set_name = None
+        self.path = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        paras = self.executor.parameters[self.set_name]
+        tmp = {}
+        for para in paras:
+            tmp[para] = self.executor.var_dict[para]
+        dump_tensor(tmp, self.path)
+
+
+class LoadParameters(Node):
+    def __init__(self, **kwargs):
+        # LoadParameters(set_name, path)
+        # 用来保存指定名称的参数集
+        super().__init__(64, **kwargs)
+        # TODO: 解析参数集合的名字和存储路径
+        self.set_name = None
+        self.path = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        paras = self.executor.parameters[self.set_name]
+        tensors = load_tensor(self.path)
+        for para in paras:
+            self.executor.var_dict[para] = tensors[para]
+
+
+class AUC(Node):
+    def __init__(self, **kwargs):
+        super().__init__(65, **kwargs)
+        # TODO: 解析
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+class MSE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(66, **kwargs)
+        # TODO: 解析
+
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+class F1(Node):
+    def __init__(self, **kwargs):
+        super().__init__(66, **kwargs)
+        # TODO: 解析
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 def shallow_copy(fun):
