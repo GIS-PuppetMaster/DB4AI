@@ -84,9 +84,9 @@ operator SVM(x, y, c, eps, iter_times){
     create tensor w(m,) from RANDOM((m,),(0,1))
     create tensor b(n,) from RANDOM((n,),(0,1))
     create tensor a(n,) from 0
-    create tensor i from 0
+    create tensor i(1,) from 0
     LOOP(n){
-        create tensor j from 0
+        create tensor j(1,) from 0
         LOOP(n){
             select linear_kernel(x[i,:],x[j:]) as kernel_cache[i,j]
             select j+1 as j

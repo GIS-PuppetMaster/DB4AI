@@ -231,8 +231,8 @@ class Random(Node):
                 data_shape = eval(data_shape)
             # 提取data shape中的变量名
             else:
-                match_obj = re.match(r'[a-zA-Z_]+[a-zA-Z0-9_]*', data_shape)
-                for obj in match_obj.group():
+                match_obj = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', data_shape)
+                for obj in match_obj:
                     self.data_shape_var[obj] = None
         self.data_shape = data_shape
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
