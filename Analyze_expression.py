@@ -810,7 +810,7 @@ if __name__ == '__main__':
     # s = 's = k11+k22-2*k12'
     # s = 's=5*-3'
     # s = 's=Abs(-1)'
-    s = 's = SVM(x, y, c, eps, iter_times)'
+    s = 's = SHAPE(x)[0]'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])

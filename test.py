@@ -27,3 +27,7 @@ while True:
     if i >= iter_times:
         break
 print(f'time:{time() - s} s')
+
+s = 100
+print(eval("s"))
+
