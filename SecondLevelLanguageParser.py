@@ -594,7 +594,7 @@ class Parser:
                 r_var = e_node.get_vars()[0]
                 self.UpdateVarList(r_var, e_node.id)
             else:
-                raise Exception('=右侧表达式拼写错误，语句为：' + query)
+                raise Exception('右侧表达式拼写错误，语句为：' + query)
         else:
             return False
         if v_name != '$':
@@ -704,7 +704,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('./operators/logistic.sql', 'r') as f:
+    with open('./operators/SVM.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
