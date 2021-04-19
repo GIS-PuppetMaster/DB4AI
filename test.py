@@ -1,33 +1,15 @@
+import re
+
 import torch
 import numpy as np
 from time import time
 
-s = time()
-x = torch.randn((1000, 4))
-y = torch.zeros((1000, 1))
-t = torch.argmax(x, 1)
-for i in range(x.shape[0]):
-    if t[i] > 1:
-        y[i] = 1
-w = torch.randn((4, 1), requires_grad=True)
-lr = 0.01
-threshold = 0.3
-iter_times = 10000
-i = 0
-while True:
-    w.requires_grad = True
-    hx = 1 / (1 + torch.pow(np.e, torch.matmul(x, w)))
-    loss = torch.mean(y * torch.log(hx) + (1 - y) * torch.log(1 - hx))
-    loss.backward()
-    print(loss)
-    g = w.grad
-    with torch.no_grad():
-        w = w + w.grad * lr
-    i += 1
-    if i >= iter_times:
-        break
-print(f'time:{time() - s} s')
+variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
+data_shape_reg = f'^[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
 
-s = 100
-print(eval("s"))
-
+test = 'xxx(4,3)'
+match = re.search(data_shape_reg, test)
+if match:
+    print(match.group())
+else:
+    print()
