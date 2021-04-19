@@ -10,6 +10,7 @@ import pickle as pk
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
+        # todo 自动类型转换
         if not node.with_grad and not isinstance(node, GRADIENT):
             with torch.no_grad():
                 return fun(node, **kwargs)
@@ -409,7 +410,7 @@ class Assignment(Node):
 
     @slice.setter
     def slice(self, slice_info):
-        total_slice = parse_slice(self, slice_info)
+        total_slice = parse_slice(slice_info)
         if len(total_slice) > 0:
             self._slice = total_slice
 
@@ -706,7 +707,7 @@ class Slice(Node):
         self.slice_index = None
 
     def set_slice(self, slice_info):
-        total_slice = parse_slice(self, slice_info)
+        total_slice = parse_slice(slice_info)
         self.slice_index = total_slice
 
     @preprocessing
@@ -842,6 +843,10 @@ class SUM(Node):
 
     def set_axis(self, axis):
         self.axis = axis
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.SUM(self.executor.var_dict[self.vars[1]], self.axis)
 
 
 class Relu(Node):
