@@ -1,1 +1,1 @@
-{"name": ["logistic", "linear_kernel", "SVM_fast_predict", "SVM_predict"]}
+{"name": ["logistic", "linear_kernel", "SVM_fast_predict", "SVM_predict", "take_step"]}
