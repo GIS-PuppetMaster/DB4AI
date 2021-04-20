@@ -88,7 +88,7 @@ operator SVM(x, y, c, eps, iter_times){
     LOOP(n){
         create tensor j(1,) from 0
         LOOP(n){
-            select linear_kernel(x[i,:],x[j:]) as kernel_cache[i,j]
+            select TRANSPOSE(x[i,:]) * x[j:] as kernel_cache[i,j]
             select j+1 as j
         }
         select i+1 as i
