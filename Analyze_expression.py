@@ -372,9 +372,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
             begin = 0
             var = []
             for l in range(len(temp_i)):
-                if temp_i[l] == '(':
+                if temp_i[l] in ['(', '[']:
                     cnt += 1
-                if temp_i[l] == ')':
+                if temp_i[l] in [')', ']']:
                     cnt -= 1
                 if temp_i[l] == ',' and cnt == 0:
                     end = l
@@ -667,6 +667,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         t = pickle.load(f)
                         operator_info = t.get(j)
                     break
+            # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
@@ -785,6 +786,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+    # G.Show()
     return G.GetSet(), vallist, top_node
 
 
@@ -810,7 +812,11 @@ if __name__ == '__main__':
     # s = 's = k11+k22-2*k12'
     # s = 's=5*-3'
     # s = 's=Abs(-1)'
-    s = 's = SHAPE(x)[0]'
+    s = 'kernel_cache = linear_kernel(z,x,y)'
+    # s = 's= a[j:]'
+    # s = 's =a[i,:]'
+    s = 's = TRANSPOSE(x[i,:]) * x[j:]'
+    s = 's = Argmax(c1+c2+c3)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])

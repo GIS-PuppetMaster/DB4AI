@@ -119,7 +119,7 @@ operator SVM(x, y, c, eps, iter_times){
             }
             select j+1 as j
         }
-        select ARGMAX(c1+c2+c3) as i
+        select Argmax(c1+c2+c3) as i
         select random((1,),(0,n),'uniform') as j
         select take_step(i,j,w,b,a,x,y,eps,kernel_cache,error_cache)
         select t+1 as t
