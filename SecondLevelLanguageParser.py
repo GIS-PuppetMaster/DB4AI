@@ -209,6 +209,8 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         # 用于匹配的正则表达式
+        data_reg = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
+                   '|[a-zA-Z_]+[a-zA-Z0-9_]*'
         variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
         data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,)[ \t]*)+([1-9][0-9]*|-1|[a-zA-Z_]+[' \
                          'a-zA-Z0-9_]*)?[)]'
@@ -254,6 +256,7 @@ class Parser:
                 match3 = re.match(val_info_reg3, from_str)
                 match4 = re.match(f'^(ZEROS|zeros)[(]({data_shape_reg})[)]', from_str)
                 match5 = re.match(f'^(ONES|ones)[(]({data_shape_reg})[)]', from_str)
+                match6 = re.match(f'^(FULL|full)([(]({data_shape_reg}),({data_reg})[)])', from_str)
                 if match1:
                     value_str = match1.group()
                     if re.search('[.]', value_str):
@@ -287,6 +290,14 @@ class Parser:
                 elif match5:
                     legal_info.append(match5.group(2))
                     from_type = 5
+                elif match6:
+                    in_full_str = match6.group(2)
+                    full_match_obj = re.match('[(]([(].+[)]),(.+)[)]', in_full_str)
+                    if full_match_obj:
+                        data_shape = full_match_obj.group(1)
+                        num = full_match_obj.group(2)
+                        legal_info.append([data_shape, num])
+                        from_type = 6
                 else:
                     raise Exception('FROM信息错误：' + from_str + '，语句为：' + query)
         else:
@@ -321,9 +332,12 @@ class Parser:
             elif from_type == 4:
                 node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
-            else:
+            elif from_type == 5:
                 node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
+            else:
+                node2 = Nd.InstantiationClass(self.node_id, 'Full', self.branches, with_grad, data_shape=from_info[0],
+                                              var=['@' + str(self.node_id)], num=from_info[1])
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)

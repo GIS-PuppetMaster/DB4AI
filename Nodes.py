@@ -1,7 +1,6 @@
 import re
 import torch
 from functools import wraps
-from copy import copy
 from copy import copy, deepcopy
 import sklearn
 import pickle as pk
@@ -787,7 +786,7 @@ class SaveTable(Node):
 
 
 class Full(Node):
-    def __init__(self, data_shape, var, **kwargs):
+    def __init__(self, data_shape, var, num, **kwargs):
         super().__init__(48, **kwargs)
         if isinstance(data_shape, tuple):
             self.data_shape = data_shape
@@ -797,11 +796,12 @@ class Full(Node):
             self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
+        self.num = num
 
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_shape[self.vars[0]] = self.data_shape
-        tensor = torch.ones(self.data_shape)
+        tensor = torch.full(self.data_shape, self.num)
         if self.with_grad:
             tensor.requires_grad = True
         self.executor.var_dict[self.vars[0]] = tensor
@@ -1072,10 +1072,15 @@ def shallow_copy(fun):
 # 通过globals方法，以类名选择类进行实例化
 @shallow_copy
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
-    if nodeType == 'CreateTensor' or nodeType == 'Zeros' or nodeType == 'Ones' or nodeType == 'Full':
+    if nodeType == 'CreateTensor' or nodeType == 'Zeros' or nodeType == 'Ones':
         data_shape = otherField['data_shape']
         var = otherField['var']
         node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
+    elif nodeType == 'Full':
+        data_shape = otherField['data_shape']
+        var = otherField['var']
+        num = otherField['num']
+        node = globals()[nodeType](data_shape, var, num=num, id=nodeId, branches=branches, with_grad=with_grad)
     elif nodeType == 'Sql':
         t_info = otherField['t_info']
         var = otherField['var']
