@@ -786,6 +786,31 @@ class SaveTable(Node):
         return self.table_name
 
 
+class Full(Node):
+    def __init__(self, data_shape, var, **kwargs):
+        super().__init__(48, **kwargs)
+        if isinstance(data_shape, tuple):
+            self.data_shape = data_shape
+        elif isinstance(data_shape, str):
+            self.data_shape = eval(data_shape)
+        elif data_shape is None:
+            self.data_shape = None
+        # TODO: infer data_shape
+        self.set_vars(var)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_shape[self.vars[0]] = self.data_shape
+        tensor = torch.ones(self.data_shape)
+        if self.with_grad:
+            tensor.requires_grad = True
+        self.executor.var_dict[self.vars[0]] = tensor
+
+    def infer_data(self):
+        for edge in self.out_edges:
+            edge.data_shape = self.data_shape
+
+
 class Ones(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(48, **kwargs)
@@ -1047,7 +1072,7 @@ def shallow_copy(fun):
 # 通过globals方法，以类名选择类进行实例化
 @shallow_copy
 def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **otherField):
-    if nodeType == 'CreateTensor' or nodeType == 'Zeros' or nodeType == 'Ones':
+    if nodeType == 'CreateTensor' or nodeType == 'Zeros' or nodeType == 'Ones' or nodeType == 'Full':
         data_shape = otherField['data_shape']
         var = otherField['var']
         node = globals()[nodeType](data_shape, var, id=nodeId, branches=branches, with_grad=with_grad)
