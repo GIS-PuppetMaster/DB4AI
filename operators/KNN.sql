@@ -26,7 +26,6 @@ operator KNN(data_input, x, y, k){
         create tensor k_iter(1,) from 0
         create tensor classes(class_number,) from 0
         LOOP(k){
-            select index_order[k] as
             select classes[y[index_order[k]]]+1 as classes[y[index_order[k]]]
             select k_iter+1 as k_iter
         }
