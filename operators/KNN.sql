@@ -26,12 +26,13 @@ operator KNN(data_input, x, y, k){
         create tensor k_iter(1,) from 0
         create tensor classes(class_number,) from 0
         LOOP(k){
-            select classes[y[index_order[k]]]+1 as classes[y[index_order[k]]]
+            select index_order[k] as ink
+            select y[ink] as yink
+            select classes[yink]+1 as classes[yink]
             select k_iter+1 as k_iter
         }
         select REVERSE(SORT(classes)) as classes_order
         select classes_order[0] as answer[data_input_index]
         select data_input_index+1 as data_input_index
     }
-    select answer
 }
