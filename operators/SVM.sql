@@ -97,31 +97,31 @@ operator SVM(x, y, c, eps, iter_times){
     create tensor g(n,)
     select SUM(a*y*x) as tmp
     LOOP(iter_times){
-        create tensor j(1,) from 0
+        create tensor j1(1,) from 0
         loop(n){
-            select tmp*x[j]+b as g[j]
-            select j+1 as j
+            select tmp*x[j1]+b as g[j1]
+            select j1+1 as j1
         }
         select y*g as tmp2
         select POW(tmp2-1,2) as c1
         select Deepcopy(c1) as c2
         select Deepcopy(c1) as c3
-        select 0 as j
+        select 0 as j2
         loop(n){
-            if(a[j]>0 or tmp2[j]>=1){
-                select 0 as c1[j]
+            if(a[j2]>0 or tmp2[j2]>=1){
+                select 0 as c1[j2]
             }
-            elif(a[j]==0 or a[j]==c or tmp2[j]==1){
-                select 0 as c2[j]
+            elif(a[j2]==0 or a[j2]==c or tmp2[j2]==1){
+                select 0 as c2[j2]
             }
-            elif(a[j]<C or tmp2[j]<=1){
-                select 0 as c3[j]
+            elif(a[j2]<C or tmp2[j2]<=1){
+                select 0 as c3[j2]
             }
-            select j+1 as j
+            select j2+1 as j2
         }
         select Argmax(c1+c2+c3) as i
-        select random((1,),(0,n),'uniform') as j
-        select take_step(i,j,w,b,a,x,y,eps,kernel_cache,error_cache)
+        create tensor j3(1,) from RANDOM((1,),(0,n),'uniform')
+        select take_step(i,j3,w,b,a,x,y,eps,kernel_cache,error_cache)
         select t+1 as t
     }
 }
