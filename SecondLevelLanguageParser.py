@@ -722,10 +722,11 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('test.txt', 'r') as f:
+    with open('./test.txt', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    result.Show()
     # lp = LineProfiler()
     # lp.add_function()
     executor = Executor(result)
