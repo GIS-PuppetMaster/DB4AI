@@ -735,22 +735,29 @@ def analyze_expression(expression, x, branches: list, replace=None):
             current_graph.set_val(
                 nd.InstantiationClass(current_graph.keynode.id, 'Slice', branches, with_grad=requires_grad))
             x += 1
-            slice_info = re.findall(re.compile(r'\[(.*?)\]', re.S), i)
+            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
+            G.InsertNode(a)
+            G.InsertEdge(a, current_graph.keynode)
+            vallist.append([i[:i.index('[')], a])
+            x += 1
+            slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
             for s in slice_info[0].split(','):
-                new_s = s.strip()
-                new_slice_info.append(new_s)
+                '''if s.find('['):
+                    s = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(s, current_graph.keynode)
+                while s.find('['):
+                    a = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(a, s)
+                    s = a
+                new_slice_info.append(s[:s.index('[')])'''
+                new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
 
-            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
-            G.InsertNode(a)
-            G.InsertEdge(a, current_graph.keynode)
-            vallist.append([i[:i.index('[')], a])
-            x += 1
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -819,6 +826,7 @@ if __name__ == '__main__':
     # s = 's =a[i,:]'
     # s = 's = TRANSPOSE(x[i,:]) * x[j:]'
     s = 's = POW(CONSTANT.E, MATMUL(x, w[:,:-1,3:]))'
+    s = 's = s+dis[i,j]'
     # s = 's = w[:,:-1,3:]'
     p = analyze_expression(s, 0, [])
     print(p[1])
