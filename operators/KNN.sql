@@ -16,17 +16,17 @@ operator KNN(data_input, x, y, k){
             create tensor j(1,) from 0
             create tensor s(1,) from 0
             LOOP(data_width){
-                select s+dis[i][j] as s
+                select s+dis[i,j] as s
                 select j+1 as j
             }
             select SQRT(s) as distance[i]
             select i+1 as i
         }
-        select REVERSE(ARGSORT(distance)) as index_order
+        select ARGSORT(distance) as index_order
         create tensor k_iter(1,) from 0
         create tensor classes(class_number,) from 0
         LOOP(k){
-            select index_order[k] as ink
+            select index_order[k_iter] as ink
             select y[ink] as yink
             select classes[yink]+1 as classes[yink]
             select k_iter+1 as k_iter
