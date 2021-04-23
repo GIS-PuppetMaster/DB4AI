@@ -671,6 +671,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     break
             # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
+            parent = new_stack.pop()
+            if isinstance(parent.keynode, nd.Blank) is not True:
+                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
             for v in range(len(var)):
@@ -719,9 +722,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         G.edges[-1].condition = old_edge.condition
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
-            parent = new_stack.pop()
-            if isinstance(parent.keynode.type_id, nd.Blank) is not True:
-                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
             # cnt += 1
             for v in var:
@@ -828,6 +828,7 @@ if __name__ == '__main__':
     s = 's = POW(CONSTANT.E, MATMUL(x, w[:,:-1,3:]))'
     s = 's = s+dis[i,j]'
     # s = 's = w[:,:-1,3:]'
+    s = 's = KNN(a,b,c,d)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])
