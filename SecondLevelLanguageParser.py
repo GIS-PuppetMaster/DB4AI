@@ -722,7 +722,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/KNN.sql', 'r') as f:
+    with open('test/KNN.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
