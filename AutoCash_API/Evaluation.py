@@ -24,7 +24,7 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
         label_name = schema[0]
     else:
         label_name = schema[-1]
-    sql_1 = f'select SQL(select count(distinct {label_name}) from {filename}) as n_class\n'\
+    sql_1 = f'select SQL(select count(distinct {label_name}) from {filename}) as n_class\n' \
             f'select SQL(select * from {filename}) as raw_data\n' \
             f'create tensor split_ratio(2,) from ones((2, ))\n' \
             f'select split_ratio[0]*0.7 as split_ratio[0]\n' \
@@ -39,15 +39,25 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
         sql_2 = f'select train_data[:,-1] as train_y\n' \
                 f'select train_data[:,-2] as train_x\n'
     sql_1 += sql_2
-    if classifier == 'KNN':
-        # TODO: KNN API
-        sql_2 = f'select KNN()'
-    elif classifier == 'logistic':
+    if classifier == 'IBK':
+        k = option['K']
+        sql_1 += f'create tensor k(1,) from {k}\n'
+        if option['I']:
+            sql_1 += f'select KNN_I(test_x, train_x, train_y, {k})\n'
+        elif option['F']:
+            sql_1 += f'select KNN_F(test_x, train_x, train_y, {k})\n'
+        else:
+            sql_1 += f'select KNN(test_x, train_x, train_y, {k})\n'
+        # TODO: metric
+    elif classifier == 'Logistic':
         iter_times = option['M']
         sql_2 = f'create tensor lr(1,) from 0.01\n' \
                 f'create tensor threshold(1,) from 0.3\n' \
                 f'create tensor iter_times(1,) from {iter_times}\n' \
                 f'select logistic(train_x, train_y, n_class, lr, threshold, iter_times)\n'
+        sql_1 += sql_2
+        # TODO: metric
+    elif classifier == 'LogitBoost':
 
     loader = Loader(classname="weka.core.converters.ArffLoader")
     data = loader.load_file(filename)
