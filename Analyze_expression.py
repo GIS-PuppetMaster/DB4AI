@@ -25,7 +25,7 @@ class Stack:
     def pop(self):
         try:
             return self.items.pop()
-        except KeyError:
+        except(KeyError, IndexError):
             print("栈为空，无法pop")
 
 
@@ -97,12 +97,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
     none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
-                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs')
+                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
+                       'REVERSE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs'}
+                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+                    'SORT', 'REVERSE'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -140,7 +142,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if y[i] in simple_operator:
 
             # 避免在负数加入空格
-            if y[i] == '-' and re.fullmatch(re.compile('\\d'), y[i + 1]) and (y[i - 1] in (',' '+', '-', '*', '/', '(')
+            if y[i] == '-' and re.fullmatch(re.compile('\\d'), y[i + 1]) and (y[i - 1] in (':', '+', '-', '*', '/', '(')
                                                                               or i == 0):
                 pass
 
@@ -572,9 +574,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
             begin = 0
             var = []
             for l in range(len(temp_i)):
-                if temp_i[l] == '(':
+                if temp_i[l] in ['(', '[']:
                     cnt += 1
-                if temp_i[l] == ')':
+                if temp_i[l] in [')', ']']:
                     cnt -= 1
                 if temp_i[l] == ',' and cnt == 0:
                     end = l
@@ -815,8 +817,9 @@ if __name__ == '__main__':
     s = 'kernel_cache = linear_kernel(z,x,y)'
     # s = 's= a[j:]'
     # s = 's =a[i,:]'
-    s = 's = TRANSPOSE(x[i,:]) * x[j:]'
-    s = 's = Argmax(c1+c2+c3)'
+    # s = 's = TRANSPOSE(x[i,:]) * x[j:]'
+    s = 's = POW(CONSTANT.E, MATMUL(x, w[:,:-1,3:]))'
+    # s = 's = w[:,:-1,3:]'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])
