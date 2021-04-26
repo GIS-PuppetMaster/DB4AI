@@ -42,7 +42,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
-            if len(query) == 0 or query[0]=='#':
+            if len(query) == 0 or query[0] == '#':
                 continue
             if self.CreateTensor(query):
                 pass
@@ -130,7 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                # self.Reset()
+                self.Reset()
             else:
                 raise Exception('多余括号！')
 
@@ -329,6 +329,25 @@ class Parser:
             elif from_type == 3:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
+                match_obj_d = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', from_info[0])
+                match_obj_b = re.findall(r'', from_info[1])
+                if len(match_obj_d) != 0:
+                    d_has_var = True
+                    d_var = dict()
+                    for obj in match_obj_d:
+                        d_var[obj] = None
+                else:
+                    d_var = dict()
+                    d_has_var = False
+                if len(match_obj_b) != 0:
+                    b_var = dict()
+                    b_has_var = True
+                    for obj in match_obj_b:
+                        b_var[obj] = None
+                else:
+                    b_var = dict()
+                    b_has_var = False
+                node2.handle_include_var(b_has_var=b_has_var, d_has_var=d_has_var, b_var=b_var, d_var=d_var)
             elif from_type == 4:
                 node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
@@ -609,13 +628,13 @@ class Parser:
                             raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
-                r_var = e_node.get_vars()[0]
-                self.UpdateVarList(r_var, e_node.id)
             else:
                 raise Exception('右侧表达式拼写错误，语句为：' + query)
         else:
             return False
         if v_name != '$':
+            r_var = e_node.get_vars()[0]
+            self.UpdateVarList(r_var, e_node.id)
             var_li = self.var_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
@@ -722,7 +741,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('test.txt', 'r') as f:
+    with open('operators/SVM.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
@@ -732,4 +751,4 @@ if __name__ == '__main__':
     s = time()
     executor.run()
     print(f'time:{time()-s} s')
-    # print(executor.var_dict['loss'])
+    print(executor.var_dict['loss'])

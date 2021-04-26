@@ -13,8 +13,10 @@ def preprocessing(fun):
         for input in node.vars[1:]:
             if node.physic_algorithm=='madlib' and not isinstance(node.executor.var_dict[input], str):
                 # sql->torch
+                pass
             elif node.physic_algorithm!='madlib' and isinstance(node.executor.var_dict[input],str):
                 # torch->sql
+                pass
         if not node.with_grad and not isinstance(node, GRADIENT):
             with torch.no_grad():
                 return fun(node, **kwargs)
@@ -214,22 +216,12 @@ class Sql(Node):
 class Random(Node):
     def __init__(self, boundary, data_shape, distribution, var, **kwargs):
         super().__init__(4, **kwargs)
-        if isinstance(boundary, str):
-            boundary = eval(boundary)
         self.boundary = boundary
         self.vars = var
-        # 记录data shape中可能出现的变量名
-        self.data_shape_var = {}
-        if isinstance(data_shape, str):
-            # 如果不包含变量名
-            if re.match(r'[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]', data_shape):
-                data_shape = eval(data_shape)
-            # 提取data shape中的变量名
-            else:
-                match_obj = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', data_shape)
-                for obj in match_obj:
-                    self.data_shape_var[obj] = None
         self.data_shape = data_shape
+        # 记录data shape和boundary中可能出现的变量名
+        self.data_shape_var = {}
+        self.boundary_var = {}
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 'normal'
         else:
@@ -237,7 +229,7 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.physic_algorithm!='madlib':
+        if self.physic_algorithm != 'madlib':
             # 如果data shape中包含var
             if isinstance(self.data_shape, str):
                 # 运行时使用变量的值填充变量名
@@ -245,6 +237,13 @@ class Random(Node):
                     self.data_shape_var[name] = int(self.executor.var_dict[name])
                 # 转换
                 self.data_shape = eval(self.data_shape, self.data_shape_var)
+            # 如果boundary中包含var
+            if isinstance(self.boundary, str):
+                # 运行时使用变量的值填充变量名
+                for name in self.boundary_var.keys():
+                    self.boundary_var[name] = int(self.executor.var_dict[name])
+                # 转换
+                self.boundary = eval(self.boundary, self.boundary_var)
             if self.distribution == 'normal':
                 # boundary[0]=lower_boundary, boundary[1]=upper_boundary
                 tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
@@ -259,13 +258,27 @@ class Random(Node):
                 tensor.requires_grad = True
             self.executor.var_dict[self.vars[0]] = tensor
         else:
-            #TODO:
+            # TODO:
             pass
 
     def infer_data(self):
         for edge in self.out_edges:
             edge.data_type = 'ndarray'
             edge.data_shape = self.data_shape
+
+    def handle_include_var(self, **change_info):
+        if change_info['d_has_var'] and change_info['b_has_var']:
+            self.data_shape_var = change_info['d_var']
+            self.boundary_var = change_info['b_var']
+        elif change_info['d_has_var']:
+            self.data_shape_var = change_info['d_var']
+            self.boundary = eval(self.boundary)
+        elif change_info['b_has_var']:
+            self.boundary_var = change_info['b_var']
+            self.data_shape = eval(self.data_shape)
+        else:
+            self.data_shape = eval(self.data_shape)
+            self.boundary = eval(self.boundary)
 
 
 # 逻辑控制所用节点
