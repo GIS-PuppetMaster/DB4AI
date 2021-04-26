@@ -42,7 +42,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
-            if len(query) == 0 or query[0]=='#':
+            if len(query) == 0 or query[0] == '#':
                 continue
             if self.CreateTensor(query):
                 pass
@@ -628,14 +628,13 @@ class Parser:
                             raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
-                if len(e_node.get_vars()) != 0:
-                    r_var = e_node.get_vars()[0]
-                    self.UpdateVarList(r_var, e_node.id)
             else:
                 raise Exception('右侧表达式拼写错误，语句为：' + query)
         else:
             return False
         if v_name != '$':
+            r_var = e_node.get_vars()[0]
+            self.UpdateVarList(r_var, e_node.id)
             var_li = self.var_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
@@ -752,4 +751,4 @@ if __name__ == '__main__':
     s = time()
     executor.run()
     print(f'time:{time()-s} s')
-    # print(executor.var_dict['loss'])
+    print(executor.var_dict['loss'])
