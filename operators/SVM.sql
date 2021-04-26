@@ -121,7 +121,7 @@ operator SVM(x, y, c, eps, iter_times){
         }
         select Argmax(c1+c2+c3) as i
         create tensor j3(1,) from RANDOM((1,),(0,n),'uniform')
-        select take_step(i,j3,w,b,a,x,y,eps,kernel_cache,error_cache)
+        select take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)
         select t+1 as t
     }
 }

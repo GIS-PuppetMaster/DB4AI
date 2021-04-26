@@ -813,22 +813,7 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'y = TRANSPOSE(w)*x+b'
-    # s = 's = logistic(a  ,y,w,  z,  threshold, iter_times)'
-    # num1 = np.array([[1,2,3],[2,3,4],[3,4,5],[4,5,6]])
-    # now2 = np.mat(num1)
-    # s = 'loss = MAX(y*LOG(hx)+(1-y)*(1-hx),0)/sample_num'
-    # s = 's = k11+k22-2*k12'
-    # s = 's=5*-3'
-    # s = 's=Abs(-1)'
-    s = 'kernel_cache = linear_kernel(z,x,y)'
-    # s = 's= a[j:]'
-    # s = 's =a[i,:]'
-    # s = 's = TRANSPOSE(x[i,:]) * x[j:]'
-    s = 's = POW(CONSTANT.E, MATMUL(x, w[:,:-1,3:]))'
-    s = 's = s+dis[i,j]'
-    # s = 's = w[:,:-1,3:]'
-    s = 's = KNN(a,b,c,d)'
+    s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])
