@@ -130,7 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                # self.Reset()
+                self.Reset()
             else:
                 raise Exception('多余括号！')
 
@@ -628,8 +628,9 @@ class Parser:
                             raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
-                r_var = e_node.get_vars()[0]
-                self.UpdateVarList(r_var, e_node.id)
+                if len(e_node.get_vars()) != 0:
+                    r_var = e_node.get_vars()[0]
+                    self.UpdateVarList(r_var, e_node.id)
             else:
                 raise Exception('右侧表达式拼写错误，语句为：' + query)
         else:

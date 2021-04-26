@@ -829,6 +829,7 @@ if __name__ == '__main__':
     s = 's = s+dis[i,j]'
     # s = 's = w[:,:-1,3:]'
     s = 's = KNN(a,b,c,d)'
+    s = 's = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])
