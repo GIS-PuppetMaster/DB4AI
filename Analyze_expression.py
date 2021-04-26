@@ -25,7 +25,7 @@ class Stack:
     def pop(self):
         try:
             return self.items.pop()
-        except KeyError:
+        except(KeyError, IndexError):
             print("栈为空，无法pop")
 
 
@@ -97,12 +97,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
     none_operator = ('Ones', 'Zeros')
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
-                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs')
+                       'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
+                       'REVERSE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs'}
+                    'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+                    'SORT', 'REVERSE'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -140,7 +142,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if y[i] in simple_operator:
 
             # 避免在负数加入空格
-            if y[i] == '-' and re.fullmatch(re.compile('\\d'), y[i + 1]) and (y[i - 1] in (',' '+', '-', '*', '/', '(')
+            if y[i] == '-' and re.fullmatch(re.compile('\\d'), y[i + 1]) and (y[i - 1] in (':', '+', '-', '*', '/', '(')
                                                                               or i == 0):
                 pass
 
@@ -572,9 +574,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
             begin = 0
             var = []
             for l in range(len(temp_i)):
-                if temp_i[l] == '(':
+                if temp_i[l] in ['(', '[']:
                     cnt += 1
-                if temp_i[l] == ')':
+                if temp_i[l] in [')', ']']:
                     cnt -= 1
                 if temp_i[l] == ',' and cnt == 0:
                     end = l
@@ -669,6 +671,9 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     break
             # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
+            parent = new_stack.pop()
+            if isinstance(parent.keynode, nd.Blank) is not True:
+                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
             for v in range(len(var)):
@@ -717,9 +722,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         G.edges[-1].condition = old_edge.condition
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
-            parent = new_stack.pop()
-            if isinstance(parent.keynode.type_id, nd.Blank) is not True:
-                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
             list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
             # cnt += 1
             for v in var:
@@ -733,22 +735,29 @@ def analyze_expression(expression, x, branches: list, replace=None):
             current_graph.set_val(
                 nd.InstantiationClass(current_graph.keynode.id, 'Slice', branches, with_grad=requires_grad))
             x += 1
-            slice_info = re.findall(re.compile(r'\[(.*?)\]', re.S), i)
+            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
+            G.InsertNode(a)
+            G.InsertEdge(a, current_graph.keynode)
+            vallist.append([i[:i.index('[')], a])
+            x += 1
+            slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
             for s in slice_info[0].split(','):
-                new_s = s.strip()
-                new_slice_info.append(new_s)
+                '''if s.find('['):
+                    s = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(s, current_graph.keynode)
+                while s.find('['):
+                    a = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(a, s)
+                    s = a
+                new_slice_info.append(s[:s.index('[')])'''
+                new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
             if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
 
-            a = nd.InstantiationClass(x, 'Var', branches, vars=i[:i.index('[')], with_grad=requires_grad)
-            G.InsertNode(a)
-            G.InsertEdge(a, current_graph.keynode)
-            vallist.append([i[:i.index('[')], a])
-            x += 1
             current_graph = parent
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
@@ -815,8 +824,11 @@ if __name__ == '__main__':
     s = 'kernel_cache = linear_kernel(z,x,y)'
     # s = 's= a[j:]'
     # s = 's =a[i,:]'
-    s = 's = TRANSPOSE(x[i,:]) * x[j:]'
-    s = 's = Argmax(c1+c2+c3)'
+    # s = 's = TRANSPOSE(x[i,:]) * x[j:]'
+    s = 's = POW(CONSTANT.E, MATMUL(x, w[:,:-1,3:]))'
+    s = 's = s+dis[i,j]'
+    # s = 's = w[:,:-1,3:]'
+    s = 's = KNN(a,b,c,d)'
     p = analyze_expression(s, 0, [])
     print(p[1])
     print(p[2])

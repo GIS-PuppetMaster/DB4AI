@@ -130,7 +130,7 @@ class Parser:
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                self.Reset()
+                # self.Reset()
             else:
                 raise Exception('多余括号！')
 
@@ -741,7 +741,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('test.txt', 'r') as f:
+    with open('test/KNN.sql', 'r') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
@@ -751,4 +751,4 @@ if __name__ == '__main__':
     s = time()
     executor.run()
     print(f'time:{time()-s} s')
-    print(executor.var_dict['loss'])
+    # print(executor.var_dict['loss'])

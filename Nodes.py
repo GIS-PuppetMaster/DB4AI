@@ -1043,6 +1043,7 @@ class AUC(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
+
 class MSE(Node):
     def __init__(self, **kwargs):
         super().__init__(66, **kwargs)
@@ -1053,6 +1054,7 @@ class MSE(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
+
 class F1(Node):
     def __init__(self, **kwargs):
         super().__init__(66, **kwargs)
@@ -1061,6 +1063,21 @@ class F1(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+
+class REVERSE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(67, **kwargs)
+
+
+class ARGSORT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(68, **kwargs)
+
+
+class SORT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(69, **kwargs)
 
 
 def shallow_copy(fun):
