@@ -7,8 +7,8 @@ operator logistic(x,y,class_num, ridge, learning_rate, iter_times){
     create tensor px(feature_num, class_num)
     LOOP(iter_times){
         SELECT w as w with grad
+        select px as px with grad
         select POW(CONSTANT.E, MATMUL(x, w[:,:-1])) as tmp1
-        create tensor px(record_num, tmp) with grad
         SELECT tmp1 / SUM((tmp1+1), 1) AS px[:,:-1] with grad
         select 1-(SUM(px[:,:-1], 1)) as px[:,-1] with grad
         SELECT ridge*POW(w,2)-SUM(y * LOG(px) + (1 - y) * LOG(1 - px)) AS loss with grad

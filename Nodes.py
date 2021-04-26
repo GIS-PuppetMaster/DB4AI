@@ -10,6 +10,11 @@ def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
         # todo 自动类型转换
+        for input in node.vars[1:]:
+            if node.physic_algorithm=='madlib' and not isinstance(node.executor.var_dict[input], str):
+                # sql->torch
+            elif node.physic_algorithm!='madlib' and isinstance(node.executor.var_dict[input],str):
+                # torch->sql
         if not node.with_grad and not isinstance(node, GRADIENT):
             with torch.no_grad():
                 return fun(node, **kwargs)
@@ -50,7 +55,7 @@ def parse_slice(slice_info):
 
 class Node:
     # 计算图中节点类的父类
-    def __init__(self, type_id, with_grad=False, physic_algorithm='relational', **kwargs):
+    def __init__(self, type_id, with_grad=False, physic_algorithm='tensor', **kwargs):
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
         self.type_id = type_id
@@ -157,15 +162,6 @@ class CreateTensor(Node):
         # TODO: infer data_shape
         self.set_vars(var)
 
-    @preprocessing
-    def run(self, **kwargs):
-        # self.executor.var_shape[self.vars[0]] = self.data_shape
-        pass
-
-    def infer_data(self):
-        # for edge in self.out_edges:
-        #     edge.data_shape = self.data_shape
-        pass
 
 
 # 该类用来存储常量，常见如constant.PI、constant.E
@@ -241,26 +237,30 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # 如果data shape中包含var
-        if isinstance(self.data_shape, str):
-            # 运行时使用变量的值填充变量名
-            for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = int(self.executor.var_dict[name])
-            # 转换
-            self.data_shape = eval(self.data_shape, self.data_shape_var)
-        if self.distribution == 'normal':
-            # boundary[0]=lower_boundary, boundary[1]=upper_boundary
-            tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
-        elif self.distribution == 'gauss':
-            # boundary[0]=mu, boundary[1]=sigma
-            tensor = torch.randn() * self.boundary[1] + self.boundary[0]
-        elif self.distribution == 'int':
-            tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
+        if self.physic_algorithm!='madlib':
+            # 如果data shape中包含var
+            if isinstance(self.data_shape, str):
+                # 运行时使用变量的值填充变量名
+                for name in self.data_shape_var.keys():
+                    self.data_shape_var[name] = int(self.executor.var_dict[name])
+                # 转换
+                self.data_shape = eval(self.data_shape, self.data_shape_var)
+            if self.distribution == 'normal':
+                # boundary[0]=lower_boundary, boundary[1]=upper_boundary
+                tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
+            elif self.distribution == 'gauss':
+                # boundary[0]=mu, boundary[1]=sigma
+                tensor = torch.randn() * self.boundary[1] + self.boundary[0]
+            elif self.distribution == 'int':
+                tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
+            else:
+                raise Exception(f'Not supported distribution:{self.distribution}')
+            if self.with_grad:
+                tensor.requires_grad = True
+            self.executor.var_dict[self.vars[0]] = tensor
         else:
-            raise Exception(f'Not supported distribution:{self.distribution}')
-        if self.with_grad:
-            tensor.requires_grad = True
-        self.executor.var_dict[self.vars[0]] = tensor
+            #TODO:
+            pass
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -415,18 +415,45 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.slice is None:
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]]
+        right=self.executor.var_dict[self.vars[1]]
+        left =self.executor.var_dict[self.vars[0]]
+        if isinstance(right,torch.Tensor) :
+            if left is None or isinstance(left,torch.Tensor):
+                if self.slice is None:
+                    self.executor.var_dict[self.vars[0]] = right
+                else:
+                    s = copy(self.slice)
+                    for idx in range(len(s)):
+                        if isinstance(s[idx], str):
+                            s[idx] = int(self.executor.var_dict[s[idx]])
+                    # if self.vars[0] not in self.executor.var_dict:
+                    #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
+                    self.executor.var_dict[self.vars[0]].__setitem__(s, right)
+
+            else:
+                if self.slice is None:
+                    # TODO: transpose to madlib matrix then assignment
+                    torch.add()
+                    pass
+                else:
+                    s = copy(self.slice)
+                    for idx in range(len(s)):
+                        if isinstance(s[idx], str):
+                            s[idx] = int(self.executor.var_dict[s[idx]])
+                    # TODO: set_item with madlib
+        # 如果右部是madlib matrix
         else:
-            s = copy(self.slice)
-            for idx in range(len(s)):
-                if isinstance(s[idx], str):
-                    s[idx] = int(self.executor.var_dict[s[idx]])
-            # if self.vars[0] not in self.executor.var_dict:
-            #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-            self.executor.var_dict[self.vars[0]].__setitem__(s, self.executor.var_dict[self.vars[1]])
+            if left is None or isinstance(left,str):
+                # TODO: 赋值给madlib matrix
+                self.executor.var_dict[self.vars[0]]=self.vars[0]
+            else:
+                # TODO: madlib_to_tensor，赋值
+                pass
+
         if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
+
+
 
 
 class Add(Node):
@@ -435,8 +462,12 @@ class Add(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
-            self.vars[2]]
+        if self.physic_algorithm!='madlib':
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
+                self.vars[2]]
+        else:
+            #TODO
+            pass
 
 
 class Sub(Node):
@@ -445,9 +476,12 @@ class Sub(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[
-            self.vars[2]]
-
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[
+                self.vars[2]]
+        else:
+            #TODO
+            pass
 
 class Mul(Node):
     def __init__(self, **kwargs):
@@ -455,9 +489,12 @@ class Mul(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
-            self.vars[2]]
-
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
+                self.vars[2]]
+        else:
+            # TODO
+            pass
 
 class Div(Node):
     def __init__(self, **kwargs):
@@ -465,8 +502,12 @@ class Div(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[
-            self.vars[2]]
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[
+                self.vars[2]]
+        else:
+            # TODO
+            pass
 
 
 class LOG(Node):
@@ -475,7 +516,11 @@ class LOG(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
+        else:
+            # TODO
+            pass
 
 
 class POW(Node):
@@ -484,9 +529,12 @@ class POW(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]],
-                                                         self.executor.var_dict[self.vars[2]])
-
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]],
+                                                             self.executor.var_dict[self.vars[2]])
+        else:
+            # TODO
+            pass
 
 class SQRT(Node):
     def __init__(self, **kwargs):
@@ -494,7 +542,11 @@ class SQRT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.sqrt(self.executor.var_dict[self.vars[1]])
+        if self.physic_algorithm != 'madlib':
+            self.executor.var_dict[self.vars[0]] = torch.sqrt(self.executor.var_dict[self.vars[1]])
+        else:
+            # TODO
+            pass
 
 
 class MATMUL(Node):

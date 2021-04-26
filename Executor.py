@@ -4,6 +4,13 @@ from utils import *
 import numpy as np
 import yaml
 from collections import defaultdict
+import torch
+
+
+class Tensor(torch.Tensor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
 
 
 class Executor:
@@ -49,7 +56,7 @@ class Executor:
             if 'break' not in kwargs['info'].keys():
                 kwargs['info']['break'] = {}
             kwargs['info']['break'][current_node.loop_id] = current_node
-        current_node.fathers =list(set([edge.start for edge in current_node.in_edges]))
+        current_node.fathers = list(set([edge.start for edge in current_node.in_edges]))
         current_node.sons = list(set([edge.end for edge in current_node.out_edges]))
         current_node.branches_set = set(current_node.branches)
         current_node.infer_data()

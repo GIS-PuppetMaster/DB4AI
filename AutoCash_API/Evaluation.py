@@ -58,7 +58,11 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
         sql_1 += sql_2
         # TODO: metric
     elif classifier == 'LogitBoost':
-
+        iter_times = option['M']
+        sql_2 = f'create tensor iter_times(1,) from {iter_times}\n' \
+                f'select logit_boost(train_x, train_y, n_class,{iter_times})'
+        sql_1 += sql_2
+        # TODO: metric
     loader = Loader(classname="weka.core.converters.ArffLoader")
     data = loader.load_file(filename)
     if classp == "start":
@@ -80,7 +84,7 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
     fc.classifier = cls
 
     evl = Evaluation(data)
-    evl.crossvalidate_model(fc, data, 10, Random(1))
+        evl.crossvalidate_model(fc, data, 10, Random(1))
 
     ACC = evl.percent_correct / 100
     all_time = time2 - time1

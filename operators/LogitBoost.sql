@@ -1,5 +1,6 @@
-operator logit_boost(x,y,J,M){
+operator logit  _boost(x,y,J,M){
     # y的取值范围为0, 1
+    # J为类别数目, M为迭代次数
     select SHAPE(x)[0] as N
     select SHAPE(x)[1] as feature_num
     create tensor F(J, ) from zeros((J, ))
