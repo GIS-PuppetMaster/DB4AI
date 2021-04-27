@@ -212,10 +212,9 @@ class Parser:
         data_reg = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
                    '|[a-zA-Z_]+[a-zA-Z0-9_]*'
         variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,)[ \t]*)+([1-9][0-9]*|-1|[a-zA-Z_]+[' \
-                         'a-zA-Z0-9_]*)?[)]'
+        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,))+([1-9][0-9]*|-1|[a-zA-Z_]+[a-zA-Z0-9_]*)?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
-                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z_]+[a-zA-Z0-9_]*)' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
                      '|[a-zA-Z_]+[a-zA-Z0-9_]*)[)]'
         create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[ \t]*(.+?))' \
@@ -231,7 +230,7 @@ class Parser:
         legal_info = []  # 记录合法的信息
         match_obj = re.match(create_tensor_reg, query)
         if match_obj:
-            query = re.sub('[ \t]+','',match_obj.group())
+            query = re.sub('[ \t]+', '', match_obj.group())
             if re.search('WITH|with', query):
                 hasWith = True
             fromObj = re.search('(FROM|from)(.+)(with|WITH)|(FROM|from)(.+)', query)
@@ -239,7 +238,7 @@ class Parser:
                 from_str = fromObj.group(2)
             elif fromObj:
                 from_str = fromObj.group(5)
-            T_info = match_obj.group(3)
+            T_info = re.sub('[ \t]+', '', match_obj.group(3))
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_dict.get(T_name, None):
                 raise Exception('重复创建张量：' + T_name + '，语句为：' + query)
@@ -741,14 +740,14 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/SVM.sql', 'r') as f:
+    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    print(f'time:{time()-s} s')
-    print(executor.var_dict['loss'])
+    # executor = Executor(result)
+    # s = time()
+    # executor.run()
+    # print(f'time:{time()-s} s')
+    # print(executor.var_dict['loss'])
