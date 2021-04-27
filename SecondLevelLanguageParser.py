@@ -201,6 +201,19 @@ class Parser:
         else:
             return None
 
+    @staticmethod
+    def ExtractVar(str):
+        match_obj_d = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', str)
+        if len(match_obj_d) != 0:
+            has_var = True
+            var_info = dict()
+            for obj in match_obj_d:
+                var_info[obj] = None
+        else:
+            var_info = dict()
+            has_var = False
+        return has_var, var_info
+
     #  用于解析语句的主要函数
     def CreateTensor(self, query):
         """
@@ -328,34 +341,24 @@ class Parser:
             elif from_type == 3:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
-                match_obj_d = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', from_info[0])
-                match_obj_b = re.findall(r'', from_info[1])
-                if len(match_obj_d) != 0:
-                    d_has_var = True
-                    d_var = dict()
-                    for obj in match_obj_d:
-                        d_var[obj] = None
-                else:
-                    d_var = dict()
-                    d_has_var = False
-                if len(match_obj_b) != 0:
-                    b_var = dict()
-                    b_has_var = True
-                    for obj in match_obj_b:
-                        b_var[obj] = None
-                else:
-                    b_var = dict()
-                    b_has_var = False
+                d_has_var, d_var = self.ExtractVar(from_info[0])
+                b_has_var, b_var = self.ExtractVar(from_info[1])
                 node2.handle_include_var(b_has_var=b_has_var, d_has_var=d_has_var, b_var=b_var, d_var=d_var)
             elif from_type == 4:
                 node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
+                d_has_var, d_var = self.ExtractVar(from_info)
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             elif from_type == 5:
                 node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
+                d_has_var, d_var = self.ExtractVar(from_info)
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             else:
                 node2 = Nd.InstantiationClass(self.node_id, 'Full', self.branches, with_grad, data_shape=from_info[0],
                                               var=['@' + str(self.node_id)], num=from_info[1])
+                d_has_var, d_var = self.ExtractVar(from_info[0])
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)
