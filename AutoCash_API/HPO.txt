@@ -3,6 +3,6 @@ IBk	-I,-F,-K	list,list,int	false,true;false,true;1,64	-I, false, -F, false, -K,1
 Logistic	-M, -R	int,float	1,50;0,1	-M, 10, -R, 0.01	1, 0.01
 softmax_classification -H, -R, -L, -M   int,float,float,int     8,512;0,1;0.001,1;1,500     -H, 64, -R, 0.01, -L, 0.01, -M 100  16,0.01,0.001,50
 LogitBoost	-M	float	1,64	-M,15	15
-SVM    -C -E -T    float,float,int   0.0001,1000;0.00000001,1;1,10000   0.001,0.001,100
-RBF
+SVM    -C -E -M    float,float,int   0.0001,1000;0.00000001,1;1,10000   -C, 0.01, -E, 0.001, -M, 100   0.001,0.001,100
+RBF     -M -N -B -L     int,int,list,float   50,1000;10,500;8,32,64,128,256,512,1024;0.0001,1      -M, 256, -N, 32, -B, 128, -L, 0.001     50,10,16,0.0001
 

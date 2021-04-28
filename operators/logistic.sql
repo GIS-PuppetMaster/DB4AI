@@ -14,14 +14,14 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         SELECT GRADIENT(w) AS g
         SELECT w-learning_rate * g AS w
     }
-    select 1/(1+POW(CONSTANT.E, MATMUL(x, w))) as hx
+    select 1/(1+POW(CONSTANT.E, MATMUL(x, w))) as pred
     create tensor i(1,) from 0
     LOOP(record_num){
         if(hx[i,:]>=0.5){
-            hx[i,:]=1
+            select 1 as hx[i,:]
         }
         else{
-            hx[i,:]=0
+            select 0 as hx[i,:]
         }
         select i+1 as i
     }

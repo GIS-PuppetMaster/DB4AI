@@ -11,10 +11,10 @@ def preprocessing(fun):
     def decorated(node, **kwargs):
         # todo 自动类型转换
         for input in node.vars[1:]:
-            if node.physic_algorithm=='madlib' and not isinstance(node.executor.var_dict[input], str):
+            if node.physic_algorithm == 'madlib' and not isinstance(node.executor.var_dict[input], str):
                 # sql->torch
                 pass
-            elif node.physic_algorithm!='madlib' and isinstance(node.executor.var_dict[input],str):
+            elif node.physic_algorithm != 'madlib' and isinstance(node.executor.var_dict[input], str):
                 # torch->sql
                 pass
         if not node.with_grad and not isinstance(node, GRADIENT):
@@ -163,7 +163,6 @@ class CreateTensor(Node):
         #     self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
-
 
 
 # 该类用来存储常量，常见如constant.PI、constant.E
@@ -428,10 +427,10 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        right=self.executor.var_dict[self.vars[1]]
-        left =self.executor.var_dict[self.vars[0]]
-        if isinstance(right,torch.Tensor) :
-            if left is None or isinstance(left,torch.Tensor):
+        right = self.executor.var_dict[self.vars[1]]
+        left = self.executor.var_dict[self.vars[0]]
+        if isinstance(right, torch.Tensor):
+            if left is None or isinstance(left, torch.Tensor):
                 if self.slice is None:
                     self.executor.var_dict[self.vars[0]] = right
                 else:
@@ -456,9 +455,9 @@ class Assignment(Node):
                     # TODO: set_item with madlib
         # 如果右部是madlib matrix
         else:
-            if left is None or isinstance(left,str):
+            if left is None or isinstance(left, str):
                 # TODO: 赋值给madlib matrix
-                self.executor.var_dict[self.vars[0]]=self.vars[0]
+                self.executor.var_dict[self.vars[0]] = self.vars[0]
             else:
                 # TODO: madlib_to_tensor，赋值
                 pass
@@ -467,19 +466,17 @@ class Assignment(Node):
             self.executor.var_dict[self.vars[0]].requires_grad = True
 
 
-
-
 class Add(Node):
     def __init__(self, **kwargs):
         super().__init__(12, **kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        if self.physic_algorithm!='madlib':
+        if self.physic_algorithm != 'madlib':
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] + self.executor.var_dict[
                 self.vars[2]]
         else:
-            #TODO
+            # TODO
             pass
 
 
@@ -493,8 +490,9 @@ class Sub(Node):
             self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] - self.executor.var_dict[
                 self.vars[2]]
         else:
-            #TODO
+            # TODO
             pass
+
 
 class Mul(Node):
     def __init__(self, **kwargs):
@@ -508,6 +506,7 @@ class Mul(Node):
         else:
             # TODO
             pass
+
 
 class Div(Node):
     def __init__(self, **kwargs):
@@ -548,6 +547,7 @@ class POW(Node):
         else:
             # TODO
             pass
+
 
 class SQRT(Node):
     def __init__(self, **kwargs):
@@ -734,7 +734,6 @@ class STACK(Node):
         self.axis = axis
 
 
-
 class GRADIENT(Node):
     def __init__(self, **kwargs):
         super().__init__(36, **kwargs)
@@ -742,7 +741,6 @@ class GRADIENT(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].grad
-
 
 
 class SHAPE(Node):
@@ -1130,7 +1128,6 @@ class MSE(Node):
     def __init__(self, **kwargs):
         super().__init__(66, **kwargs)
 
-
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
@@ -1159,6 +1156,7 @@ class SORT(Node):
     def __init__(self, **kwargs):
         super().__init__(69, **kwargs)
 
+
 class ACC(Node):
     def __init__(self, **kwargs):
         super().__init__(70, **kwargs)
@@ -1166,6 +1164,7 @@ class ACC(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
 
 class RECALL(Node):
     def __init__(self, **kwargs):
@@ -1175,6 +1174,7 @@ class RECALL(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
+
 class PRECISION(Node):
     def __init__(self, **kwargs):
         super().__init__(72, **kwargs)
@@ -1182,6 +1182,7 @@ class PRECISION(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
 
 class Backward(Node):
     def __init__(self, **kwargs):
