@@ -21,8 +21,14 @@ operator take_step(i, j, w,b, a, x, y, c, eps, kernel_cache, error_cache){
         select error_cache[i] as e1
         select error_cache[j] as e2
         select y1 * y2 as s
-        select MAX(0, alpha2-alpha1) as l
-        select MIN(c, c+alpha2-alpha1) as h
+        if(alpha2-alpha1>0){
+            select alpha2-alpha1 as l
+            select c as h
+        }
+        else{
+            select 0 as l
+            select c+alpha2-alpha1 as h
+        }
         if(l!=h){
             select kernel_cache[i,i] as k11
             select kernel_cache[i,j] as k12
