@@ -29,6 +29,7 @@ class Parser:
         self.input = list()
         self.operator = ''
         self.isCu = False
+        self.need_change = dict()
 
     def __call__(self, **kwargs):
         """
@@ -81,6 +82,7 @@ class Parser:
             if c_state == 'loop':
                 self.loop_id = self.root_id
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             self.root_id = self.node_id
             if self.state == 'if_branch':
@@ -88,10 +90,12 @@ class Parser:
                                          self.branches.copy(), self.oth_branch, self.extra_pop_num])
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.loop_id])
+                                         self.branches.copy(), self.loop_id, self.extra_pop_num])
+            self.extra_pop_num = 0
             if c_state == 'loop':
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
@@ -105,17 +109,14 @@ class Parser:
         elif (self.state == 'if' or self.state == 'loop') and c_state == 'end':
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
-                if self.state == 'loop':
+                while self.extra_pop_num != 0:
                     self.branches.pop(-1)
-                elif self.state == 'if':
-                    while self.extra_pop_num != 0:
-                        self.branches.pop(-1)
-                        self.extra_pop_num += -1
+                    self.extra_pop_num += -1
                 self.state = ''
             else:
                 state_li = self.state_stack.pop(-1)
+                self.extra_pop_num = state_li[5]
                 if state_li[1] == 'if_branch':
-                    self.extra_pop_num = state_li[5]
                     self.oth_branch = state_li[4]
                 elif state_li[1] == 'loop':
                     self.loop_id = state_li[4]
@@ -161,13 +162,12 @@ class Parser:
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if isinstance(l_n, Nd.IfBranch):
-                    com_branches = l_n.branches.copy()
-                    com_branches.pop(-1)
-                    if node.branches != com_branches:
-                        continue
-                self.graph.InsertEdge(l_n, node)
+                if set(node.branches).issubset(set(l_n.branches)):
+                    self.graph.InsertEdge(l_n, node)
+                else:
+                    continue
             self.branches.append(self.root_id)
+            self.extra_pop_num += 1
             self.graph.InsertNode(node)
 
     def DealInVar(self, v_name):
@@ -188,15 +188,18 @@ class Parser:
         :param m_str: 用于解析的"条件"
         :return: 包含"条件"和变量名最后一次赋值
         """
-        match_reg = '[a-zA-Z_]+[a-zA-Z_]*'
+        match_reg = '[a-zA-Z_]+[a-zA-Z_0-9]*'
         match_obj = re.findall(match_reg, m_str)
         if match_obj:
             v_li = list()
             for v in match_obj:
                 if v != 'or' and v != 'and':
                     var_li = self.var_dict.get(v, None)
-                    last_use = var_li[-1]
-                    v_li.append([v, self.graph.nodes[last_use]])
+                    if var_li:
+                        last_use = var_li[-1]
+                        v_li.append([v, self.graph.nodes[last_use]])
+                    else:
+                        return None
             return v_li
         else:
             return None
@@ -213,6 +216,19 @@ class Parser:
             var_info = dict()
             has_var = False
         return has_var, var_info
+
+    def ConnectVarAndNode(self, var_info, node):
+        if len(var_info) != 0:
+            for v in list(var_info):
+                last_use = self.var_dict.get(v, None)
+                if last_use:
+                    if self.graph.nodes[last_use[-1]].branches == node.branches:
+                        self.graph.InsertEdge(self.graph.nodes[last_use[-1]], node)
+                else:
+                    raise Exception('data_shape使用未创建张量：')
+            return True
+        else:
+            return False
 
     #  用于解析语句的主要函数
     def CreateTensor(self, query):
@@ -323,11 +339,10 @@ class Parser:
         self.node_id += 1
         node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
                                       var=[legal_info[0]])
+        t_has_var, t_var = self.ExtractVar(legal_info[1])
         self.graph.InsertNode(node1)
-        if self.isCu and self.root_id == 0:
-            pass
-        else:
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
+        d_var = dict()
+        b_var = dict()
         if from_type != 0:
             from_info = legal_info[2]
             node1_id = self.node_id
@@ -371,7 +386,13 @@ class Parser:
             if self.isCu and self.root_id == 0:
                 pass
             else:
-                self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
+                if (not self.ConnectVarAndNode(b_var, node2)) and (not self.ConnectVarAndNode(d_var, node2)):
+                    self.graph.InsertEdge(self.graph.nodes[self.root_id], node2)
+        if self.isCu and self.root_id == 0:
+            pass
+        else:
+            if not self.ConnectVarAndNode(t_var, node1):
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], node1)
         self.UpdateVarList(legal_info[0], self.node_id)
         return True
 
@@ -540,6 +561,7 @@ class Parser:
                         continue
                     self.graph.InsertEdge(l_n, node)
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
             elif self.oth_branch == 0 and self.state == 'if_branch':
@@ -743,7 +765,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
+    with open('test.txt', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
