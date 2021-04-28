@@ -88,7 +88,7 @@ STACK : axis
 '''
 
 
-def analyze_expression(expression, x, branches: list, replace=None):
+def analyze_expression(expression, x, inner_count, branches: list, replace=None):
     if replace is None:
         replace = {}
     # print(replace)
@@ -98,13 +98,14 @@ def analyze_expression(expression, x, branches: list, replace=None):
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
-                       'REVERSE')
-    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Adam')
+                       'REVERSE', 'GRADIENT', 'Backward')
+    multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
+                         'F1')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                    'SORT', 'REVERSE'}
+                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -398,7 +399,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
             new_expression = val_name + '=' + var[0]
             if requires_grad:
                 new_expression = new_expression + ' WITH GRAD'
-            temp = analyze_expression(new_expression, x, branches, replace)
+            temp = analyze_expression(new_expression, x, inner_count, branches, replace)
             x += len(temp[0][0])
             for k in temp[0][0]:
                 G.InsertNode(k)
@@ -431,7 +432,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                     exp_expression = val_name + '=' + exp
                     if requires_grad:
                         exp_expression = exp_expression + 'WITH GRAD'
-                    temp = analyze_expression(exp_expression, x, branches, replace)
+                    temp = analyze_expression(exp_expression, x, inner_count, branches, replace)
                     for k in temp[0][0]:
                         G.InsertNode(k)
                         G.without_out.remove(k)
@@ -533,13 +534,13 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         current_graph.keynode.set_axis(eval(var[1]))
                     else:
                         current_graph.keynode.set_axis(var[1])
-            elif j == 'Argmax' or j == 'Argmin':
+            elif j in ['Argmax', 'Argmin', 'MAX', 'MIN']:
                 if len(var) != 1:
-                    if len(var) != 1:
-                        if type(var[1]) == str:
-                            current_graph.keynode.set_axis(eval(var[1]))
-                        else:
-                            current_graph.keynode.set_axis(var[1])
+                    if type(var[1]) == str:
+                        current_graph.keynode.set_axis(eval(var[1]))
+                    else:
+                        current_graph.keynode.set_axis(var[1])
+
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -610,7 +611,7 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 new_expression = val_name + '=' + v.strip()
                 if requires_grad:
                     new_expression = new_expression + 'WITH GRAD'
-                temp = analyze_expression(new_expression, x, branches, replace)
+                temp = analyze_expression(new_expression, x, inner_count, branches, replace)
                 x += len(temp[0][0])
                 for k in temp[0][0]:
                     G.InsertNode(k)
@@ -679,7 +680,6 @@ def analyze_expression(expression, x, branches: list, replace=None):
             for v in range(len(var)):
                 var[v] = var[v].strip()
             # 将算子输入的实际参数变量加入表达式出现的变量列表
-            # operator_info[2].Show()
             for e in operator_info[2].edges:
                 # 如果形参出现
                 for inp in operator_info[1]:
@@ -688,11 +688,13 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         # 则将实参加入变量列表
                         if [var[operator_info[1].index(inp)].strip(), e.GetEnd()] not in vallist:
                             vallist.append([var[operator_info[1].index(inp)], e.GetEnd()])
+            # 将vars里的输入参数替换
             for n in operator_info[2].nodes:
                 for v in range(len(n.vars)):
                     for inp in operator_info[1]:
                         if n.vars[v] == inp[0]:
                             n.vars[v] = var[operator_info[1].index(inp)]
+
             if_out_edges = defaultdict(dict)
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
                 node = operator_info[2].nodes[len(operator_info[1]) + n]
@@ -704,11 +706,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
                 G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
 
             x += len(operator_info[2].nodes) - len(operator_info[1])
-            # 遍历图中每条边
+            # 遍历图中每条边，符合要求的添加到图G中
             for e in operator_info[2].edges:
                 flag = 0
                 for input in operator_info[1]:
-                    # 比对成功
+                    # 与输入参数比对成功，去除与输入参数相连的那条边
                     if e.GetStart() == input[1]:
                         flag = 1
                         for in_edge in e.GetEnd().in_edges:
@@ -716,6 +718,11 @@ def analyze_expression(expression, x, branches: list, replace=None):
                                 e.GetEnd().in_edges.remove(in_edge)
                 # 若不是形参，则添加到图G中
                 if flag == 0:
+                    if e.GetStart().id > 0 and isinstance(e.GetStart(), nd.Var):
+                        e.GetStart().vars[0] = '$' + str(inner_count) + e.GetStart().vars[0]
+                        for t in range(len(e.GetEnd().vars)):
+                            if not e.GetEnd().vars[t].startswith(('@', '$')):
+                                e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
                     G.InsertEdge(e.GetStart(), e.GetEnd())
                     if isinstance(e.GetStart(), nd.If):
                         old_edge = if_out_edges[e.GetStart()][e.GetEnd()]
@@ -723,10 +730,10 @@ def analyze_expression(expression, x, branches: list, replace=None):
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
             list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
-            # cnt += 1
             for v in var:
                 list(operator_info[0])[0].set_vars(v.strip())
             # G.Show()
+            inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
 
@@ -795,8 +802,8 @@ def analyze_expression(expression, x, branches: list, replace=None):
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
-    return G.GetSet(), vallist, top_node
+    G.Show()
+    return G.GetSet(), vallist, top_node, inner_count
 
 
 if __name__ == '__main__':
@@ -813,8 +820,9 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
-    p = analyze_expression(s, 0, [])
+    # s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
+    s = 's = MAX(s,1)'
+    p = analyze_expression(s, 0, 0, [])
     print(p[1])
     print(p[2])
     # p[3].Show()
