@@ -849,18 +849,23 @@ class SaveTable(Node):
 class Full(Node):
     def __init__(self, data_shape, var, num, **kwargs):
         super().__init__(48, **kwargs)
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        elif isinstance(data_shape, str):
-            self.data_shape = eval(data_shape)
-        elif data_shape is None:
+        if data_shape is None:
             self.data_shape = None
+        else:
+            self.data_shape = data_shape
+        self.data_shape_var = {}
         # TODO: infer data_shape
         self.set_vars(var)
         self.num = num
 
     @preprocessing
     def run(self, **kwargs):
+        if isinstance(self.data_shape, str):
+            # 运行时使用变量的值填充变量名
+            for name in self.data_shape_var.keys():
+                self.data_shape_var[name] = int(self.executor.var_dict[name])
+            # 转换
+            self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.executor.var_shape[self.vars[0]] = self.data_shape
         tensor = torch.full(self.data_shape, self.num)
         if self.with_grad:
@@ -871,21 +876,32 @@ class Full(Node):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
 
+    def handle_include_var(self, **change_info):
+        if change_info['d_has_var']:
+            self.data_shape_var = change_info['d_var']
+        else:
+            self.data_shape = eval(self.data_shape)
+
 
 class Ones(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(48, **kwargs)
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        elif isinstance(data_shape, str):
-            self.data_shape = eval(data_shape)
-        elif data_shape is None:
+        if data_shape is None:
             self.data_shape = None
+        else:
+            self.data_shape = data_shape
         # TODO: infer data_shape
         self.set_vars(var)
+        self.data_shape_var = {}
 
     @preprocessing
     def run(self, **kwargs):
+        if isinstance(self.data_shape, str):
+            # 运行时使用变量的值填充变量名
+            for name in self.data_shape_var.keys():
+                self.data_shape_var[name] = int(self.executor.var_dict[name])
+            # 转换
+            self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.executor.var_shape[self.vars[0]] = self.data_shape
         tensor = torch.ones(self.data_shape)
         if self.with_grad:
@@ -896,21 +912,32 @@ class Ones(Node):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
 
+    def handle_include_var(self, **change_info):
+        if change_info['d_has_var']:
+            self.data_shape_var = change_info['d_var']
+        else:
+            self.data_shape = eval(self.data_shape)
+
 
 class Zeros(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(49, **kwargs)
-        if isinstance(data_shape, tuple):
-            self.data_shape = data_shape
-        elif isinstance(data_shape, str):
-            self.data_shape = eval(data_shape)
-        elif data_shape is None:
+        if data_shape is None:
             self.data_shape = None
+        else:
+            self.data_shape = data_shape
         # TODO: infer data_shape
         self.set_vars(var)
+        self.data_shape_var = {}
 
     @preprocessing
     def run(self, **kwargs):
+        if isinstance(self.data_shape, str):
+            # 运行时使用变量的值填充变量名
+            for name in self.data_shape_var.keys():
+                self.data_shape_var[name] = int(self.executor.var_dict[name])
+            # 转换
+            self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.executor.var_shape[self.vars[0]] = self.data_shape
         tensor = torch.zeros(self.data_shape)
         if self.with_grad:
@@ -921,6 +948,11 @@ class Zeros(Node):
         for edge in self.out_edges:
             edge.data_shape = self.data_shape
 
+    def handle_include_var(self, **change_info):
+        if change_info['d_has_var']:
+            self.data_shape_var = change_info['d_var']
+        else:
+            self.data_shape = eval(self.data_shape)
 
 class SUM(Node):
     def __init__(self, **kwargs):
