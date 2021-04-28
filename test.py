@@ -41,10 +41,14 @@ class MixedTensor(object):
 class MixedSubTensor(torch.Tensor):
     @staticmethod
     def __new__(cls, x, extra_data, *args, **kwargs):
-        return super().__new__(cls, x, *args, **kwargs)
+        return object.__new__(cls, x, *args, **kwargs)
 
     def __init__(self, x, extra_data):
         self.extra_data = extra_data
+        self.requires_grad=False
+        self.grad_fn=None
+        self.grad=None
+        self.shape=None
 
     def clone(self, *args, **kwargs):
         return MixedSubTensor(super().clone(*args, **kwargs), self.extra_data)
@@ -63,7 +67,7 @@ d = MixedSubTensor(torch.ones((1000,2)), extra_data='info')
 # print(sys.getsizeof(d))
 # d.release_data()
 # print(sys.getsizeof(d))
-d.requires_grad_(True)
+d.requires_grad=True
 a = torch.ones((10, 2))
 # b = MixedTensor(pd.DataFrame(numpy.ones((2,1))),relational=True,dtype=torch.float32)
 b = torch.ones((2,1))

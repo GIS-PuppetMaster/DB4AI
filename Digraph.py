@@ -85,7 +85,7 @@ class Graph:
 
     # 其它方法
     def Show(self):
-        dot = Digraph(name="computation graph", format="png")
+        dot = Digraph(name="computation graph", format="svg")
         for node in self.nodes:
             node_info = str(node.id) + '\n' + str(node.__class__) + '\n' + str(node.branches) + \
                         '\n' + str(node.vars) + '\n' + str(node.with_grad)

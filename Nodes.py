@@ -734,19 +734,15 @@ class STACK(Node):
         self.axis = axis
 
 
-# 用来计算梯度
+
 class GRADIENT(Node):
     def __init__(self, **kwargs):
         super().__init__(36, **kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        if len(self.vars) == 2:
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].grad
-        else:
-            # TODO: add list data type
-            self.executor.var_dict[self.vars[1]].backward()
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[2]].grad
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].grad
+
 
 
 class SHAPE(Node):
@@ -1091,7 +1087,6 @@ class LoadParameters(Node):
 class AUC(Node):
     def __init__(self, **kwargs):
         super().__init__(65, **kwargs)
-        # TODO: 解析
 
     @preprocessing
     def run(self, **kwargs):
@@ -1101,7 +1096,6 @@ class AUC(Node):
 class MSE(Node):
     def __init__(self, **kwargs):
         super().__init__(66, **kwargs)
-        # TODO: 解析
 
 
     @preprocessing
@@ -1112,7 +1106,6 @@ class MSE(Node):
 class F1(Node):
     def __init__(self, **kwargs):
         super().__init__(66, **kwargs)
-        # TODO: 解析
 
     @preprocessing
     def run(self, **kwargs):
@@ -1132,6 +1125,39 @@ class ARGSORT(Node):
 class SORT(Node):
     def __init__(self, **kwargs):
         super().__init__(69, **kwargs)
+
+class ACC(Node):
+    def __init__(self, **kwargs):
+        super().__init__(70, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+class RECALL(Node):
+    def __init__(self, **kwargs):
+        super().__init__(71, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+class PRECISION(Node):
+    def __init__(self, **kwargs):
+        super().__init__(72, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+
+class Backward(Node):
+    def __init__(self, **kwargs):
+        super().__init__(73, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]].backward()
+
 
 
 def shallow_copy(fun):

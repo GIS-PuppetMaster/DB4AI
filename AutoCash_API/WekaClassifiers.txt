@@ -1,5 +1,5 @@
 IBk
 Logistic
-LogitBoost
 SVM
 RBF
+softmax_classification

@@ -1,11 +1,6 @@
-from weka.core.converters import Loader
-from weka.classifiers import Evaluation
-from weka.classifiers import Classifier
-from weka.core.classes import Random
-from weka.classifiers import FilteredClassifier
 import time
-from weka.filters import Filter
-import math
+from Executor import Executor
+from SecondLevelLanguageParser import Parser
 
 
 def evaluation(filename, evaluation_indicator, classifier, option, classp):
@@ -21,81 +16,121 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
 
     schema = []  # TODO 使用SQL查询指定表的schema，也就是每一列的名称
     if classp == 'start':
-        label_name = schema[0]
+        column_name = schema[0]
     else:
-        label_name = schema[-1]
-    sql_1 = f'select SQL(select count(distinct {label_name}) from {filename}) as n_class\n' \
-            f'select SQL(select * from {filename}) as raw_data\n' \
-            f'create tensor split_ratio(2,) from ones((2, ))\n' \
-            f'select split_ratio[0]*0.7 as split_ratio[0]\n' \
-            f'select split_ratio[1]*0.3 as split_ratio[1]\n' \
-            f'select SplitDataset(raw_data, split_ratio) as split_res\n' \
-            f'select split_res[0] as train_data\n' \
-            f'select split_res[1] as test_data\n'
+        column_name = schema[-1]
+    sql = f'select SQL(select count(*) from {filename} group by {column_name}) as n_classes\n' \
+          f'select SQL(select * from {filename}) as raw_data\n' \
+          f'create tensor split_ratio(2,) from ones((2, ))\n' \
+          f'select split_ratio[0]*0.7 as split_ratio[0]\n' \
+          f'select split_ratio[1]*0.3 as split_ratio[1]\n' \
+          f'select SplitDataset(raw_data, split_ratio) as split_res\n' \
+          f'select split_res[0] as train_data\n' \
+          f'select split_res[1] as test_data\n' \
+          f'create tensor mse(1,)\n' \
+          f'create tensor auc(1,)\n' \
+          f'create tensor f1(1,)\n' \
+          f'create tensor acc(1,)\n' \
+          f'create tensor recall(1,)\n' \
+          f'create tensor prec(1,)\n'
     if classp == 'start':
         sql_2 = f'select train_data[:,0] as train_y\n' \
                 f'select train_data[:,1] as train_x\n'
     else:
         sql_2 = f'select train_data[:,-1] as train_y\n' \
                 f'select train_data[:,-2] as train_x\n'
-    sql_1 += sql_2
+    sql += sql_2
     if classifier == 'IBK':
         k = option['K']
-        sql_1 += f'create tensor k(1,) from {k}\n'
+        sql += f'create tensor k(1,) from {k}\n'
         if option['I']:
-            sql_1 += f'select KNN_I(test_x, train_x, train_y, {k})\n'
+            sql += f'select KNN_I(acc,auc,prec,recall,mse,f1,test_x, test_y, train_x, train_y, {k})\n'
         elif option['F']:
-            sql_1 += f'select KNN_F(test_x, train_x, train_y, {k})\n'
+            sql += f'select KNN_F(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y, {k})\n'
         else:
-            sql_1 += f'select KNN(test_x, train_x, train_y, {k})\n'
-        # TODO: metric
+            sql += f'select KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y, {k})\n'
     elif classifier == 'Logistic':
         iter_times = option['M']
+        ridge = option['R']
         sql_2 = f'create tensor lr(1,) from 0.01\n' \
-                f'create tensor threshold(1,) from 0.3\n' \
+                f'create tensor ridge(1,) from {ridge}\n' \
                 f'create tensor iter_times(1,) from {iter_times}\n' \
-                f'select logistic(train_x, train_y, n_class, lr, threshold, iter_times)\n'
-        sql_1 += sql_2
-        # TODO: metric
-    elif classifier == 'LogitBoost':
+                f'select logistic(acc,auc,prec,recall,mse,f1, train_x, train_y, lr, iter_times)\n'
+        sql += sql_2
+    elif classifier == 'SVM':
         iter_times = option['M']
-        sql_2 = f'create tensor iter_times(1,) from {iter_times}\n' \
-                f'select logit_boost(train_x, train_y, n_class,{iter_times})'
-        sql_1 += sql_2
-        # TODO: metric
-    loader = Loader(classname="weka.core.converters.ArffLoader")
-    data = loader.load_file(filename)
-    if classp == "start":
-        data.class_is_first()
-    elif classp == "end":
-        data.class_is_last()
-
-    remove = Filter(classname="weka.filters.unsupervised.attribute.Remove")
-    if option == []:
-        option = Classifier(classname=classifier).options
-    cls = Classifier(classname=classifier, options=option)
-
-    time1 = time.time()
-    cls.build_classifier(data)
-    time2 = time.time()
-
-    fc = FilteredClassifier()
-    fc.filter = remove
-    fc.classifier = cls
-
-    evl = Evaluation(data)
-        evl.crossvalidate_model(fc, data, 10, Random(1))
-
-    ACC = evl.percent_correct / 100
-    all_time = time2 - time1
-    F1_score = evl.f_measure(0)
-    precison = evl.precision(0)
-    recall = evl.recall(0)
-    if math.isnan(evl.weighted_area_under_roc):
-        AUC = 0
+        c = option['C']
+        eps = option['E']
+        # TODO test
+        sql_2 = f'create tensor c(1, ) from {c}\n' \
+                f'create tensor eps(1, ) from {eps}\n' \
+                f'create tensor iter_times(1, ) from {iter_times}\n' \
+                f'select SVM(acc,auc,prec,recall,mse,f1, x, y, c, eps, iter_times)\n'
+        sql += sql_2
+    elif classifier == 'RBF':
+        iter_times = option['M']
+        n_centers = option['N']
+        batch_size = option['B']
+        learning_rate = option['L']
+        sql_2 = f'create tensor n_centers(1, ) from {n_centers}\n' \
+                f'create tensor batch_size(1, ) from {batch_size}\n' \
+                f'create tensor learning_rate(1, ) from {learning_rate}\n' \
+                f'create tensor iter_times(1, ) from {iter_times}\n' \
+                f'select SVM(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y, n_centers, n_classes, learning_rate, iter_times)\n'
+        sql += sql_2
     else:
-        AUC = evl.percent_correct / (evl.weighted_area_under_roc * 100)
+        raise Exception(f'not supported algorithm:{classifier}')
+    # elif classifier == 'LogitBoost':
+    #     iter_times = option['M']
+    #     sql_2 = f'create tensor iter_times(1,) from {iter_times}\n' \
+    #             f'select logit_boost(train_x, train_y, n_class,{iter_times})'
+    #     sql_1 += sql_2
+    parser = Parser(sql)
+    result = parser()
+    executor = Executor(result)
+    time1 = time.time()
+    executor.run()
+    time1 = time.time() - time1
+    auc = executor.var_dict['auc']
+    acc = executor.var_dict['acc']
+    recall = executor.var_dict['recall']
+    precision = executor.var_dict['prec']
+    mse = executor.var_dict['mse']
+    f1 = executor.var_dict['f1']
 
-    evl_dict = {'ACC': ACC, 'time': all_time, 'F1-score': F1_score, 'precison': precison, 'recall': recall, 'AUC': AUC}
+    # loader = Loader(classname="weka.core.converters.ArffLoader")
+    # data = loader.load_file(filename)
+    # if classp == "start":
+    #     data.class_is_first()
+    # elif classp == "end":
+    #     data.class_is_last()
+    #
+    # remove = Filter(classname="weka.filters.unsupervised.attribute.Remove")
+    # if option == []:
+    #     option = Classifier(classname=classifier).options
+    # cls = Classifier(classname=classifier, options=option)
+    #
+    # time1 = time.time()
+    # cls.build_classifier(data)
+    # time2 = time.time()
+    #
+    # fc = FilteredClassifier()
+    # fc.filter = remove
+    # fc.classifier = cls
+    #
+    # evl = Evaluation(data)
+    #     evl.crossvalidate_model(fc, data, 10, Random(1))
+    #
+    # ACC = evl.percent_correct / 100
+    # all_time = time2 - time1
+    # F1_score = evl.f_measure(0)
+    # precison = evl.precision(0)
+    # recall = evl.recall(0)
+    # if math.isnan(evl.weighted_area_under_roc):
+    #     AUC = 0
+    # else:
+    #     AUC = evl.percent_correct / (evl.weighted_area_under_roc * 100)
+
+    evl_dict = {'ACC': acc, 'time': time1, 'F1-score': f1, 'precison': precision, 'recall': recall, 'AUC': auc, 'MSE': mse}
 
     return evl_dict[evaluation_indicator]

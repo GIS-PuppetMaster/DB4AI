@@ -1,4 +1,4 @@
-operator KNN(data_input, x, y, k){
+operator KNN(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
     select MAX(y)+1 as class_number
     select SHAPE(data_input) as data_input_shape
     select data_input_shape[0] as data_input_len
@@ -35,4 +35,10 @@ operator KNN(data_input, x, y, k){
         select classes_order[0] as answer[data_input_index]
         select data_input_index+1 as data_input_index
     }
+    select AUC(test_y, pred) as auc
+    select ACC(test_y, pred) as acc
+    select RECALL(test_y, pred) as recall
+    select PRECISION(test_y, pred) as prec
+    select MSE(test_y, pred) as mse
+    select F1(test_y, pred) as f1
 }
