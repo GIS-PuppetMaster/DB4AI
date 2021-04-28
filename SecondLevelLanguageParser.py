@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 from Executor import Executor
+global inner_var_count
 
 
 class Parser:
@@ -30,6 +31,7 @@ class Parser:
         self.operator = ''
         self.isCu = False
         self.need_change = dict()
+
 
     def __call__(self, **kwargs):
         """

@@ -954,6 +954,7 @@ class Zeros(Node):
         else:
             self.data_shape = eval(self.data_shape)
 
+
 class SUM(Node):
     def __init__(self, **kwargs):
         super().__init__(50, **kwargs)
@@ -1190,6 +1191,11 @@ class Backward(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]].backward()
 
+
+
+class Backward(Node):
+    def __init__(self, **kwargs):
+        super().__init__(70, **kwargs)
 
 
 def shallow_copy(fun):
