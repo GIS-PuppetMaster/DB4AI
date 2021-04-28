@@ -1,7 +1,7 @@
 operator logit_boost(x,y,J,M){
-    # y的取值范围为0, 1
-    select SHAPE(x)[0] as N
-    select SHAPE(x)[1] as feature_num
+    select SHAPE(x) as sx
+    select sx[0] as N
+    select sx[1] as feature_num
     create tensor F(J, ) from zeros((J, ))
     create tensor p(N,J) from full((N,J), 1/J)
     create tensor w(N,J) from full((N,J), 1/N)
@@ -18,7 +18,6 @@ operator logit_boost(x,y,J,M){
             select (y[:,j]-p_j)/tmp2 as z_j
             create tensor a(1,)
             create tensor b(1,feature_num)
-            # 新增加权最小二乘算子, 输出为最小二乘的a和b, y=a+bx
             select WLS(x, z, w, a, b)
             select a+MATMUL(b,x) as f[m,j]
             select j+1 as j

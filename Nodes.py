@@ -904,6 +904,7 @@ class Zeros(Node):
         else:
             self.data_shape = eval(self.data_shape)
 
+
 class SUM(Node):
     def __init__(self, **kwargs):
         super().__init__(50, **kwargs)
@@ -1110,6 +1111,11 @@ class ARGSORT(Node):
 class SORT(Node):
     def __init__(self, **kwargs):
         super().__init__(69, **kwargs)
+
+
+class Backward(Node):
+    def __init__(self, **kwargs):
+        super().__init__(70, **kwargs)
 
 
 def shallow_copy(fun):
