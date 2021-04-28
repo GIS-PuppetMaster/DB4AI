@@ -63,7 +63,7 @@ class Parser:
             else:
                 self.graph.Show()
                 raise Exception('非法语句：' + query)
-        # self.graph.Show()
+        self.graph.Show()
         return self.graph
 
     #  用于解析语句时维护解析器或计算图数据的主要函数
@@ -201,6 +201,19 @@ class Parser:
         else:
             return None
 
+    @staticmethod
+    def ExtractVar(str):
+        match_obj_d = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', str)
+        if len(match_obj_d) != 0:
+            has_var = True
+            var_info = dict()
+            for obj in match_obj_d:
+                var_info[obj] = None
+        else:
+            var_info = dict()
+            has_var = False
+        return has_var, var_info
+
     #  用于解析语句的主要函数
     def CreateTensor(self, query):
         """
@@ -212,10 +225,9 @@ class Parser:
         data_reg = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
                    '|[a-zA-Z_]+[a-zA-Z0-9_]*'
         variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,)[ \t]*)+([1-9][0-9]*|-1|[a-zA-Z_]+[' \
-                         'a-zA-Z0-9_]*)?[)]'
+        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,))+([1-9][0-9]*|-1|[a-zA-Z_]+[a-zA-Z0-9_]*)?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
-                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z_]+[a-zA-Z0-9_]*)' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
                      '|[a-zA-Z_]+[a-zA-Z0-9_]*)[)]'
         create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[ \t]*(.+?))' \
@@ -231,7 +243,7 @@ class Parser:
         legal_info = []  # 记录合法的信息
         match_obj = re.match(create_tensor_reg, query)
         if match_obj:
-            query = re.sub('[ \t]+','',match_obj.group())
+            query = re.sub('[ \t]+', '', match_obj.group())
             if re.search('WITH|with', query):
                 hasWith = True
             fromObj = re.search('(FROM|from)(.+)(with|WITH)|(FROM|from)(.+)', query)
@@ -239,7 +251,7 @@ class Parser:
                 from_str = fromObj.group(2)
             elif fromObj:
                 from_str = fromObj.group(5)
-            T_info = match_obj.group(3)
+            T_info = re.sub('[ \t]+', '', match_obj.group(3))
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_dict.get(T_name, None):
                 raise Exception('重复创建张量：' + T_name + '，语句为：' + query)
@@ -329,34 +341,24 @@ class Parser:
             elif from_type == 3:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
                                               boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
-                match_obj_d = re.findall(r'[a-zA-Z_]+[a-zA-Z0-9_]*', from_info[0])
-                match_obj_b = re.findall(r'', from_info[1])
-                if len(match_obj_d) != 0:
-                    d_has_var = True
-                    d_var = dict()
-                    for obj in match_obj_d:
-                        d_var[obj] = None
-                else:
-                    d_var = dict()
-                    d_has_var = False
-                if len(match_obj_b) != 0:
-                    b_var = dict()
-                    b_has_var = True
-                    for obj in match_obj_b:
-                        b_var[obj] = None
-                else:
-                    b_var = dict()
-                    b_has_var = False
+                d_has_var, d_var = self.ExtractVar(from_info[0])
+                b_has_var, b_var = self.ExtractVar(from_info[1])
                 node2.handle_include_var(b_has_var=b_has_var, d_has_var=d_has_var, b_var=b_var, d_var=d_var)
             elif from_type == 4:
                 node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
+                d_has_var, d_var = self.ExtractVar(from_info)
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             elif from_type == 5:
                 node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
                                               var=['@' + str(self.node_id)])
+                d_has_var, d_var = self.ExtractVar(from_info)
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             else:
                 node2 = Nd.InstantiationClass(self.node_id, 'Full', self.branches, with_grad, data_shape=from_info[0],
                                               var=['@' + str(self.node_id)], num=from_info[1])
+                d_has_var, d_var = self.ExtractVar(from_info[0])
+                node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             self.graph.InsertNode(node2)
             node2_id = self.node_id
             self.UpdateVarList('@' + str(self.node_id), self.node_id)
@@ -741,14 +743,14 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('test/SVM.sql', 'r') as f:
+    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    print(f'time:{time()-s} s')
-    print(executor.var_dict['loss'])
+    # executor = Executor(result)
+    # s = time()
+    # executor.run()
+    # print(f'time:{time()-s} s')
+    # print(executor.var_dict['loss'])
