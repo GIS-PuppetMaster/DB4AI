@@ -55,7 +55,7 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
         sql_2 = f'create tensor lr(1,) from 0.01\n' \
                 f'create tensor ridge(1,) from {ridge}\n' \
                 f'create tensor iter_times(1,) from {iter_times}\n' \
-                f'select logistic(acc,auc,prec,recall,mse,f1, train_x, train_y, lr, iter_times)\n'
+                f'select logistic(acc,auc,prec,recall,mse,f1, train_x, train_y, lr, n_classes, iter_times)\n'
         sql += sql_2
     elif classifier == 'SVM':
         iter_times = option['M']

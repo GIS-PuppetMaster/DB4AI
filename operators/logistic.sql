@@ -1,4 +1,4 @@
-operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, iter_times){
+operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times){
     # 二分类, https://github.com/csnstat/rbfn/blob/master/RBFN.py
     select SHAPE(x) as sx
     select sx[0] as record_num

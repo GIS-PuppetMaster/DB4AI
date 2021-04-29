@@ -21,6 +21,7 @@ loop(1000){
     select i+1 as i
 }
 create tensor lr(1,) from 0.01
+create tensor class_num(1,) from 0.01
 create tensor rigde(1,) from 0.01
 create tensor iter_times(1,) from 10000
 create tensor mse(1,)
@@ -29,6 +30,6 @@ create tensor f1(1,)
 create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
-select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, iter_times)
+select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate,class_num, iter_times)
 
 
