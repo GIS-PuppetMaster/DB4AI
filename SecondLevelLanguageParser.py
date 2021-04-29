@@ -647,12 +647,17 @@ class Parser:
                             last_use = var_li[-1]
                             if self.graph.nodes[last_use].branches == in_v[1].branches:
                                 self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                                g[2].remove(in_v[1])
                             else:
                                 self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                                g[2].remove(in_v[1])
                         elif isinstance(in_v[1], Nd.Val):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                            g[2].remove(in_v[1])
                         else:
                             raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                for o_in_v in g[2]:
+                    self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
@@ -686,7 +691,11 @@ class Parser:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
-            self.graph.InsertEdge(e_node, ass_n)
+            if isinstance(e_node, set):
+                for e_n in e_node:
+                    self.graph.InsertEdge(e_node, ass_n)
+            else:
+                self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
             self.graph.without_out.add(e_node)
@@ -768,7 +777,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/logistic.sql', 'r', encoding='utf-8') as f:
+    with open('test/logistic.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

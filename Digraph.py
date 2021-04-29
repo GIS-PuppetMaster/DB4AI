@@ -50,6 +50,7 @@ class Graph:
         self.nodes = []
         self.edges = []
         self.without_out = set()
+        self.without_in = set()
         self.exist_edge = dict(dict())
 
     # 有关边的方法
@@ -63,6 +64,8 @@ class Graph:
             self.exist_edge[start.id] = end_dict
             if start in self.without_out and not (isinstance(start, nd.LoopEnd) and isinstance(end, nd.Loop)):
                 self.without_out.remove(start)
+            if end in self.without_in:
+                self.without_in.remove(end)
             start.out_edges.append(edge)
             end.in_edges.append(edge)
 
@@ -78,10 +81,11 @@ class Graph:
     def InsertNode(self, node):
         self.nodes.append(node)
         self.without_out.add(node)
+        self.without_in.add(node)
         return True
 
     def GetSet(self):
-        return self.nodes, self.edges
+        return self.nodes, self.edges, self.without_in
 
     # 其它方法
     def Show(self):
