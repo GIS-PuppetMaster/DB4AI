@@ -30,8 +30,7 @@ class Parser:
         self.input = list()
         self.operator = ''
         self.isCu = False
-        self.need_change = dict()
-
+        self.cu_use_count = 0  # 提供给表达式解析记录使用自定义算子次数以加上前缀
 
     def __call__(self, **kwargs):
         """
@@ -66,7 +65,7 @@ class Parser:
             else:
                 self.graph.Show()
                 raise Exception('非法语句：' + query)
-        self.graph.Show()
+        # self.graph.Show()
         return self.graph
 
     #  用于解析语句时维护解析器或计算图数据的主要函数
@@ -128,7 +127,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 if not output:
                     output = copy.copy(self.graph.nodes[self.node_id])
@@ -625,11 +624,8 @@ class Parser:
                 with_grad = True
             self.node_id += 1
             branches = self.branches.copy()
-            p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
-            g = p[0]
-            g_in = p[1]
-            g_out = p[2]
-            if p[0] and p[1] and p[2]:
+            g, g_in, g_out, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
+            if g and g_in and g_out:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     if isinstance(in_v[1], Nd.Loop) or isinstance(in_v[1], Nd.If):
