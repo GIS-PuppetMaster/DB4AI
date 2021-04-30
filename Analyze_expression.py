@@ -312,11 +312,19 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
         # 操作节点转移到父节点
         elif i == ')':
-            current_graph = new_stack.pop()
+            parent = new_stack.pop()
+            flag = 0
+            for e in G.edges:
+                if e.GetStart() == current_graph.keynode and e.GetEnd() == parent.keynode:
+                    flag = 1
+                if e.GetStart() == parent.keynode and e.GetEnd() == current_graph.keynode:
+                    flag = 1
+            if flag == 0 and current_graph.keynode != parent.keynode and not isinstance(parent.keynode, nd.Blank):
+                G.InsertEdge(current_graph.keynode, parent.keynode)
+            current_graph = parent
 
         # 设置当前节点值，将当前节点与可能邻接边加入图G，添加子节点，操作节点转移到子节点
         elif i in simple_operator:
-            label = 1
             simple_operator_class = ['Add', 'Sub', 'Mul', 'Div']
             for count in range(len(simple_operator)):
                 if i == simple_operator[count]:
@@ -325,7 +333,6 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
                         x += 1
                     else:
-                        label = 0
                         parent_graph = BuildGraph(x, simple_operator_class[count], branches, with_grad=requires_grad)
                         x += 1
                         parent_graph.get_children().append(current_graph)
@@ -335,11 +342,6 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
             except AttributeError:
                 print('无子图')
-            if len(new_stack.items) != 0 and label == 1:
-                parent = new_stack.pop()
-                if current_graph != parent and isinstance(parent.keynode, nd.Blank) is not True:
-                    G.InsertEdge(current_graph.keynode, parent.keynode)
-                new_stack.push(parent)
             current_graph.insert(x, 'Blank', branches, grad=requires_grad)
             new_stack.push(current_graph)
             current_graph = current_graph.get_child()
@@ -428,6 +430,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     x += 1
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
+                    vallist.append(exp.strip(), exp_node)
                 else:
                     exp_expression = val_name + '=' + exp
                     if requires_grad:
@@ -670,11 +673,14 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         t = pickle.load(f)
                         operator_info = t.get(j)
                     break
-            # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             parent = new_stack.pop()
-            if isinstance(parent.keynode, nd.Blank) is not True:
-                G.InsertEdge(list(operator_info[0])[0], parent.keynode)
+            # 预备topnode
+            for r in range(len(list(operator_info[0]))):
+                G.without_out.add(list(operator_info[0])[r])
+            if not isinstance(parent.keynode, nd.Blank):
+                for r in range(len(list(operator_info[0]))):
+                    G.InsertEdge(list(operator_info[0])[r], parent.keynode)
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             var = re.findall(pattern, i)[0].split(',')
             for v in range(len(var)):
@@ -701,9 +707,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 if isinstance(node, nd.If):
                     for edge in node.out_edges:
                         if_out_edges[node][edge.end] = edge
-                node.out_edges = []
-                node.in_edges = []
-                G.InsertNode(operator_info[2].nodes[len(operator_info[1]) + n])
+                G.nodes.append(operator_info[2].nodes[len(operator_info[1]) + n])
 
             x += len(operator_info[2].nodes) - len(operator_info[1])
             # 遍历图中每条边，符合要求的添加到图G中
@@ -723,16 +727,16 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         for t in range(len(e.GetEnd().vars)):
                             if not e.GetEnd().vars[t].startswith(('@', '$')):
                                 e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
-                    G.InsertEdge(e.GetStart(), e.GetEnd())
+                    G.edges.append(e)
                     if isinstance(e.GetStart(), nd.If):
                         old_edge = if_out_edges[e.GetStart()][e.GetEnd()]
                         G.edges[-1].condition = old_edge.condition
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
-            list(operator_info[0])[0].set_vars('@' + str(list(operator_info[0])[0].id))
-            for v in var:
-                list(operator_info[0])[0].set_vars(v.strip())
-            # G.Show()
+            for o in range(len(operator_info[0])):
+                list(operator_info[0])[o].set_vars('@' + str(list(operator_info[0])[o].id))
+                for v in var:
+                    list(operator_info[0])[o].set_vars(v.strip())
             inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
@@ -750,14 +754,6 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
             for s in slice_info[0].split(','):
-                '''if s.find('['):
-                    s = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
-                    G.InsertEdge(s, current_graph.keynode)
-                while s.find('['):
-                    a = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
-                    G.InsertEdge(a, s)
-                    s = a
-                new_slice_info.append(s[:s.index('[')])'''
                 new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
@@ -807,7 +803,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
 
 if __name__ == '__main__':
-    # s = 'y = SUM(n*y*(xa*x))+b'
+    # s = 'y = SUM(n*y*(xa*x),1)+b'
     # s = "loss=y*LOG(hx)+(1-y)*(1-hx)"
     # s = "g=GRADIENT(loss,w)"
     # s = "w=learning_rate*g+w"
@@ -820,8 +816,9 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    # s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
-    s = 's = MAX(s,1)'
+    s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
+    s = 's = SVM_fast_predict(y_pred, non_zero_a, x_a, y_a, b, x)'
+    # s = 's = eps*(a2+alpha2+eps*3)'
     p = analyze_expression(s, 0, 0, [])
     print(p[1])
     print(p[2])
