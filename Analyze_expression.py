@@ -100,12 +100,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                        'REVERSE', 'GRADIENT', 'Backward')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1')
+                         'F1','ACC', 'RECALL','PRECISION')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward'}
+                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL','PRECISION'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -333,6 +333,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
                         x += 1
                     else:
+                        label = 0
                         parent_graph = BuildGraph(x, simple_operator_class[count], branches, with_grad=requires_grad)
                         x += 1
                         parent_graph.get_children().append(current_graph)
@@ -673,6 +674,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         t = pickle.load(f)
                         operator_info = t.get(j)
                     break
+            # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             parent = new_stack.pop()
             # 预备topnode
@@ -755,6 +757,14 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
             for s in slice_info[0].split(','):
+                '''if s.find('['):
+                    s = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(s, current_graph.keynode)
+                while s.find('['):
+                    a = nd.InstantiationClass(x, 'Var', branches, vars=s[:s.index('[')], with_grad=requires_grad)
+                    G.InsertEdge(a, s)
+                    s = a
+                new_slice_info.append(s[:s.index('[')])'''
                 new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
@@ -784,7 +794,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
     # 返回生成解析树上最上层顶点
     top_node = None
     try:
-        top_node = list(G.GetNoOutNodes())[0]
+        top_node = G.GetNoOutNodes().pop()
     except KeyError:
         print("无top_node")
 
@@ -799,8 +809,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
-    return G.GetSet(), vallist, inner_count
+    # G.Show()
+    return G.GetSet(), vallist, top_node, inner_count
 
 
 if __name__ == '__main__':

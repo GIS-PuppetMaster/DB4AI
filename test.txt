@@ -1,6 +1,6 @@
-create tensor x(1,4) from random((1,4),(0,1))
-create tensor w(4,1) from random((4,1),(0,1)) with grad
-select MATMUL(x,w) as y with grad
-select GRADIENT(y,w) as g
-
-
+create tensor x(100,3)
+select SHAPE(x) as sx
+select sx[0] as record_num
+select sx[1] as feature_num
+create tensor tmp(1,) from 2
+create tensor w(feature_num,tmp) from RANDOM((feature_num,tmp),(0,1)) with grad

@@ -30,7 +30,9 @@ class Parser:
         self.input = list()
         self.operator = ''
         self.isCu = False
-
+        self.cu_use_count = 0  # 提供给表达式解析记录使用自定义算子次数以加上前缀
+        #  用于优化debug过程的行号记录
+        self.line_id = 0
 
     def __call__(self, **kwargs):
         """
@@ -44,6 +46,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
+            self.line_id += 1
             if len(query) == 0 or query[0] == '#':
                 continue
             if self.CreateTensor(query):
@@ -63,8 +66,8 @@ class Parser:
             elif query == '$':
                 self.EndIf()
             else:
-                self.graph.Show()
-                raise Exception('非法语句：' + query)
+                # self.graph.Show()
+                raise Exception('非法语句：' + query + ' 错误在第' + str(self.line_id) + '行')
         self.graph.Show()
         return self.graph
 
@@ -83,6 +86,7 @@ class Parser:
             if c_state == 'loop':
                 self.loop_id = self.root_id
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             self.root_id = self.node_id
             if self.state == 'if_branch':
@@ -90,10 +94,12 @@ class Parser:
                                          self.branches.copy(), self.oth_branch, self.extra_pop_num])
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.loop_id])
+                                         self.branches.copy(), self.loop_id, self.extra_pop_num])
+            self.extra_pop_num = 0
             if c_state == 'loop':
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
@@ -107,17 +113,14 @@ class Parser:
         elif (self.state == 'if' or self.state == 'loop') and c_state == 'end':
             self.root_id = self.node_id
             if len(self.state_stack) == 0:
-                if self.state == 'loop':
+                while self.extra_pop_num != 0:
                     self.branches.pop(-1)
-                elif self.state == 'if':
-                    while self.extra_pop_num != 0:
-                        self.branches.pop(-1)
-                        self.extra_pop_num += -1
+                    self.extra_pop_num += -1
                 self.state = ''
             else:
                 state_li = self.state_stack.pop(-1)
+                self.extra_pop_num = state_li[5]
                 if state_li[1] == 'if_branch':
-                    self.extra_pop_num = state_li[5]
                     self.oth_branch = state_li[4]
                 elif state_li[1] == 'loop':
                     self.loop_id = state_li[4]
@@ -127,14 +130,12 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
-                if not output:
-                    output = copy.copy(self.graph.nodes[self.node_id])
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
             else:
-                raise Exception('多余括号！')
+                raise Exception('多余括号！' + ' 错误在第' + str(self.line_id) + '行')
 
     def UpdateVarList(self, v_name, nd_id):
         """
@@ -163,13 +164,12 @@ class Parser:
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if isinstance(l_n, Nd.IfBranch):
-                    com_branches = l_n.branches.copy()
-                    com_branches.pop(-1)
-                    if node.branches != com_branches:
-                        continue
-                self.graph.InsertEdge(l_n, node)
+                if set(node.branches).issubset(set(l_n.branches)):
+                    self.graph.InsertEdge(l_n, node)
+                else:
+                    continue
             self.branches.append(self.root_id)
+            self.extra_pop_num += 1
             self.graph.InsertNode(node)
 
     def DealInVar(self, v_name):
@@ -190,15 +190,18 @@ class Parser:
         :param m_str: 用于解析的"条件"
         :return: 包含"条件"和变量名最后一次赋值
         """
-        match_reg = '[a-zA-Z_]+[a-zA-Z_]*'
+        match_reg = '[a-zA-Z_]+[a-zA-Z_0-9]*'
         match_obj = re.findall(match_reg, m_str)
         if match_obj:
             v_li = list()
             for v in match_obj:
                 if v != 'or' and v != 'and':
                     var_li = self.var_dict.get(v, None)
-                    last_use = var_li[-1]
-                    v_li.append([v, self.graph.nodes[last_use]])
+                    if var_li:
+                        last_use = var_li[-1]
+                        v_li.append([v, self.graph.nodes[last_use]])
+                    else:
+                        return None
             return v_li
         else:
             return None
@@ -215,6 +218,19 @@ class Parser:
             var_info = dict()
             has_var = False
         return has_var, var_info
+
+    def ConnectVarAndNode(self, var_info, node):
+        if len(var_info) != 0:
+            for v in list(var_info):
+                last_use = self.var_dict.get(v, None)
+                if last_use:
+                    if self.graph.nodes[last_use[-1]].branches == node.branches:
+                        self.graph.InsertEdge(self.graph.nodes[last_use[-1]], node)
+                else:
+                    raise Exception('data_shape使用未创建张量：' + ' 错误在第' + str(self.line_id) + '行')
+            return True
+        else:
+            return False
 
     #  用于解析语句的主要函数
     def CreateTensor(self, query):
@@ -256,14 +272,14 @@ class Parser:
             T_info = re.sub('[ \t]+', '', match_obj.group(3))
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_dict.get(T_name, None):
-                raise Exception('重复创建张量：' + T_name + '，语句为：' + query)
+                raise Exception('重复创建张量：' + T_name + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             data = re.search(data_shape_reg, T_info)
             if data:
                 data_shape = data.group()
                 legal_info.append(T_name)
                 legal_info.append(data_shape)
             else:
-                raise Exception('张量data_shape错误：' + T_info + '，语句为：' + query)
+                raise Exception('张量data_shape错误：' + T_info + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             if len(from_str) != 0:
                 match1 = re.match(val_info_reg1, from_str)
                 match2 = re.match(val_info_reg2, from_str)
@@ -291,7 +307,7 @@ class Parser:
                         data_shape = ran_match_obj.group(1)
                         boundary = ran_match_obj.group(2)
                     else:
-                        raise Exception('RANDOM信息错误：' + in_random_str + '，语句为：' + query)
+                        raise Exception('RANDOM信息错误：' + in_random_str + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                     legal_info.append([data_shape, boundary, type])
                     from_type = 3
                 elif match2:
@@ -313,7 +329,7 @@ class Parser:
                         legal_info.append([data_shape, num])
                         from_type = 6
                 else:
-                    raise Exception('FROM信息错误：' + from_str + '，语句为：' + query)
+                    raise Exception('FROM信息错误：' + from_str + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
         else:
             return False
         # 对上一步的结果进行处理
@@ -325,11 +341,10 @@ class Parser:
         self.node_id += 1
         node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
                                       var=[legal_info[0]])
+        t_has_var, t_var = self.ExtractVar(legal_info[1])
         self.graph.InsertNode(node1)
-        if self.isCu and self.root_id == 0:
-            pass
-        else:
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[self.node_id])
+        d_var = dict()
+        b_var = dict()
         if from_type != 0:
             from_info = legal_info[2]
             node1_id = self.node_id
@@ -371,9 +386,16 @@ class Parser:
             self.graph.InsertEdge(self.graph.nodes[node1_id], self.graph.nodes[self.node_id])
             self.graph.InsertEdge(self.graph.nodes[node2_id], self.graph.nodes[self.node_id])
             if self.isCu and self.root_id == 0:
-                pass
+                self.ConnectVarAndNode(b_var, node2)
+                self.ConnectVarAndNode(d_var, node2)
             else:
-                self.graph.InsertEdge(self.graph.nodes[self.root_id], self.graph.nodes[node2_id])
+                if (not self.ConnectVarAndNode(b_var, node2)) and (not self.ConnectVarAndNode(d_var, node2)):
+                    self.graph.InsertEdge(self.graph.nodes[self.root_id], node2)
+        if self.isCu and self.root_id == 0:
+            self.ConnectVarAndNode(t_var, node1)
+        else:
+            if not self.ConnectVarAndNode(t_var, node1):
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], node1)
         self.UpdateVarList(legal_info[0], self.node_id)
         return True
 
@@ -393,7 +415,10 @@ class Parser:
             elif re.search('[1-9][0-9]*', loop_str):
                 condition = int(loop_str)
             else:
-                condition = loop_str
+                if self.var_dict.get(loop_str, None):
+                    condition = loop_str
+                else:
+                    raise Exception('loop的条件使用未创建张量：' + ' 错误在第' + str(self.line_id) + '行')
             self.node_id += 1
             root_id = self.root_id
             com_branches = self.branches.copy()
@@ -421,7 +446,7 @@ class Parser:
         match_obj = re.match(break_reg, query)
         if match_obj:
             if self.loop_id == 0:
-                raise Exception('非loop内使用break：')
+                raise Exception('非loop内使用break：' + ' 错误在第' + str(self.line_id) + '行')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', self.branches, loop_id=self.loop_id)
             for l_n in self.graph.GetNoOutNodes().copy():
@@ -438,7 +463,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        con_reg = '[a-zA-Z0-9_=!<> ]+'
+        con_reg = '[a-zA-Z0-9_=!<>\-+/*\[\],:. ]+'
         if_reg = '(IF|if)[ \t]*[(](.+)[)]{\n$'  # 所有关于if的正则，目前未对条件进行约束，待修改
         elif_reg = '(ELIF|elif)[ \t]*[(](.+)[)]{\n$'
         else_reg = '(ELSE|else)[ \t]*{\n$'
@@ -452,7 +477,7 @@ class Parser:
             if condition != 'true' and condition != 'TRUE':
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
-                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query)
+                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             else:
                 var_li = []
             self.node_id += 1
@@ -487,7 +512,7 @@ class Parser:
                 condition = re.search(con_reg, if_str).group()
                 var_li = self.MatchLogicExp(condition)
                 if not var_li:
-                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query)
+                    raise Exception('逻辑语句拼写错误或使用未创建张量：' + condition + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 self.node_id += 1
                 self.branches.append(self.oth_branch)
                 branches = self.branches.copy()
@@ -506,7 +531,7 @@ class Parser:
                 self.extra_pop_num += 1
                 return True
             else:
-                raise Exception('elif在使用if前使用，语句为：' + query)
+                raise Exception('elif在使用if前使用，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
         elif match_obj_else:
             if self.state == 'if':
                 self.node_id += 1
@@ -519,7 +544,7 @@ class Parser:
                 self.extra_pop_num += 1
                 return True
             else:
-                raise Exception('else在使用if前使用')
+                raise Exception('else在使用if前使用' + ' 错误在第' + str(self.line_id) + '行')
         else:
             return False
 
@@ -542,6 +567,7 @@ class Parser:
                         continue
                     self.graph.InsertEdge(l_n, node)
                 self.branches.append(self.root_id)
+                self.extra_pop_num += 1
                 self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
             elif self.oth_branch == 0 and self.state == 'if_branch':
@@ -603,11 +629,8 @@ class Parser:
                 with_grad = True
             self.node_id += 1
             branches = self.branches.copy()
-            p = A_e.analyze_expression(exp, self.node_id, branches, as_replace)
-            g = p[0]
-            g_in = p[1]
-            g_out = p[2]
-            if p[0] and p[1] and p[2]:
+            g, g_in, g_out, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
+            if g and g_in and g_out:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     if isinstance(in_v[1], Nd.Loop) or isinstance(in_v[1], Nd.If):
@@ -624,16 +647,21 @@ class Parser:
                             last_use = var_li[-1]
                             if self.graph.nodes[last_use].branches == in_v[1].branches:
                                 self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                                g[2].remove(in_v[1])
                             else:
                                 self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                                g[2].remove(in_v[1])
                         elif isinstance(in_v[1], Nd.Val):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                            g[2].remove(in_v[1])
                         else:
-                            raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query)
+                            raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                for o_in_v in g[2]:
+                    self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
                 e_node = g_out
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
-                raise Exception('右侧表达式拼写错误，语句为：' + query)
+                raise Exception('右侧表达式拼写错误，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
         else:
             return False
         if v_name != '$':
@@ -663,7 +691,11 @@ class Parser:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
-            self.graph.InsertEdge(e_node, ass_n)
+            if isinstance(e_node, set):
+                for e_n in e_node:
+                    self.graph.InsertEdge(e_node, ass_n)
+            else:
+                self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
             self.graph.without_out.add(e_node)
@@ -686,7 +718,7 @@ class Parser:
                 self.operator = match_obj.group(2)
                 parameter_str = re.search(para_reg, match_obj.group(3)).group()
             else:
-                raise Exception('自定义算子参数为空，语句为：' + query)
+                raise Exception('自定义算子参数为空，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             parameter_li = parameter_str.replace(' ', '').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
@@ -745,7 +777,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
+    with open('test/logistic.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
