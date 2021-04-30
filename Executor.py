@@ -12,7 +12,6 @@ class Tensor(torch.Tensor):
         super().__init__(*args, **kwargs)
 
 
-
 class Executor:
     def __init__(self, graph):
         with open('./config.yaml', encoding='utf-8') as f:

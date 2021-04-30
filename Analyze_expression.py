@@ -100,12 +100,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                        'REVERSE', 'GRADIENT', 'Backward')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1', 'ACC', 'RECALL', 'PRECISION')
+                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION'}
+                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -319,7 +319,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     flag = 1
                 if e.GetStart() == parent.keynode and e.GetEnd() == current_graph.keynode:
                     flag = 1
-            if flag == 0 and current_graph.keynode != parent.keynode and not isinstance(parent.keynode, nd.Blank):
+            if flag == 0 and current_graph.keynode != parent.keynode and not isinstance(parent.keynode, nd.Blank)\
+                    and parent.keynode in G.without_out:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
 
@@ -678,6 +679,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             parent = new_stack.pop()
             # 预备topnode
+            G.without_in = G.without_in.union(operator_info[2].without_in)
             G.without_in = G.without_in | operator_info[2].without_in
             G.without_out = G.without_out | operator_info[2].without_out
             if not isinstance(parent.keynode, nd.Blank):
@@ -783,9 +785,9 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
     # 返回生成解析树上最上层顶点
     top_node = None
     try:
-        top_node = G.GetNoOutNodes().pop()
-    except KeyError:
-        print("无top_node")
+        top_node = list(G.GetNoOutNodes())[0]
+    except IndexError:
+        print("无topnode")
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
@@ -798,8 +800,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
-    return G.GetSet(), vallist, top_node, inner_count
+    G.Show()
+    return G.GetSet(), vallist, inner_count
 
 
 if __name__ == '__main__':
@@ -816,10 +818,12 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
-    s = 's = SVM_fast_predict(y_pred, non_zero_a, x_a, y_a, b, x)'
+    # s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
+    # s = 's = SVM_fast_predict(y_pred, non_zero_a, x_a, y_a, b, x)'
+    # s = 's = l1*f1+l*f2+0.5*POW(l1,2)*k11+0.5*POW(l,2)*k22+s*l*l1*k12'
+    # s = 's = WLS(a,b,c,d,e)'
     # s = 's = eps*(a2+alpha2+eps*3)'
     p = analyze_expression(s, 0, 0, [])
     print(p[1])
-    print(p[2])
+    # print(p[2])
     # p[3].Show()
