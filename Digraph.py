@@ -85,7 +85,7 @@ class Graph:
         return True
 
     def GetSet(self):
-        return self.nodes, self.edges, self.without_in
+        return self.nodes.copy(), self.edges.copy(), self.without_in.copy(), self.without_out.copy()
 
     # 其它方法
     def Show(self):
@@ -159,5 +159,4 @@ if __name__ == '__main__':
     G.InsertEdge(W, Val)
     G.InsertEdge(Val, Ran)
     G.InsertEdge(Y, W)
-    print(G.ConvertToMatrix())
     G.Show()
