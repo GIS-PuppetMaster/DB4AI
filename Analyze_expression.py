@@ -430,7 +430,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     x += 1
                     G.InsertNode(exp_node)
                     G.InsertEdge(exp_node, current_graph.keynode)
-                    vallist.append(exp.strip(), exp_node)
+                    vallist.append([exp.strip(), exp_node])
                 else:
                     exp_expression = val_name + '=' + exp
                     if requires_grad:
@@ -676,6 +676,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             parent = new_stack.pop()
             # 预备topnode
+            G.without_out
             for r in range(len(list(operator_info[0]))):
                 G.without_out.add(list(operator_info[0])[r])
             if not isinstance(parent.keynode, nd.Blank):
@@ -735,8 +736,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         G.edges[-1].need_var = old_edge.need_var
             for o in range(len(operator_info[0])):
                 list(operator_info[0])[o].set_vars('@' + str(list(operator_info[0])[o].id))
-                for v in var:
-                    list(operator_info[0])[o].set_vars(v.strip())
+                '''for v in var:
+                    list(operator_info[0])[o].set_vars(v.strip())'''
             inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
@@ -783,7 +784,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
     # 返回生成解析树上最上层顶点
     top_node = None
     try:
-        top_node = G.GetNoOutNodes().pop()
+        top_node = list(G.GetNoOutNodes())[0]
     except KeyError:
         print("无top_node")
 
@@ -799,7 +800,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
     G.Show()
-    return G.GetSet(), vallist, top_node, inner_count
+    return G.GetSet(), vallist, inner_count
 
 
 if __name__ == '__main__':

@@ -1118,6 +1118,10 @@ class Backward(Node):
         super().__init__(70, **kwargs)
 
 
+class WLS(Node):
+    def __init__(self, **kwargs):
+        super().__init__(71, **kwargs)
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):
