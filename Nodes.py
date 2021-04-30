@@ -1193,10 +1193,14 @@ class Backward(Node):
         self.executor.var_dict[self.vars[0]].backward()
 
 
-
-class Backward(Node):
+class WLS(Node):
     def __init__(self, **kwargs):
-        super().__init__(70, **kwargs)
+        super().__init__(74, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.linear_model.LinearRegression(
+            self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], sample_weight=self.executor.var_dict[self.vars[2]]))
 
 
 def shallow_copy(fun):

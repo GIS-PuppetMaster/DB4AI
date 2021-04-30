@@ -1,88 +1,52 @@
-import re
-import sys
-import numpy
-import torch
-import pandas as pd
+import matplotlib
 import numpy as np
-from time import time
-class MixedTensor(object):
-    def __init__(self, data, relational=False, **kwargs):
-        if relational:
-            self._t = None
-            self._mixed_data = data
-        else:
-            self._t = torch.as_tensor(data, **kwargs)
-            self._mixed_data = self._t
-        self._relational = relational
-        self.init_kwargs = kwargs
+import pandas as pd
+import seaborn as sns
+import statsmodels.api as sm
+from jedi.api.refactoring import inline
+#%matplotlib inline
+# generate random data
+np.random.seed(24)
+x = np.random.uniform(-5,5,25)
+ϵ = 2*np.random.randn(25)
+y = 2*x+ϵ
+# alternate error as a function of x
+ϵ2 = ϵ*(x+5)
+y2 = 2*x+ϵ2
+sns.regplot(x=x,y=y)
+sns.regplot(x=x,y=y2)
 
-    def __repr__(self):
-        return "relational:\n{}\n\ndata:\n{}\n\nmixed_data:{}\n".format(self._relational, self._t, self._mixed_data)
+# add a strong outlier for high x
+x_high = np.append(x,5)
+y_high = np.append(y2,160)
+# add a strong outlier for low x
+x_low = np.append(x,-4)
+y_low = np.append(y2,160)
 
-    def __torch_function__(self, func, types, args=(), kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-        if self._relational:
-            self._t = torch.as_tensor(self._mixed_data.values, **self.init_kwargs)
-        tmp_args= []
-        for a in args:
-            if not isinstance(a, MixedTensor):
-                tmp_args.append(a)
-            else:
-                tmp_args.append(torch.as_tensor(a._mixed_data.values, **a.init_kwargs))
-        args = tmp_args
-        ret = func(*args, **kwargs)
-        if self._relational:
-            self._t = None
-        return MixedTensor(ret)
+# calculate weights for sets with low and high outlier
+sample_weights_low = [1/(x+5) for x in x_low]
+sample_weights_high = [1/(x+5) for x in x_high]
+
+# reshape for compatibility
+X_low = x_low.reshape(-1, 1)
+X_high = x_high.reshape(-1, 1)
+# ---------
+# import and fit an OLS model, check coefficients
+from sklearn.linear_model import LinearRegression
+model = LinearRegression()
+model.fit(X_low, y_low)
+# fit WLS using sample_weights
+WLS = LinearRegression()
+WLS.fit(X_low, y_low, sample_weight=sample_weights_low)
+print(model.intercept_, model.coef_)
+print('WLS')
+print(WLS.intercept_, WLS.coef_)
+# run this yourself, don't trust every result you see online =)
 
 
-# noinspection PyMissingConstructor
-class MixedSubTensor(torch.Tensor):
-    @staticmethod
-    def __new__(cls, x, extra_data, *args, **kwargs):
-        return object.__new__(cls, x, *args, **kwargs)
-
-    def __init__(self, x, extra_data):
-        self.extra_data = extra_data
-        self.requires_grad=False
-        self.grad_fn=None
-        self.grad=None
-        self.shape=None
-
-    def clone(self, *args, **kwargs):
-        return MixedSubTensor(super().clone(*args, **kwargs), self.extra_data)
-
-    def to(self, *args, **kwargs):
-        new_obj = MixedSubTensor([], self.extra_data)
-        tempTensor = super().to(*args, **kwargs)
-        new_obj.data = tempTensor.data
-        new_obj.requires_grad = tempTensor.requires_grad
-        return new_obj
-
-    def release_data(self):
-        self.T = None
-
-d = MixedSubTensor(torch.ones((1000,2)), extra_data='info')
-# print(sys.getsizeof(d))
-# d.release_data()
-# print(sys.getsizeof(d))
-d.requires_grad=True
-a = torch.ones((10, 2))
-# b = MixedTensor(pd.DataFrame(numpy.ones((2,1))),relational=True,dtype=torch.float32)
-b = torch.ones((2,1))
-c = torch.sum(torch.matmul(d, b))
-c.grad_fn = None
-torch.autograd.backward(c)
-
-print(d.grad)
-
-# variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-# data_shape_reg = f'^[(]([1-9][0-9]*,|-1,)+([1-9][0-9]*|-1)?[)]'
-#
-# test = 'xxx(4,3)'
-# match = re.search(data_shape_reg, test)
-# if match:
-#     print(match.group())
-# else:
-#     print()
+model = LinearRegression()
+model.fit(X_high, y_high)
+WLS.fit(X_high, y_high, sample_weight=sample_weights_high)
+print(model.intercept_, model.coef_)
+print('WLS')
+print(WLS.intercept_, WLS.coef_)
