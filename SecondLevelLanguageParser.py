@@ -130,7 +130,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -631,7 +631,6 @@ class Parser:
             branches = self.branches.copy()
             g, g_in, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
             if g and g_in:
-                pattern = re.compile(r'[a-zA-Z_]+[a-zA-Z0-9_]*')
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     if isinstance(in_v[1], Nd.Loop) or isinstance(in_v[1], Nd.If):
@@ -643,25 +642,20 @@ class Parser:
                         if len(in_v[1].in_edges) == 0:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
-                        var_li = self.var_dict.get(in_v[0], None)
-                        if var_li:
-                            last_use = var_li[-1]
-                            if self.graph.nodes[last_use].branches == in_v[1].branches:
-                                self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
-                                # if not in_v[1] in g[2]:
-                                g[2].remove(in_v[1])
-                            else:
-                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                                g[2].remove(in_v[1])
-                        elif isinstance(in_v[1], Nd.Val):
+                        if isinstance(in_v[1], Nd.Val):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                            g[2].remove(in_v[1])
                         else:
-                            raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                            var_li = self.var_dict.get(in_v[0], None)
+                            if var_li:
+                                last_use = var_li[-1]
+                                if self.graph.nodes[last_use].branches == in_v[1].branches:
+                                    self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                                else:
+                                    self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                            else:
+                                raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 for o_in_v in g[2]:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
-                if len(g[3]) == 0:
-                    x = 2
                 e_node = g[3]
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
@@ -725,6 +719,7 @@ class Parser:
             parameter_li = parameter_str.replace(' ', '').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
+            self.graph.without_in.remove(root)
             self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
@@ -732,6 +727,7 @@ class Parser:
                 self.graph.InsertNode(node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])
+                self.graph.without_in.remove(node)
             return True
         else:
             return False
@@ -780,7 +776,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/logistic.sql', 'r', encoding='utf-8') as f:
+    with open('test/logistic.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
