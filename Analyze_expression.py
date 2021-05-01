@@ -800,7 +800,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -818,13 +818,11 @@ if __name__ == '__main__':
     # s = 'loss = y * LOG(hx) + (1 - y) * (1 - hx)'
     # s = 'g = GRADIENT(loss, w)'
     # s = 'w = learning_rate * g + w'
-    # s = 'y = take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)'
-    # s = 's = SVM_fast_predict(y_pred, non_zero_a, x_a, y_a, b, x)'
-    # s = 's = l1*f1+l*f2+0.5*POW(l1,2)*k11+0.5*POW(l,2)*k22+s*l*l1*k12'
-    # s = 's = WLS(a,b,c,d,e)'
+    s = 'y = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
     # s = 's = eps*(a2+alpha2+eps*3)'
     s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate,class_num, iter_times)'
     p = analyze_expression(s, 0, 0, [])
+    print(p[0][2])
     print(p[1])
     # print(p[2])
     # p[3].Show()

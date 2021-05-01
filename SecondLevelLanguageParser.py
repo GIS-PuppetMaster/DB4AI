@@ -130,7 +130,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -163,14 +163,14 @@ class Parser:
             self.node_id += 1
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
+            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if set(node.branches).issubset(set(l_n.branches)):
+                if set(node.branches).issubset(set(l_n.branches)) and l_n != node:
                     self.graph.InsertEdge(l_n, node)
                 else:
                     continue
             self.branches.append(self.root_id)
             self.extra_pop_num += 1
-            self.graph.InsertNode(node)
 
     def DealInVar(self, v_name):
         """
@@ -424,14 +424,14 @@ class Parser:
             com_branches = self.branches.copy()
             self.StateConvert('loop')
             node = Nd.InstantiationClass(self.node_id, 'Loop', self.branches, condition=condition, loop_id=self.loop_id)
+            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if isinstance(l_n, Nd.IfBranch):
+                if isinstance(l_n, Nd.IfBranch) or l_n == node:
                     continue
                 elif l_n.branches == com_branches:
                     self.graph.InsertEdge(l_n, node)
             if len(node.in_edges) == 0:
                 self.graph.InsertEdge(self.graph.nodes[root_id], node)
-            self.graph.InsertNode(node)
             return True
         else:
             return False
@@ -482,14 +482,14 @@ class Parser:
                 var_li = []
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'If', self.branches)
+            self.graph.InsertNode(node)
             for l_n in self.graph.GetNoOutNodes().copy():
-                if isinstance(l_n, Nd.IfBranch):
+                if isinstance(l_n, Nd.IfBranch) or l_n == node:
                     continue
                 elif l_n.branches == self.branches:
                     self.graph.InsertEdge(l_n, node)
             if len(node.in_edges) == 0:
                 self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
-            self.graph.InsertNode(node)
             self.StateConvert('if')
             self.node_id += 1
             branches = self.branches.copy()
@@ -562,13 +562,13 @@ class Parser:
                 self.node_id += 1
                 self.StateConvert('end')
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
+                self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
-                    if isinstance(l_n, Nd.IfBranch):
+                    if isinstance(l_n, Nd.IfBranch) or l_n == node:
                         continue
                     self.graph.InsertEdge(l_n, node)
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
-                self.graph.InsertNode(node)
                 self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
             elif self.oth_branch == 0 and self.state == 'if_branch':
                 self.StateConvert('end')
@@ -629,8 +629,8 @@ class Parser:
                 with_grad = True
             self.node_id += 1
             branches = self.branches.copy()
-            g, g_in, g_out, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
-            if g and g_in and g_out:
+            g, g_in, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
+            if g and g_in:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
                     if isinstance(in_v[1], Nd.Loop) or isinstance(in_v[1], Nd.If):
@@ -642,29 +642,29 @@ class Parser:
                         if len(in_v[1].in_edges) == 0:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
-                        var_li = self.var_dict.get(in_v[0], None)
-                        if var_li:
-                            last_use = var_li[-1]
-                            if self.graph.nodes[last_use].branches == in_v[1].branches:
-                                self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
-                                g[2].remove(in_v[1])
-                            else:
-                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                                g[2].remove(in_v[1])
-                        elif isinstance(in_v[1], Nd.Val):
+                        if isinstance(in_v[1], Nd.Val):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-                            g[2].remove(in_v[1])
                         else:
-                            raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                            var_li = self.var_dict.get(in_v[0], None)
+                            if var_li:
+                                last_use = var_li[-1]
+                                if self.graph.nodes[last_use].branches == in_v[1].branches:
+                                    self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                                else:
+                                    self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                            else:
+                                raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 for o_in_v in g[2]:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
-                e_node = g_out
+                e_node = g[3]
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
                 raise Exception('右侧表达式拼写错误，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
         else:
             return False
         if v_name != '$':
+            if isinstance(e_node, set):
+                e_node = e_node.pop()
             r_var = e_node.get_vars()[0]
             self.UpdateVarList(r_var, e_node.id)
             var_li = self.var_dict.get(v_name, None)
@@ -691,13 +691,10 @@ class Parser:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
-            if isinstance(e_node, set):
-                for e_n in e_node:
-                    self.graph.InsertEdge(e_node, ass_n)
-            else:
-                self.graph.InsertEdge(e_node, ass_n)
+            self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
+            e_node = e_node.pop()
             self.graph.without_out.add(e_node)
         return True
 
@@ -722,6 +719,7 @@ class Parser:
             parameter_li = parameter_str.replace(' ', '').split(',')
             root = self.graph.nodes.pop(0)
             self.graph.without_out.remove(root)
+            self.graph.without_in.remove(root)
             self.node_id = -1
             for p in parameter_li:
                 self.node_id += 1
@@ -729,6 +727,7 @@ class Parser:
                 self.graph.InsertNode(node)
                 self.UpdateVarList(p, self.node_id)
                 self.input.append([p, node])
+                self.graph.without_in.remove(node)
             return True
         else:
             return False
@@ -777,7 +776,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/logistic.sql', 'r', encoding='utf-8') as f:
+    with open('test/logistic.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()

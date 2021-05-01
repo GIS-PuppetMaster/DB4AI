@@ -60,8 +60,12 @@ class Graph:
         else:
             edge = Edge(start, end, condition, **kwargs)
             self.edges.append(edge)
-            end_dict = {end.id: 1}
-            self.exist_edge[start.id] = end_dict
+            if start.id in self.exist_edge.keys():
+                pre_dict = self.exist_edge[start.id]
+                pre_dict[end.id] = 1
+            else:
+                end_dict = {end.id: 1}
+                self.exist_edge[start.id] = end_dict
             if start in self.without_out and not (isinstance(start, nd.LoopEnd) and isinstance(end, nd.Loop)):
                 self.without_out.remove(start)
             if end in self.without_in:
@@ -85,7 +89,7 @@ class Graph:
         return True
 
     def GetSet(self):
-        return self.nodes, self.edges, self.without_in
+        return self.nodes.copy(), self.edges.copy(), self.without_in.copy(), self.without_out.copy()
 
     # 其它方法
     def Show(self):
@@ -159,5 +163,4 @@ if __name__ == '__main__':
     G.InsertEdge(W, Val)
     G.InsertEdge(Val, Ran)
     G.InsertEdge(Y, W)
-    print(G.ConvertToMatrix())
     G.Show()
