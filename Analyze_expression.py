@@ -677,11 +677,11 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     break
             # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
-            parent = new_stack.pop()
             # 预备topnode
-            G.without_in = G.without_in.union(operator_info[2].without_in)
+            # G.without_in = G.without_in.union(operator_info[2].without_in)
             G.without_in = G.without_in | operator_info[2].without_in
             G.without_out = G.without_out | operator_info[2].without_out
+            parent = new_stack.pop()
             if not isinstance(parent.keynode, nd.Blank):
                 for r in range(len(list(operator_info[0]))):
                     G.InsertEdge(list(operator_info[0])[r], parent.keynode)
@@ -823,6 +823,7 @@ if __name__ == '__main__':
     # s = 's = l1*f1+l*f2+0.5*POW(l1,2)*k11+0.5*POW(l,2)*k22+s*l*l1*k12'
     # s = 's = WLS(a,b,c,d,e)'
     # s = 's = eps*(a2+alpha2+eps*3)'
+    s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate,class_num, iter_times)'
     p = analyze_expression(s, 0, 0, [])
     print(p[1])
     # print(p[2])
