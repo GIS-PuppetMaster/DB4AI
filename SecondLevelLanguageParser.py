@@ -130,7 +130,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -227,7 +227,7 @@ class Parser:
                     if self.graph.nodes[last_use[-1]].branches == node.branches:
                         self.graph.InsertEdge(self.graph.nodes[last_use[-1]], node)
                 else:
-                    raise Exception('data_shape使用未创建张量：' + ' 错误在第' + str(self.line_id) + '行')
+                    raise Exception('data_shape使用未创建张量：' + v + ' 错误在第' + str(self.line_id) + '行')
             return True
         else:
             return False
@@ -629,7 +629,12 @@ class Parser:
                 with_grad = True
             self.node_id += 1
             branches = self.branches.copy()
+            count = self.cu_use_count
             g, g_in, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
+            if count == self.cu_use_count:
+                use_o = False
+            else:
+                use_o = True
             if g and g_in:
                 self.graph.Merge([g[0], g[1]])
                 for in_v in g_in:
@@ -654,8 +659,9 @@ class Parser:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
-                for o_in_v in g[2]:
-                    self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
+                if use_o:
+                    for o_in_v in g[2]:
+                        self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
                 e_node = g[3]
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
@@ -776,7 +782,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('test/logistic.sql', 'r', encoding='utf-8') as f:
+    with open('operators/KNN.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
