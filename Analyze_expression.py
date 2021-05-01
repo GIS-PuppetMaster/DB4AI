@@ -678,7 +678,6 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             # operator_info[2].Show()
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             # 预备topnode
-            # G.without_in = G.without_in.union(operator_info[2].without_in)
             G.without_in = G.without_in | operator_info[2].without_in
             G.without_out = G.without_out | operator_info[2].without_out
             parent = new_stack.pop()
@@ -724,13 +723,14 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         for in_edge in e.GetEnd().in_edges:
                             if in_edge.GetStart() == input[1]:
                                 e.GetEnd().in_edges.remove(in_edge)
+                for t in range(len(e.GetStart().vars)):
+                    if not e.GetStart().vars[t].startswith(('@', '$')) and e.GetStart().vars[t] not in var:
+                        e.GetStart().vars[t] = '$' + str(inner_count) + e.GetStart().vars[t]
+                for t in range(len(e.GetEnd().vars)):
+                    if not e.GetEnd().vars[t].startswith(('@', '$')) and e.GetEnd().vars[t] not in var:
+                        e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
                 # 若不是形参，则添加到图G中
                 if flag == 0:
-                    if e.GetStart().id > 0 and isinstance(e.GetStart(), nd.Var):
-                        e.GetStart().vars[0] = '$' + str(inner_count) + e.GetStart().vars[0]
-                        for t in range(len(e.GetEnd().vars)):
-                            if not e.GetEnd().vars[t].startswith(('@', '$')):
-                                e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
                     G.edges.append(e)
                     if isinstance(e.GetStart(), nd.If):
                         old_edge = if_out_edges[e.GetStart()][e.GetEnd()]
