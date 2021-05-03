@@ -5,6 +5,7 @@ import numpy as np
 import yaml
 from collections import defaultdict
 import torch
+from copy import deepcopy
 
 
 class Tensor(torch.Tensor):
@@ -17,7 +18,7 @@ class Executor:
         with open('./config.yaml', encoding='utf-8') as f:
             config = yaml.load_all(f)
         self.config = config
-        self.graph = graph
+        self.raw_graph = graph
         self.var_dict = dict()
         self.finished_loop_id = set()
         self.last_use = {}
@@ -25,7 +26,41 @@ class Executor:
         # self.parameter_set = set()
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
+        self.graph = deepcopy(graph)
+        self.remove_extra_edges()
         self.init_executor()
+
+    def remove_extra_edges(self):
+        queue = []
+        visited = set()
+        root = self.graph.nodes[0]
+        queue.append((root, None))
+        while not len(queue) == 0:
+            current_node, last_node = queue.pop(0)
+            if last_node not in current_node.visited_sequence:
+                current_node.visited_sequence.append(last_node)
+            next_nodes = list(set([edge.end for edge in current_node.out_edges]))
+            for node in next_nodes:
+                if node not in visited:
+                    queue.append((node, current_node))
+                    if isinstance(node, Loop) or isinstance(node, LoopEnd):
+                        visited.add(node)
+        edges_to_removed = []
+        for node in self.graph.nodes:
+            start_nodes_of_edges_to_remove = node.visited_sequence[:-1]
+            # 找出执行时需要移除的边
+            edges_to_removed.extend(list(filter(lambda x: x.start in start_nodes_of_edges_to_remove, node.in_edges)))
+
+        # 在start和end节点内移除
+        def is_control_flow(x):
+            return isinstance(x.start, If) or isinstance(x.start, IfBranch) or isinstance(x.end, IfEnd) or isinstance(x.end, LoopEnd) or isinstance(x.start, Loop)
+
+        for node in self.graph.nodes:
+            node.in_edges = list(filter(lambda x: x.start not in start_nodes_of_edges_to_remove or is_control_flow(x), node.in_edges))
+            node.out_edges = list(filter(lambda x: x.end not in start_nodes_of_edges_to_remove or is_control_flow(x), node.out_edges))
+        # 在图内移除
+        self.graph.edges = list(filter(lambda x: x not in edges_to_removed or is_control_flow(x), self.graph.edges))
+        self.graph.Show()
 
     def init_executor(self):
         # for _, para in self.parameters:

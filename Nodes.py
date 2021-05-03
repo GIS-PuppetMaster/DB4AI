@@ -78,6 +78,7 @@ class Node:
         self.release_list = []
         self.in_loop = -1
         self.finished = False
+        self.visited_sequence=[]
 
     @property
     def default_batch_size(self):
@@ -164,6 +165,9 @@ class CreateTensor(Node):
         # TODO: infer data_shape
         self.set_vars(var)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = None
 
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):

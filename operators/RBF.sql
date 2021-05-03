@@ -1,10 +1,10 @@
 operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, n_classes,learning_rate, batch_size, iter_times){
+    select SHAPE(train_x) as x_shape
+    select x_shape[1] as n_in
     create tensor centers(n_centers,n_in) from random((n_centers,n_in),(0,1)) with grad
     create tensor beta(1, n_centers) from ones((1,centers)) with grad
     create tensor w(n_centers, n_classes) from random((n_centers,n_classes),(0,1)) with grad
     create tensor b(1, n_out) from random((1,n_classes),(0,1)) with grad
-    select SHAPE(train_x) as x_shape
-    select x_shape[1] as n_in
     Loop(iter_times){
         create tensor i(1,) from 0
         Loop(i<n_inputs){

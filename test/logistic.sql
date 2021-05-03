@@ -13,7 +13,7 @@ create tensor test_x(100,4) from random((100,4),(0,1))
 create tensor test_y(100,1) from zeros((100,1))
 select Argmax(test_x, 1) as tmp
 select 0 as i
-loop(1000){
+loop(100){
     select tmp[i] as t
     if(t>1){
         select 1 as test_y[i,...]

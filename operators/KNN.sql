@@ -35,10 +35,10 @@ operator KNN(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
         select classes_order[0] as answer[data_input_index]
         select data_input_index+1 as data_input_index
     }
-    select AUC(test_y, pred) as auc
-    select ACC(test_y, pred) as acc
-    select RECALL(test_y, pred) as recall
-    select PRECISION(test_y, pred) as prec
-    select MSE(test_y, pred) as mse
-    select F1(test_y, pred) as f1
+    select AUC(test_y, answer) as auc
+    select ACC(test_y, answer) as acc
+    select RECALL(test_y, answer) as recall
+    select PRECISION(test_y, answer) as prec
+    select MSE(test_y, answer) as mse
+    select F1(test_y, answer) as f1
 }
