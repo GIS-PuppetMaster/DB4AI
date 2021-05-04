@@ -21,7 +21,7 @@ operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_
                 select train_y[i:] as batch_y
             }
             select SHAPE(batch_x) as x_shape
-            select x_shape[0] as n_input
+            select x_shape[0] as n_input·
             # (n_input, n_centers, n_in)
             select REPEAT(centers, n_input, 1, 1) as A with grad
             # (n_input, n_centers, n_in)

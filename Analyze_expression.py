@@ -841,14 +841,18 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
-            if not isinstance(top_node, nd.Backward):
+            if not isinstance(e.GetStart(), nd.Backward):
                 if len(e.GetStart().get_vars()) == 0:
                     e.GetStart().set_vars('_' + str(e.GetStart().id))
     for e in G.edges:
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
-                e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+                if isinstance(e.GetEnd(), nd.Backward):
+                    if len(e.GetEnd().get_vars()) < len(e.GetEnd().in_edges):
+                        e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+                else:
+                    e.GetEnd().set_vars(e.GetStart().get_vars()[0])
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -871,6 +875,7 @@ if __name__ == '__main__':
     s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
     # s = 's = Backward(X,Y,z,n)'
     # s = 's = UNSQUEEZE(x,1)'
+    # s = 's = Backward(loss)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
