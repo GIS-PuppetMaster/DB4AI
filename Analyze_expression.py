@@ -837,16 +837,18 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
-        top_node.set_vars('_' + str(top_node.id))
+        if not isinstance(top_node, nd.Backward):
+            top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
-            if len(e.GetStart().get_vars()) == 0:
-                e.GetStart().set_vars('_' + str(e.GetStart().id))
+            if not isinstance(top_node, nd.Backward):
+                if len(e.GetStart().get_vars()) == 0:
+                    e.GetStart().set_vars('_' + str(e.GetStart().id))
     for e in G.edges:
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 
