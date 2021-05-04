@@ -50,3 +50,8 @@ WLS.fit(X_high, y_high, sample_weight=sample_weights_high)
 print(model.intercept_, model.coef_)
 print('WLS')
 print(WLS.intercept_, WLS.coef_)
+data_shape = "(feature_num,1)"
+data_shape_var = {'feature_num': 4}
+d = eval(data_shape, data_shape_var)
+print(d)
+_0feature_number = 5
