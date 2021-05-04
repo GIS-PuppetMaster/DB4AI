@@ -788,7 +788,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/KNN.sql', 'r', encoding='utf-8') as f:
+    with open('operators/RBF.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
