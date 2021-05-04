@@ -226,6 +226,8 @@ class Parser:
                 if last_use:
                     if self.graph.nodes[last_use[-1]].branches == node.branches:
                         self.graph.InsertEdge(self.graph.nodes[last_use[-1]], node)
+                    else:
+                        self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
                 else:
                     raise Exception('data_shape使用未创建张量：' + v + ' 错误在第' + str(self.line_id) + '行')
             return True
@@ -560,8 +562,9 @@ class Parser:
             self.EndIf()
             if self.state == 'loop':
                 self.node_id += 1
+                loop_id = self.loop_id
                 self.StateConvert('end')
-                node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=self.loop_id)
+                node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=loop_id)
                 self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
                     if isinstance(l_n, Nd.IfBranch) or l_n == node:
@@ -569,7 +572,7 @@ class Parser:
                     self.graph.InsertEdge(l_n, node)
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
-                self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[self.loop_id])
+                self.graph.InsertEdge(self.graph.nodes[self.node_id], self.graph.nodes[loop_id])
             elif self.oth_branch == 0 and self.state == 'if_branch':
                 self.StateConvert('end')
                 self.EndIf()
@@ -644,11 +647,14 @@ class Parser:
                                 continue
                             elif l_n.branches == branches:
                                 self.graph.InsertEdge(l_n, in_v[1])
-                        if len(in_v[1].in_edges) == 0:
+                        if len(in_v[1].in_edges) == 0 and not (self.isCu and self.root_id == 0):
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
                         if isinstance(in_v[1], Nd.Val):
-                            self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+                            if self.isCu and self.root_id == 0:
+                                pass
+                            else:
+                                self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                         else:
                             var_li = self.var_dict.get(in_v[0], None)
                             if var_li:
@@ -659,7 +665,7 @@ class Parser:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
-                if use_o:
+                if use_o and not (self.isCu and self.root_id == 0):
                     for o_in_v in g[2]:
                         self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
                 e_node = g[3]
@@ -788,9 +794,9 @@ if __name__ == '__main__':
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    if 'operatros/' not in path:
-        executor = Executor(result)
+    # if 'operatros/' not in path:
+    #     executor = Executor(result)
         # s = time()
-        executor.run()
+        # executor.run()
         # print(f'time:{time()-s} s')
         # print(executor.var_dict['loss'])
