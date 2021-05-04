@@ -11,4 +11,10 @@ loop(1000){
 }
 create tensor test_x(10,3) from random((10,3),(0,1))
 create tensor k(1,) from 10
-select KNN(test_x, x, y, k)
+create tensor mse(1,)
+create tensor auc(1,)
+create tensor f1(1,)
+create tensor acc(1,)
+create tensor recall(1,)
+create tensor prec(1,)
+select KNN(acc,auc,prec,recall,mse,f1, test_x, x, y, k)

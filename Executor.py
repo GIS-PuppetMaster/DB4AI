@@ -27,7 +27,7 @@ class Executor:
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
         self.graph = deepcopy(graph)
-        self.remove_extra_edges()
+        # self.remove_extra_edges()
         self.init_executor()
 
     def remove_extra_edges(self):

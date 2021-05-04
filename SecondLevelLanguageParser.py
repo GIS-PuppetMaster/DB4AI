@@ -788,15 +788,16 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    with open('operators/RBF.sql', 'r', encoding='utf-8') as f:
+    path = 'test/logistic.sql'
+    with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    # if 'operatros/' not in path:
-    #     executor = Executor(result)
-        # s = time()
-        # executor.run()
-        # print(f'time:{time()-s} s')
-        # print(executor.var_dict['loss'])
+    if 'operators/' not in path:
+        executor = Executor(result)
+        s = time()
+        executor.run()
+        print(f'time:{time()-s} s')
+        print(executor.var_dict['loss'])
