@@ -753,7 +753,7 @@ class SHAPE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].shape
+        self.executor.var_dict[self.vars[0]] = torch.tensor(self.executor.var_dict[self.vars[1]].shape)
 
 
 class EXP(Node):
