@@ -100,12 +100,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                        'REVERSE', 'GRADIENT', 'Backward')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS')
+                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS'}
+                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -724,27 +724,49 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             if in_edge.GetStart() == input[1]:
                                 e.GetEnd().in_edges.remove(in_edge)
                 for t in range(len(e.GetStart().vars)):
-                    if not e.GetStart().vars[t].startswith(('@', '$')) and e.GetStart().vars[t] not in var:
-                        e.GetStart().vars[t] = '$' + str(inner_count) + e.GetStart().vars[t]
+                    if not e.GetStart().vars[t].startswith('_') and e.GetStart().vars[t] not in var:
+                        e.GetStart().vars[t] = '__' + str(inner_count) + e.GetStart().vars[t]
                 for t in range(len(e.GetEnd().vars)):
-                    if not e.GetEnd().vars[t].startswith(('@', '$')) and e.GetEnd().vars[t] not in var:
-                        e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
+                    if not e.GetEnd().vars[t].startswith('_') and e.GetEnd().vars[t] not in var:
+                        e.GetEnd().vars[t] = '__' + str(inner_count) + e.GetEnd().vars[t]
+                if hasattr(e.GetStart(), 'data_shape'):
+                    pattern = re.compile(r'[(](.*?)[)]', re.S)
+                    data_shape = re.findall(pattern, e.GetStart().data_shape)[0].split(',')
+                    for p in range(len(data_shape)):
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var:
+                            data_shape[p] = '__' + str(inner_count) + data_shape[p]
+                    str_data_shape = '('
+                    for p in data_shape:
+                        str_data_shape = str_data_shape + p + ','
+                    str_data_shape = str_data_shape[:-1] + ')'
+                    e.GetStart().data_shape = str_data_shape
                 if hasattr(e.GetStart(), 'data_shape_var'):
                     for key in list(e.GetStart().data_shape_var.keys()):
-                        if not key.startswith(('@', '$')) and key not in var:
-                            e.GetStart().data_shape_var['$' + str(inner_count) + key] = e.GetStart().data_shape_var.pop(key)
+                        if not key.startswith('_') and key not in var:
+                            e.GetStart().data_shape_var['__' + str(inner_count) + key] = e.GetStart().data_shape_var.pop(key)
                 if hasattr(e.GetStart(), 'boundary_var'):
                     for key in list(e.GetStart().boundary_var.keys()):
-                        if not key.startswith(('@', '$')) and key not in var:
-                            e.GetStart().boundary_var['$' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
+                        if not key.startswith('_') and key not in var:
+                            e.GetStart().boundary_var['__' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
+                if hasattr(e.GetEnd(), 'data_shape'):
+                    pattern = re.compile(r'[(](.*?)[)]', re.S)
+                    data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
+                    for p in range(len(data_shape)):
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var:
+                            data_shape[p] = '__' + str(inner_count) + data_shape[p]
+                    str_data_shape = '('
+                    for p in data_shape:
+                        str_data_shape = str_data_shape + p + ','
+                    str_data_shape = str_data_shape[:-1] + ')'
+                    e.GetEnd().data_shape = str_data_shape
                 if hasattr(e.GetEnd(), 'data_shape_var'):
                     for key in list(e.GetEnd().data_shape_var.keys()):
-                        if not key.startswith(('@', '$')) and key not in var:
-                            e.GetEnd().data_shape_var['$' + str(inner_count) + key] = e.GetEnd().data_shape_var.pop(key)
+                        if not key.startswith('_') and key not in var:
+                            e.GetEnd().data_shape_var['__' + str(inner_count) + key] = e.GetEnd().data_shape_var.pop(key)
                 if hasattr(e.GetEnd(), 'boundary_var'):
                     for key in list(e.GetEnd().boundary_var.keys()):
-                        if not key.startswith(('@', '$')) and key not in var:
-                            e.GetEnd().boundary_var['$' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
+                        if not key.startswith('_') and key not in var:
+                            e.GetEnd().boundary_var['__' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
@@ -754,7 +776,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
             for o in range(len(operator_info[0])):
-                list(operator_info[0])[o].set_vars('@' + str(list(operator_info[0])[o].id))
+                list(operator_info[0])[o].set_vars('_' + str(list(operator_info[0])[o].id))
             inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
@@ -807,16 +829,16 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
-        top_node.set_vars('@' + str(top_node.id))
+        top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) == 0:
-                e.GetStart().set_vars('@' + str(e.GetStart().id))
+                e.GetStart().set_vars('_' + str(e.GetStart().id))
     for e in G.edges:
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 
