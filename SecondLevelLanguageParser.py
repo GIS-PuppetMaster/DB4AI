@@ -243,13 +243,13 @@ class Parser:
         """
         # 用于匹配的正则表达式
         data_reg = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
-                   '|[a-zA-Z_]+[a-zA-Z0-9_]*'
-        variable_name_reg = '[a-zA-Z_]+[a-zA-Z0-9_]*'
-        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z_]+[a-zA-Z0-9_]*,))+([1-9][0-9]*|-1|[a-zA-Z_]+[a-zA-Z0-9_]*)?[)]'
+                   '|[a-zA-Z]+[a-zA-Z0-9_]*'
+        variable_name_reg = '[a-zA-Z]+[a-zA-Z0-9_]*'
+        data_shape_reg = '[(](([1-9][0-9]*,|-1,|[a-zA-Z]+[a-zA-Z0-9_]*,))+([1-9][0-9]*|-1|[a-zA-Z]+[a-zA-Z0-9_]*)?[)]'
         random_reg = '[(]([+-]?([1-9][0-9]*|0)(.[0-9]+)?' \
-                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z_]+[a-zA-Z0-9_]*)' \
+                     '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z]+[a-zA-Z0-9_]*)' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
-                     '|[a-zA-Z_]+[a-zA-Z0-9_]*)[)]'
+                     '|[a-zA-Z]+[a-zA-Z0-9_]*)[)]'
         create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[ \t]*(.+?))' \
                             f'([ \t]*(FROM|from)[ \t]*(.+?))?([ \t]*(WITH|with)[ \t]*(GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
@@ -353,37 +353,37 @@ class Parser:
             self.node_id += 1
             if from_type == 1:
                 node2 = Nd.InstantiationClass(self.node_id, 'Val', self.branches, with_grad,
-                                              var=['@' + str(self.node_id)], val=legal_info[2])
+                                              var=['_' + str(self.node_id)], val=legal_info[2])
             elif from_type == 2:
                 node2 = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, with_grad, t_info=from_info,
-                                              var=['@' + str(self.node_id)])
+                                              var=['_' + str(self.node_id)])
             elif from_type == 3:
                 node2 = Nd.InstantiationClass(self.node_id, 'Random', self.branches, with_grad, data_shape=from_info[0],
-                                              boundary=from_info[1], type=from_info[2], var=['@' + str(self.node_id)])
+                                              boundary=from_info[1], type=from_info[2], var=['_' + str(self.node_id)])
                 d_has_var, d_var = self.ExtractVar(from_info[0])
                 b_has_var, b_var = self.ExtractVar(from_info[1])
                 node2.handle_include_var(b_has_var=b_has_var, d_has_var=d_has_var, b_var=b_var, d_var=d_var)
             elif from_type == 4:
                 node2 = Nd.InstantiationClass(self.node_id, 'Zeros', self.branches, with_grad, data_shape=from_info,
-                                              var=['@' + str(self.node_id)])
+                                              var=['_' + str(self.node_id)])
                 d_has_var, d_var = self.ExtractVar(from_info)
                 node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             elif from_type == 5:
                 node2 = Nd.InstantiationClass(self.node_id, 'Ones', self.branches, with_grad, data_shape=from_info,
-                                              var=['@' + str(self.node_id)])
+                                              var=['_' + str(self.node_id)])
                 d_has_var, d_var = self.ExtractVar(from_info)
                 node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             else:
                 node2 = Nd.InstantiationClass(self.node_id, 'Full', self.branches, with_grad, data_shape=from_info[0],
-                                              var=['@' + str(self.node_id)], num=from_info[1])
+                                              var=['_' + str(self.node_id)], num=from_info[1])
                 d_has_var, d_var = self.ExtractVar(from_info[0])
                 node2.handle_include_var(d_has_var=d_has_var, d_var=d_var)
             self.graph.InsertNode(node2)
             node2_id = self.node_id
-            self.UpdateVarList('@' + str(self.node_id), self.node_id)
+            self.UpdateVarList('_' + str(self.node_id), self.node_id)
             self.node_id += 1
             node3 = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, with_grad,
-                                          var_li=[legal_info[0], '@' + str(node2_id)])
+                                          var_li=[legal_info[0], '_' + str(node2_id)])
             self.graph.InsertNode(node3)
             self.graph.InsertEdge(self.graph.nodes[node1_id], self.graph.nodes[self.node_id])
             self.graph.InsertEdge(self.graph.nodes[node2_id], self.graph.nodes[self.node_id])
@@ -407,7 +407,7 @@ class Parser:
         :param query: 需要解析的语句
         :return:True 合法语句，False 非法语句
         """
-        loop_reg = '(LOOP|loop)[ \t]*[(]([1-9][0-9]*|TRUE|true|[a-zA-Z_]+[a-zA-Z0-9_]*)[)]{\n$'
+        loop_reg = '(LOOP|loop)[ \t]*[(]([1-9][0-9]*|TRUE|true|[a-zA-Z]+[a-zA-Z0-9_]*)[)]{\n$'
         match_obj = re.match(loop_reg, query)
         if match_obj:
             self.EndIf()
@@ -588,7 +588,7 @@ class Parser:
         :param query: 需要解析的语句
         :return: True 语句合法，False 语句非法
         """
-        variable_name_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*)'
+        variable_name_reg = '([a-zA-Z]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
         ass_reg2 = f'^(SELECT|select)[ \t]+(.+?)([ \t]+(AS|as)[ \t]+(.+?))?' \
                    f'([ \t]+(FROM|from)[ \t]+(.+?))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
@@ -602,10 +602,10 @@ class Parser:
             search_exp = match_obj1.group(2)
             self.node_id += 1
             e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp,
-                                           var=['@' + str(self.node_id)])
+                                           var=['_' + str(self.node_id)])
             self.graph.InsertNode(e_node)
             self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
-            r_var = '@' + str(e_node.id)
+            r_var = '_' + str(e_node.id)
             self.UpdateVarList(r_var, e_node.id)
         elif match_obj2:
             self.EndIf()
@@ -718,8 +718,8 @@ class Parser:
         :param query:
         :return: True 合法语句，False 非法语句
         """
-        c_o_reg = '(OPERATOR|operator)[ \t]+([a-zA-Z_]+[a-zA-Z0-9_]*)[ \t]*[(](.+)[)]{\n$'
-        para_reg = '([a-zA-Z_]+[a-zA-Z0-9_]*[ \t]*,[ \t]*)*[a-zA-Z_]+[a-zA-Z0-9_]*'
+        c_o_reg = '(OPERATOR|operator)[ \t]+([a-zA-Z]+[a-zA-Z0-9_]*)[ \t]*[(](.+)[)]{\n$'
+        para_reg = '([a-zA-Z]+[a-zA-Z0-9_]*[ \t]*,[ \t]*)*[a-zA-Z]+[a-zA-Z0-9_]*'
         match_obj = re.match(c_o_reg, query)
         if match_obj:
             self.isCu = True
@@ -788,16 +788,16 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test/logistic.sql'
+    path = 'operators/KNN.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    if 'operators/' not in path:
-        executor = Executor(result)
-        s = time()
-        executor.run()
-        print(f'time:{time()-s} s')
-        print(executor.var_dict['loss'])
+    # if 'operators/' not in path:
+    #     executor = Executor(result)
+    #     s = time()
+    #     executor.run()
+    #     print(f'time:{time()-s} s')
+    #     print(executor.var_dict['loss'])
