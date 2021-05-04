@@ -729,6 +729,22 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 for t in range(len(e.GetEnd().vars)):
                     if not e.GetEnd().vars[t].startswith(('@', '$')) and e.GetEnd().vars[t] not in var:
                         e.GetEnd().vars[t] = '$' + str(inner_count) + e.GetEnd().vars[t]
+                if hasattr(e.GetStart(), 'data_shape_var'):
+                    for key in list(e.GetStart().data_shape_var.keys()):
+                        if not key.startswith(('@', '$')) and key not in var:
+                            e.GetStart().data_shape_var['$' + str(inner_count) + key] = e.GetStart().data_shape_var.pop(key)
+                if hasattr(e.GetStart(), 'boundary_var'):
+                    for key in list(e.GetStart().boundary_var.keys()):
+                        if not key.startswith(('@', '$')) and key not in var:
+                            e.GetStart().boundary_var['$' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
+                if hasattr(e.GetEnd(), 'data_shape_var'):
+                    for key in list(e.GetEnd().data_shape_var.keys()):
+                        if not key.startswith(('@', '$')) and key not in var:
+                            e.GetEnd().data_shape_var['$' + str(inner_count) + key] = e.GetEnd().data_shape_var.pop(key)
+                if hasattr(e.GetEnd(), 'boundary_var'):
+                    for key in list(e.GetEnd().boundary_var.keys()):
+                        if not key.startswith(('@', '$')) and key not in var:
+                            e.GetEnd().boundary_var['$' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
@@ -800,7 +816,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -820,7 +836,7 @@ if __name__ == '__main__':
     # s = 'w = learning_rate * g + w'
     s = 'y = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
     # s = 's = eps*(a2+alpha2+eps*3)'
-    s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate,class_num, iter_times)'
+    s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
