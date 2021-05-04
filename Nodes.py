@@ -1207,6 +1207,29 @@ class WLS(Node):
             self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], sample_weight=self.executor.var_dict[self.vars[2]]))
 
 
+class REPEAT(Node):
+    def __init__(self, **kwargs):
+        super().__init__(75, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        # TODO:  待补充
+        pass
+
+
+class UNSQUEEZE(Node):
+    def __init__(self, **kwargs):
+        super().__init__(76, **kwargs)
+        self.dim = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.unsqueeze(self.executor.var_dict[self.vars[1]], self.dim)
+
+    def set_dim(self, dim):
+        self.dim = int(dim)
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):

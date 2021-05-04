@@ -98,14 +98,15 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
     single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                        'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
-                       'REVERSE', 'GRADIENT', 'Backward')
+                       'REVERSE', 'GRADIENT', 'UNSQUEEZE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT')
+                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT'}
+                    'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
+                    'UNSQUEEZE'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -545,7 +546,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         current_graph.keynode.set_axis(eval(var[1]))
                     else:
                         current_graph.keynode.set_axis(var[1])
-
+            elif j == 'UNSQUEEZE':
+                if len(var) != 1:
+                    if type(var[1]) == str:
+                        current_graph.keynode.set_dim(eval(var[1]))
+                    else:
+                        current_graph.keynode.set_dim(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -560,7 +566,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             new_stack.push(parent)
 
-            # Adam算子目前可选参数仅支持learning_rate
+            # Adam算子目前可选参数仅支持learning_rate，单独处理
             if j == 'Adam':
                 var = i[len(j) + 1:-1].strip().split(',')
                 for v in var:
@@ -575,6 +581,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         vallist.append([v, input_node])
                 current_graph = new_stack.pop()
                 continue
+            # 分离参数
             temp_i = i[len(j) + 1:-1].strip()
             cnt = 0
             begin = 0
@@ -592,6 +599,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     var.append(temp_i[begin:])
             if len(var) == 0:
                 var.append(temp_i)
+            # 遍历参数
             for v in var:
                 if j == 'TENSORDOT' and var.index(v) == 2:
                     axes = var[1]
@@ -838,7 +846,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
         if e.GetEnd().__class__.__name__ in all_operator:
             if len(e.GetStart().get_vars()) != 0 and len(e.GetEnd().get_vars()) - 1 < len(e.GetEnd().in_edges):
                 e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -859,6 +867,8 @@ if __name__ == '__main__':
     s = 'y = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
     # s = 's = eps*(a2+alpha2+eps*3)'
     s = 's = logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning_rate, class_num, iter_times)'
+    # s = 's = Backward(X,Y,z,n)'
+    # s = 's = UNSQUEEZE(x,1)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
