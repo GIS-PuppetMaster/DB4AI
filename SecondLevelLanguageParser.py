@@ -788,7 +788,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'operators/logistic.sql'
+    path = 'operators/RBF.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
