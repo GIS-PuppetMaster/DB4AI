@@ -626,7 +626,8 @@ class Parser:
                     args = re.findall(f'{variable_name_reg}', match_back.group(2))
                     vars_li = vars_li + args
                     self.node_id += 1
-                    back_n = Nd.InstantiationClass(self.node_id, 'Backward', self.branches, data_shape=None, var=vars_li)
+                    back_n = Nd.InstantiationClass(self.node_id, 'Backward', self.branches)
+                    back_n.set_vars(vars_li)
                     self.graph.InsertNode(back_n)
                     for v in args:
                         var_li = self.var_dict.get(v, None)
