@@ -3,6 +3,7 @@ import torch
 from functools import wraps
 from copy import copy, deepcopy
 import sklearn
+from sklearn import metrics as sk_metrics
 import pickle as pk
 
 
@@ -415,9 +416,12 @@ class Assignment(Node):
     def __init__(self, var_li, **kwargs):
         super().__init__(11, **kwargs)
         self.vars = var_li
+        self.update = False
         self._slice = None
         if 'slice' in kwargs.keys():
             self.slice = kwargs['slice']
+        if 'update' in kwargs.keys():
+            self.update = True
 
     @property
     def slice(self):
@@ -433,10 +437,13 @@ class Assignment(Node):
     def run(self, **kwargs):
         right = self.executor.var_dict[self.vars[1]]
         left = self.executor.var_dict[self.vars[0]]
-        if isinstance(right, torch.Tensor):
+        if right is None or isinstance(right, torch.Tensor):
             if left is None or isinstance(left, torch.Tensor):
                 if self.slice is None:
-                    self.executor.var_dict[self.vars[0]] = right
+                    if self.update:
+                        self.executor.var_dict[self.vars[0]].data = right.data
+                    else:
+                        self.executor.var_dict[self.vars[0]] = right
                 else:
                     s = copy(self.slice)
                     for idx in range(len(s)):
@@ -444,8 +451,10 @@ class Assignment(Node):
                             s[idx] = int(self.executor.var_dict[s[idx]])
                     # if self.vars[0] not in self.executor.var_dict:
                     #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-                    self.executor.var_dict[self.vars[0]].__setitem__(s, right)
-
+                    if self.update:
+                        self.executor.var_dict[self.vars[0]].__setitem__(s, right)
+                    else:
+                        self.executor.var_dict[self.vars[0]].data.__setitem__(s, right.data)
             else:
                 if self.slice is None:
                     # TODO: transpose to madlib matrix then assignment
@@ -466,7 +475,7 @@ class Assignment(Node):
                 # TODO: madlib_to_tensor，赋值
                 pass
 
-        if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
+        if self.with_grad and self.executor.var_dict[self.vars[0]] is not None and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
 
 
@@ -505,8 +514,7 @@ class Mul(Node):
     @preprocessing
     def run(self, **kwargs):
         if self.physic_algorithm != 'madlib':
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
-                self.vars[2]]
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[self.vars[2]]
         else:
             # TODO
             pass
@@ -760,6 +768,10 @@ class EXP(Node):
     def __init__(self, **kwargs):
         super().__init__(38, **kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.exp(self.executor.var_dict[self.vars[1]])
+
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
@@ -984,6 +996,10 @@ class Softmax(Node):
     def __init__(self, **kwargs):
         super().__init__(53, **kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]])
+
 
 class Sigmod(Node):
     def __init__(self, **kwargs):
@@ -1125,7 +1141,7 @@ class AUC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class MSE(Node):
@@ -1134,7 +1150,7 @@ class MSE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class F1(Node):
@@ -1143,7 +1159,7 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class REVERSE(Node):
@@ -1167,7 +1183,7 @@ class ACC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class RECALL(Node):
@@ -1176,7 +1192,7 @@ class RECALL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class PRECISION(Node):
@@ -1185,7 +1201,7 @@ class PRECISION(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class Backward(Node):
