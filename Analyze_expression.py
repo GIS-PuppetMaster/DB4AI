@@ -760,6 +760,18 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if isinstance(e.GetStart().dead_cycle, str):
                         if not e.GetStart().dead_cycle.startswith('_') and e.GetStart().dead_cycle not in var:
                             e.GetStart().dead_cycle = '__' + str(inner_count) + e.GetStart().dead_cycle
+                if hasattr(e.GetStart(), '_slice'):
+                    if e.GetStart().slice is not None:
+                        for p in range(len(e.GetStart().slice)):
+                            if isinstance(e.GetStart().slice[p], str):
+                                if not e.GetStart().slice[p].startswith('_') and e.GetStart().slice[p] not in var:
+                                    e.GetStart().slice[p] = '__' + str(inner_count) + e.GetStart().slice[p]
+                if hasattr(e.GetStart(), 'slice_index'):
+                    if e.GetStart().slice_index is not None:
+                        for p in range(len(e.GetStart().slice_index)):
+                            if isinstance(e.GetStart().slice_index[p], str):
+                                if not e.GetStart().slice_index[p].startswith('_') and e.GetStart().slice_index[p] not in var:
+                                    e.GetStart().slice_index[p] = '__' + str(inner_count) + e.GetStart().slice_index[p]
                 if hasattr(e.GetEnd(), 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
@@ -783,7 +795,19 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if isinstance(e.GetEnd().dead_cycle, str):
                         if not e.GetEnd().dead_cycle.startswith('_') and e.GetEnd().dead_cycle not in var:
                             e.GetEnd().dead_cycle = '__' + str(inner_count) + e.GetEnd().dead_cycle
-                            # 若不是形参，则添加到图G中
+                if hasattr(e.GetEnd(), '_slice'):
+                    if e.GetEnd().slice is not None:
+                        for p in range(len(e.GetEnd().slice)):
+                            if isinstance(e.GetEnd().slice[p], str):
+                                if not e.GetEnd().slice[p].startswith('_') and e.GetEnd().slice[p] not in var:
+                                    e.GetEnd().slice[p] = '__' + str(inner_count) + e.GetEnd().slice[p]
+                if hasattr(e.GetEnd(), 'slice_index'):
+                    if e.GetEnd().slice_index is not None:
+                        for p in range(len(e.GetEnd().slice_index)):
+                            if isinstance(e.GetEnd().slice_index[p], str):
+                                if not e.GetEnd().slice_index[p].startswith('_') and e.GetEnd().slice_index[p] not in var:
+                                    e.GetEnd().slice_index[p] = '__' + str(inner_count) + e.GetEnd().slice_index[p]
+                # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
                     if isinstance(e.GetStart(), nd.If):
@@ -860,7 +884,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 
