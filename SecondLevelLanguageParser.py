@@ -130,7 +130,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -618,6 +618,24 @@ class Parser:
                     slice_info = match_obj.group(2).split(',')
             else:
                 v_name = '$'
+                match_back = re.match(f'Backward[(](.+?)((,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
+                if match_back:
+                    loss = match_back.group(1)
+                    vars_li = list()
+                    vars_li.append(loss)
+                    args = re.findall(f'{variable_name_reg}', match_back.group(2))
+                    vars_li = vars_li + args
+                    self.node_id += 1
+                    back_n = Nd.InstantiationClass(self.node_id, 'Backward', self.branches, data_shape=None, var=vars_li)
+                    self.graph.InsertNode(back_n)
+                    for v in args:
+                        var_li = self.var_dict.get(v, None)
+                        if var_li:
+                            self.graph.InsertEdge(self.graph.nodes[var_li[-1]], back_n)
+                            self.UpdateVarList(v, self.node_id)
+                        else:
+                            raise Exception('backward使用未创建变量：' + v + ' 错误在第' + str(self.line_id) + '行')
+                    return True
             as_replace = dict()
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
@@ -658,9 +676,8 @@ class Parser:
                         else:
                             var_li = self.var_dict.get(in_v[0], None)
                             if var_li:
-                                last_use = var_li[-1]
-                                if self.graph.nodes[last_use].branches == in_v[1].branches:
-                                    self.graph.InsertEdge(self.graph.nodes[last_use], in_v[1])
+                                if self.graph.nodes[var_li[-1]].branches == in_v[1].branches:
+                                    self.graph.InsertEdge(self.graph.nodes[var_li[-1]], in_v[1])
                                 else:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                             else:
@@ -788,7 +805,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test/logistic.sql'
+    path = 'test.txt'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
