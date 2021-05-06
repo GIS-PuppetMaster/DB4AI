@@ -756,6 +756,10 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     for key in list(e.GetStart().boundary_var.keys()):
                         if not key.startswith('_') and key not in var:
                             e.GetStart().boundary_var['__' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
+                if hasattr(e.GetStart(), 'dead_cycle'):
+                    if isinstance(e.GetStart().dead_cycle, str):
+                        if not e.GetStart().dead_cycle.startswith('_') and e.GetStart().dead_cycle not in var:
+                            e.GetStart().dead_cycle = '__' + str(inner_count) + e.GetStart().dead_cycle
                 if hasattr(e.GetEnd(), 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
@@ -775,7 +779,11 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     for key in list(e.GetEnd().boundary_var.keys()):
                         if not key.startswith('_') and key not in var:
                             e.GetEnd().boundary_var['__' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
-                # 若不是形参，则添加到图G中
+                if hasattr(e.GetEnd(), 'dead_cycle'):
+                    if isinstance(e.GetEnd().dead_cycle, str):
+                        if not e.GetEnd().dead_cycle.startswith('_') and e.GetEnd().dead_cycle not in var:
+                            e.GetEnd().dead_cycle = '__' + str(inner_count) + e.GetEnd().dead_cycle
+                            # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
                     if isinstance(e.GetStart(), nd.If):
