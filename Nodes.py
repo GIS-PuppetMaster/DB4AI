@@ -1230,6 +1230,15 @@ class UNSQUEEZE(Node):
         self.dim = int(dim)
 
 
+class CleanGrad(Node):
+    def __init__(self, **kwargs):
+        super().__init__(77, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        pass
+
+
 def shallow_copy(fun):
     @wraps(fun)
     def decorated(*args, **kwargs):

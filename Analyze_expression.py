@@ -100,13 +100,13 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                        'REVERSE', 'GRADIENT', 'UNSQUEEZE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward')
+                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward', 'CleanGrad')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
                     'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-                    'UNSQUEEZE'}
+                    'UNSQUEEZE', 'CleanGrad'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -909,8 +909,10 @@ if __name__ == '__main__':
     # s = 's = Backward(X,Y,z,n)'
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
+    s = 's = CleanGrad(x,y)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
     # print(p[2])
+
     # p[3].Show()
