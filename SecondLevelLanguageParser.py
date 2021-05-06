@@ -130,7 +130,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -618,18 +618,14 @@ class Parser:
                     slice_info = match_obj.group(2).split(',')
             else:
                 v_name = '$'
-                match_back = re.match(f'Backward[(](.+?)((,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
+                match_back = re.match(f'Backward[(]({variable_name_reg}(,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
                 if match_back:
-                    loss = match_back.group(1)
-                    vars_li = list()
-                    vars_li.append(loss)
-                    args = re.findall(f'{variable_name_reg}', match_back.group(2))
-                    vars_li = vars_li + args
+                    vars_li = re.findall(f'{variable_name_reg}', match_back.group(1))
                     self.node_id += 1
                     back_n = Nd.InstantiationClass(self.node_id, 'Backward', self.branches)
                     back_n.set_vars(vars_li)
                     self.graph.InsertNode(back_n)
-                    for v in args:
+                    for v in vars_li:
                         var_li = self.var_dict.get(v, None)
                         if var_li:
                             self.graph.InsertEdge(self.graph.nodes[var_li[-1]], back_n)
@@ -807,7 +803,7 @@ class Parser:
 if __name__ == '__main__':
     from time import time
     path = 'test.txt'
-    with open(path, 'r', encoding='utf-8') as f:
+    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
