@@ -816,7 +816,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
             for o in range(len(operator_info[0])):
-                list(operator_info[0])[o].set_vars('_' + str(list(operator_info[0])[o].id))
+                if isinstance(list(operator_info[0])[o], nd.Val) or list(operator_info[0])[o].__class__.__name__ in all_operator:
+                    list(operator_info[0])[o].set_vars('_' + str(list(operator_info[0])[o].id))
             inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
@@ -869,7 +870,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
-        if not isinstance(top_node, nd.Backward):
+        if not isinstance(top_node, nd.Backward) and not isinstance(top_node, nd.Assignment):
             top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
@@ -884,7 +885,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
