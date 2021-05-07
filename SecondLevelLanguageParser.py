@@ -590,12 +590,13 @@ class Parser:
         """
         variable_name_reg = '([a-zA-Z]+[a-zA-Z0-9_]*)'
         ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
-        ass_reg2 = f'^(SELECT|select)[ \t]+(.+?)([ \t]+(AS|as)[ \t]+(.+?))?' \
+        ass_reg2 = f'^(SELECT|select|update|UPDATE)[ \t]+(.+?)([ \t]+(AS|as)[ \t]+(.+?))?' \
                    f'([ \t]+(FROM|from)[ \t]+(.+?))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         match_obj1 = re.match(ass_reg1, query)
         match_obj2 = re.match(ass_reg2, query)
         slice_info = list()
         with_grad = False
+        update = False
         if match_obj1:
             self.EndIf()
             v_name = match_obj1.group(1)
@@ -609,6 +610,8 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif match_obj2:
             self.EndIf()
+            if re.search('(update|UPDATE)', match_obj2.group()):
+                update = True
             n_add = True
             v_name = match_obj2.group(5)
             var_str = match_obj2.group(8)
@@ -692,6 +695,8 @@ class Parser:
             if var_li:
                 self.node_id += 1
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var], with_grad=with_grad)
+                if update:
+                    ass_n.update = True
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
                 last_use = var_li[-1]
@@ -704,6 +709,8 @@ class Parser:
                 self.UpdateVarList(v_name, self.node_id)
                 self.node_id += 1
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var], with_grad=with_grad)
+                if update:
+                    ass_n.update = True
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
                 if self.isCu and self.root_id == 0:
