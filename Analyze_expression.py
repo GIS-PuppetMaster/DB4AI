@@ -834,8 +834,11 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             x += 1
             slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
-            for s in slice_info[0].split(','):
-                new_slice_info.append(s.strip())
+            if slice_info.find(',') == -1:
+                new_slice_info.append(slice_info)
+            else:
+                for s in slice_info.split(','):
+                    new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
@@ -909,7 +912,8 @@ if __name__ == '__main__':
     # s = 's = Backward(X,Y,z,n)'
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
-    s = 's = CleanGrad(x,y)'
+    s = 's = Backward(x,y,loss)'
+    s = 's = data_input[data_input_index]'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
