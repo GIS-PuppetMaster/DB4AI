@@ -610,9 +610,9 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif match_obj2:
             self.EndIf()
+            need_up_vars = False
             if re.search('(update|UPDATE)', match_obj2.group()):
                 update = True
-            n_add = True
             v_name = match_obj2.group(5)
             var_str = match_obj2.group(8)
             if v_name:
@@ -622,13 +622,9 @@ class Parser:
                     slice_info = match_obj.group(2).split(',')
             else:
                 v_name = '$'
-                match_back = re.match(f'(Backward|CleanGrad)[(]({variable_name_reg}(,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
+                match_back = re.match(f'(Backward|CleanGrad)(.+)', match_obj2.group(2))
                 if match_back:
-                    vars_li = re.findall(f'{variable_name_reg}', match_back.group(2))
-                    self.node_id += 1
-                    n_add = False
-                    for v in vars_li:
-                        self.UpdateVarList(v, self.node_id)
+                    need_up_vars = True
             as_replace = dict()
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
@@ -641,8 +637,7 @@ class Parser:
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
                 with_grad = True
-            if n_add:
-                self.node_id += 1
+            self.node_id += 1
             branches = self.branches.copy()
             count = self.cu_use_count
             g, g_in, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
@@ -681,6 +676,9 @@ class Parser:
                     else:
                         self.graph.without_in = self.graph.without_in | g[2]
                 e_node = g[3]
+                if need_up_vars:
+                    for v in g_in:
+                        self.UpdateVarList(v[0], self.node_id)
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
                 raise Exception('右侧表达式拼写错误，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
