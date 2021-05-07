@@ -8,10 +8,10 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
     LOOP(iter_times){
         select 1/(1+POW(CONSTANT.E, MATMUL(x, w))) as hx with grad
         SELECT ridge*MEAN(POW(w,2))-MEAN(y * LOG(hx) + (1 - y) * LOG(1 - hx)) AS loss with grad
+        select CleanGrad(w)
         select Backward(loss, w)
         SELECT GRADIENT(w) AS g
         update w-learning_rate * g AS w
-        select CleanGrad(w)
     }
     select SHAPE(test_x) as sx
     select sx[0] as record_num

@@ -20,9 +20,9 @@ loop(1000){
     }
     select i+1 as i
 }
-create tensor lr(1,) from 0.0001
+create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
-create tensor ridge(1,) from 0.1
+create tensor ridge(1,) from 0.01
 create tensor iter_times(1,) from 10000
 create tensor mse(1,)
 create tensor auc(1,)

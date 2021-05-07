@@ -1253,7 +1253,8 @@ class CleanGrad(Node):
     @preprocessing
     def run(self, **kwargs):
         for name in self.vars:
-            self.executor.var_dict[name].data.zero_()
+            if self.executor.var_dict[name].grad is not None:
+                self.executor.var_dict[name].grad.data.zero_()
 
 
 def shallow_copy(fun):

@@ -28,8 +28,9 @@ for i in range(iter_times):
     # w.requires_grad_(True)
     hx = 1 / (1 + torch.exp(torch.matmul(train_x, w)))
     loss = ridge * torch.mean(torch.pow(w, 2)) - torch.mean(train_y * torch.log(hx) + (1 - train_y) * torch.log(1 - hx))
+    if w.grad is not None:
+        w.grad.data.zero_()
     loss.backward()
-    w.data.zero_()
     g = w.grad
     w.data = w - learning_rate * g
 w = w.detach()
