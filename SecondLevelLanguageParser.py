@@ -114,7 +114,6 @@ class Parser:
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
         elif self.state == 'if' and c_state == 'if_branch':
-            self.current_if_branches.add(self.graph.nodes[self.node_id])
             self.root_id = self.node_id
             self.state = c_state
             self.branches.append(self.root_id)
@@ -514,12 +513,14 @@ class Parser:
             self.StateConvert('if_branch')
             node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
             self.graph.InsertNode(node)
+            self.current_if_branches.add(node)
             self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id],
                                   condition, need_var=var_li)
             self.node_id += 1
             branches.append(self.node_id)
             node = Nd.InstantiationClass(self.node_id, 'IfBranch', branches)
             self.graph.InsertNode(node)
+            self.current_if_branches.add(node)
             self.graph.InsertEdge(self.graph.nodes[self.loop_or_if_id], self.graph.nodes[self.node_id],
                                   'T' + '$' + condition, need_var=var_li)
             self.oth_branch = self.node_id
@@ -537,12 +538,14 @@ class Parser:
                 self.StateConvert('if_branch')
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
+                self.current_if_branches.add(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       condition, need_var=var_li)
                 self.node_id += 1
                 branches.append(self.node_id)
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch', branches)
                 self.graph.InsertNode(node)
+                self.current_if_branches.add(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id],
                                       'T' + '$' + condition, need_var=var_li)
                 self.oth_branch = self.node_id
@@ -557,6 +560,7 @@ class Parser:
                 self.StateConvert('if_branch')
                 node = Nd.InstantiationClass(self.node_id, 'IfBranch', self.branches)
                 self.graph.InsertNode(node)
+                self.current_if_branches.add(node)
                 self.graph.InsertEdge(self.graph.nodes[self.oth_branch], self.graph.nodes[self.node_id])
                 self.oth_branch = 0
                 self.extra_pop_num += 1
