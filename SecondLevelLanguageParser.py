@@ -89,6 +89,9 @@ class Parser:
                 self.loop_id = self.root_id
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
+                self.current_break.clear()
+            elif c_state == 'if':
+                self.current_if_branches.clear()
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             self.root_id = self.node_id
             if self.state == 'if_branch':
@@ -104,6 +107,9 @@ class Parser:
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
+                self.current_break.clear()
+            elif c_state == 'if':
+                self.current_if_branches.clear()
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
