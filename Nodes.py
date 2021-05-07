@@ -1252,7 +1252,8 @@ class CleanGrad(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        pass
+        for name in self.vars:
+            self.executor.var_dict[name].data.zero_()
 
 
 def shallow_copy(fun):

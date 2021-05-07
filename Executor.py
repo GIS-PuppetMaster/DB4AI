@@ -142,6 +142,7 @@ class Executor:
                 if not father.finished and not isinstance(father, LoopEnd):
                     return False
         current_node.run(visited=visited, executor=self)
+        print(f'{current_node.id}')
         # # TODO: 对requires_grad对象的回收
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
