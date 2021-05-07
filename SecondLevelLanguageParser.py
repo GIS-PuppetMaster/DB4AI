@@ -26,6 +26,8 @@ class Parser:
         self.oth_branch = 0
         self.extra_pop_num = 0
         self.branches = list()
+        self.current_if_branches = set()
+        self.current_break = set()
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.operator = ''
@@ -91,10 +93,12 @@ class Parser:
             self.root_id = self.node_id
             if self.state == 'if_branch':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.oth_branch, self.extra_pop_num])
+                                         self.branches.copy(), self.oth_branch, self.current_if_branches.copy(),
+                                         self.extra_pop_num])
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.loop_id, self.extra_pop_num])
+                                         self.branches.copy(), self.loop_id, self.current_break.copy(),
+                                         self.extra_pop_num])
             self.extra_pop_num = 0
             if c_state == 'loop':
                 self.loop_id = self.node_id
@@ -104,6 +108,7 @@ class Parser:
             self.out_var = copy.deepcopy(self.var_dict)
             self.loop_or_if_id = self.root_id
         elif self.state == 'if' and c_state == 'if_branch':
+            self.current_if_branches.add(self.graph.nodes[self.node_id])
             self.root_id = self.node_id
             self.state = c_state
             self.branches.append(self.root_id)
@@ -119,10 +124,12 @@ class Parser:
                 self.state = ''
             else:
                 state_li = self.state_stack.pop(-1)
-                self.extra_pop_num = state_li[5]
+                self.extra_pop_num = state_li[6]
                 if state_li[1] == 'if_branch':
+                    self.current_if_branches = state_li[5]
                     self.oth_branch = state_li[4]
                 elif state_li[1] == 'loop':
+                    self.current_break = state_li[5]
                     self.loop_id = state_li[4]
                 self.branches = state_li[3]
                 self.out_var = state_li[2]
@@ -169,6 +176,8 @@ class Parser:
                     self.graph.InsertEdge(l_n, node)
                 else:
                     continue
+            for bra in self.current_if_branches:
+                bra.end_if_pair = node
             self.branches.append(self.root_id)
             self.extra_pop_num += 1
 
@@ -451,6 +460,7 @@ class Parser:
                 raise Exception('非loop内使用break：' + ' 错误在第' + str(self.line_id) + '行')
             self.node_id += 1
             node = Nd.InstantiationClass(self.node_id, 'Break', self.branches, loop_id=self.loop_id)
+            self.current_break.add(node)
             for l_n in self.graph.GetNoOutNodes().copy():
                 if l_n.branches == node.branches:
                     self.graph.InsertEdge(l_n, node)
@@ -565,6 +575,10 @@ class Parser:
                 loop_id = self.loop_id
                 self.StateConvert('end')
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=loop_id)
+                node.loop_pair = self.graph.nodes[loop_id]
+                for b in self.current_break:
+                    b.loop_pair = node
+                self.graph.nodes[loop_id].loop_pair = node
                 self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
                     if isinstance(l_n, Nd.IfBranch) or l_n == node:
