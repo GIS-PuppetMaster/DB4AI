@@ -609,6 +609,7 @@ class Parser:
             self.UpdateVarList(r_var, e_node.id)
         elif match_obj2:
             self.EndIf()
+            n_add = True
             v_name = match_obj2.group(5)
             var_str = match_obj2.group(8)
             if v_name:
@@ -618,21 +619,13 @@ class Parser:
                     slice_info = match_obj.group(2).split(',')
             else:
                 v_name = '$'
-                match_back = re.match(f'Backward[(]({variable_name_reg}(,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
+                match_back = re.match(f'(Backward|CleanGrad)[(]({variable_name_reg}(,[ \t]*{variable_name_reg})+)[)]', match_obj2.group(2))
                 if match_back:
-                    vars_li = re.findall(f'{variable_name_reg}', match_back.group(1))
+                    vars_li = re.findall(f'{variable_name_reg}', match_back.group(2))
                     self.node_id += 1
-                    back_n = Nd.InstantiationClass(self.node_id, 'Backward', self.branches)
-                    back_n.set_vars(vars_li)
-                    self.graph.InsertNode(back_n)
+                    n_add = False
                     for v in vars_li:
-                        var_li = self.var_dict.get(v, None)
-                        if var_li:
-                            self.graph.InsertEdge(self.graph.nodes[var_li[-1]], back_n)
-                            self.UpdateVarList(v, self.node_id)
-                        else:
-                            raise Exception('backward使用未创建变量：' + v + ' 错误在第' + str(self.line_id) + '行')
-                    return True
+                        self.UpdateVarList(v, self.node_id)
             as_replace = dict()
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
@@ -645,7 +638,8 @@ class Parser:
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
                 with_grad = True
-            self.node_id += 1
+            if n_add:
+                self.node_id += 1
             branches = self.branches.copy()
             count = self.cu_use_count
             g, g_in, self.cu_use_count = A_e.analyze_expression(exp, self.node_id, self.cu_use_count, branches, as_replace)
@@ -662,8 +656,6 @@ class Parser:
                                 continue
                             elif l_n.branches == branches:
                                 self.graph.InsertEdge(l_n, in_v[1])
-                        if len(in_v[1].in_edges) == 0 and not (self.isCu and self.root_id == 0):
-                            self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                     else:
                         if isinstance(in_v[1], Nd.Val):
                             if self.isCu and self.root_id == 0:
@@ -683,6 +675,8 @@ class Parser:
                     if not (self.isCu and self.root_id == 0):
                         for o_in_v in g[2]:
                             self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
+                    else:
+                        self.graph.without_in = self.graph.without_in | g[2]
                 e_node = g[3]
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
