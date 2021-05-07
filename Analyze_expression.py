@@ -734,6 +734,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 for t in range(len(e.GetStart().vars)):
                     if not e.GetStart().vars[t].startswith('_') and e.GetStart().vars[t] not in var:
                         e.GetStart().vars[t] = '__' + str(inner_count) + e.GetStart().vars[t]
+                    if isinstance(e.GetStart(), nd.Val) and not e.GetStart().vars[t].startswith('__'):
+                        old_var = e.GetStart().vars[t]
+                        e.GetStart().vars[t] = '__' + e.GetStart().vars[t][1:]
+                        for tt in range(len(e.GetEnd().vars)):
+                            if e.GetEnd().vars[tt] == old_var:
+                                e.GetEnd().vars[tt] = '__' + e.GetEnd().vars[tt][1:]
                 for t in range(len(e.GetEnd().vars)):
                     if not e.GetEnd().vars[t].startswith('_') and e.GetEnd().vars[t] not in var:
                         e.GetEnd().vars[t] = '__' + str(inner_count) + e.GetEnd().vars[t]
@@ -888,7 +894,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -913,7 +919,7 @@ if __name__ == '__main__':
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
     s = 's = Backward(x,y,loss)'
-    s = 's = data_input[data_input_index]'
+    s = 's = KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, x, y, k)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
