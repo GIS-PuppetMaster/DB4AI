@@ -667,7 +667,7 @@ class Parser:
                     else:
                         if isinstance(in_v[1], Nd.Val):
                             if self.isCu and self.root_id == 0:
-                                pass
+                                self.graph.without_in.add(in_v[1])
                             else:
                                 self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                         else:
@@ -679,9 +679,10 @@ class Parser:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
-                if use_o and not (self.isCu and self.root_id == 0):
-                    for o_in_v in g[2]:
-                        self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
+                if use_o:
+                    if not (self.isCu and self.root_id == 0):
+                        for o_in_v in g[2]:
+                            self.graph.InsertEdge(self.graph.nodes[self.root_id], o_in_v)
                 e_node = g[3]
                 self.node_id = self.node_id + len(g[0]) - 1
             else:
@@ -803,7 +804,7 @@ class Parser:
 if __name__ == '__main__':
     from time import time
     path = 'test.txt'
-    with open('operators/LogitBoost.sql', 'r', encoding='utf-8') as f:
+    with open('test/KNN.sql', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
