@@ -14,7 +14,7 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,hid
         select 0-MEAN(y*LOG(pred)) as loss with grad
         select Backward(loss, w)
         SELECT GRADIENT(w) AS g
-        SELECT w-learning_rate * g AS w
+        update w-learning_rate * g AS w
     }
     select Argmax(Softmax(MATMUL(x,w)+b),1) as pred
     select AUC(test_y, pred) as auc

@@ -76,21 +76,21 @@ class Executor:
 
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
-        if isinstance(current_node, Loop):
-            if 'loop' not in kwargs['info'].keys():
-                kwargs['info']['loop'] = {}
-            loop_info = kwargs['info']['loop']
-            loop_info[current_node.loop_id] = current_node
-        elif isinstance(current_node, LoopEnd):
-            loop = kwargs['info']['loop'][current_node.loop_id]
-            current_node.loop_pair = loop
-            loop.loop_pair = current_node
-            if 'break' in kwargs['info']:
-                kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
-        elif isinstance(current_node, Break):
-            if 'break' not in kwargs['info'].keys():
-                kwargs['info']['break'] = {}
-            kwargs['info']['break'][current_node.loop_id] = current_node
+        # if isinstance(current_node, Loop):
+        #     if 'loop' not in kwargs['info'].keys():
+        #         kwargs['info']['loop'] = {}
+        #     loop_info = kwargs['info']['loop']
+        #     loop_info[current_node.loop_id] = current_node
+        # elif isinstance(current_node, LoopEnd):
+        #     loop = kwargs['info']['loop'][current_node.loop_id]
+        #     current_node.loop_pair = loop
+        #     loop.loop_pair = current_node
+        #     if 'break' in kwargs['info']:
+        #         kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
+        # elif isinstance(current_node, Break):
+        #     if 'break' not in kwargs['info'].keys():
+        #         kwargs['info']['break'] = {}
+        #     kwargs['info']['break'][current_node.loop_id] = current_node
         current_node.fathers = list(set([edge.start for edge in current_node.in_edges]))
         current_node.sons = list(set([edge.end for edge in current_node.out_edges]))
         current_node.branches_set = set(current_node.branches)
@@ -137,12 +137,18 @@ class Executor:
     def execute(self, current_node, **kwargs):
         visited = kwargs['visited']
         # 确保父节点都执行完了再执行他
-        if not isinstance(current_node, IfEnd) and not isinstance(current_node, LoopEnd):
+        if isinstance(current_node, LoopEnd) and current_node.return_next:
+            pass
+        else:
             for father in current_node.fathers:
                 if not father.finished and not isinstance(father, LoopEnd):
-                    return False
+                    if not isinstance(current_node, IfEnd):
+                        return False
+                    elif father.branches[-1] == current_node.selected_branch:
+                        return False
+
         current_node.run(visited=visited, executor=self)
-        # print(f'{current_node.id}')
+        print(f'{current_node.id}')
         # # TODO: 对requires_grad对象的回收
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:

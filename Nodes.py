@@ -319,6 +319,7 @@ class Loop(Node):
         if self.dead_cycle <= self.times:
             # 找到对应的Loop_End
             self.executor.finished_loop_id.add(self.loop_id)
+            self.loop_pair.return_next = True
             return [self.loop_pair]
         else:
             return end_nodes
@@ -329,6 +330,7 @@ class LoopEnd(Node):
         super().__init__(6, **kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
+        self.return_next = False
 
     @preprocessing
     def run(self, **kwargs):
@@ -346,6 +348,8 @@ class LoopEnd(Node):
             if node in visited:
                 visited.remove(node)
             node.finished = False
+            if isinstance(node, LoopEnd):
+                node.return_next = False
 
     def next_nodes(self):
         assert self.loop_pair is not None
@@ -391,6 +395,12 @@ class If(Node):
 class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(9, **kwargs)
+        self.end_if_pair = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        assert self.end_if_pair is not None
+        self.end_if_pair.selected_branch = self.id
 
     def next_nodes(self):
         if self.out_edges[0].condition is None:
@@ -410,6 +420,7 @@ class IfBranch(Node):
 class IfEnd(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
+        self.selected_branch = None
 
 
 class Assignment(Node):
@@ -451,10 +462,11 @@ class Assignment(Node):
                             s[idx] = int(self.executor.var_dict[s[idx]])
                     # if self.vars[0] not in self.executor.var_dict:
                     #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
+                    s = tuple(s)
                     if self.update:
-                        self.executor.var_dict[self.vars[0]].__setitem__(s, right)
-                    else:
                         self.executor.var_dict[self.vars[0]].data.__setitem__(s, right.data)
+                    else:
+                        self.executor.var_dict[self.vars[0]].__setitem__(s, right)
             else:
                 if self.slice is None:
                     # TODO: transpose to madlib matrix then assignment
@@ -790,6 +802,7 @@ class Slice(Node):
         for idx in range(len(s)):
             if isinstance(s[idx], str):
                 s[idx] = int(self.executor.var_dict[s[idx]])
+        s = tuple(s)
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(s)
 
 
@@ -870,7 +883,8 @@ class Full(Node):
         self.data_shape_var = {}
         # TODO: infer data_shape
         self.set_vars(var)
-        self.num = num
+        self.num = eval(num)
+
 
     @preprocessing
     def run(self, **kwargs):
@@ -1165,16 +1179,29 @@ class F1(Node):
 class REVERSE(Node):
     def __init__(self, **kwargs):
         super().__init__(67, **kwargs)
+        # TODO: dims
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.flip(self.executor.var_dict[self.vars[1]], (0,))
 
 
 class ARGSORT(Node):
     def __init__(self, **kwargs):
         super().__init__(68, **kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.argsort(self.executor.var_dict[self.vars[1]])
+
 
 class SORT(Node):
     def __init__(self, **kwargs):
         super().__init__(69, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.sort(self.executor.var_dict[self.vars[1]])[0]
 
 
 class ACC(Node):

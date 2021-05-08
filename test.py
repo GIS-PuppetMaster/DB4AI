@@ -19,8 +19,8 @@ iter_times = 10000
 ridge = 0.01
 learning_rate = 0.01
 
-train_x, train_y = gen_data(10000, feature_num)
-test_x, test_y = gen_data(1000, feature_num)
+train_x, train_y = gen_data(1000, feature_num)
+test_x, test_y = gen_data(100, feature_num)
 
 w = torch.rand(feature_num, 1, requires_grad=True)
 
@@ -35,7 +35,7 @@ for i in range(iter_times):
     w.data = w - learning_rate * g
 w = w.detach()
 pred = 1 / (1 + torch.exp(torch.matmul(test_x, w)))
-for i in range(1000):
+for i in range(100):
     if pred[i, ...] >= 0.5:
         pred[i, ...] = 1
     else:
