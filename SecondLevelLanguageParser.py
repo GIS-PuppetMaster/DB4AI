@@ -724,9 +724,8 @@ class Parser:
                     ass_n.update = True
                 self.graph.InsertNode(ass_n)
                 ass_n.slice = slice_info
-                last_use = var_li[-1]
-                if self.graph.nodes[last_use].branches == self.branches:
-                    self.graph.InsertEdge(self.graph.nodes[last_use], ass_n)
+                if self.graph.nodes[var_li[-1]].branches == self.branches:
+                    self.graph.InsertEdge(self.graph.nodes[var_li[-1]], ass_n)
             else:
                 self.node_id += 1
                 node_l = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, data_shape=None, var=v_name)
@@ -745,7 +744,7 @@ class Parser:
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
             for v in use_vars:
-                self.UpdateVarList(v, use_vars)
+                self.UpdateVarList(v, self.node_id)
             self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
