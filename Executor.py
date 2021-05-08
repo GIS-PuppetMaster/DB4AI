@@ -27,6 +27,7 @@ class Executor:
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
         self.graph = deepcopy(graph)
+        # 有错误
         # self.remove_extra_edges()
         self.init_executor()
 
@@ -141,20 +142,21 @@ class Executor:
                 if not father.finished and not isinstance(father, LoopEnd):
                     return False
         current_node.run(visited=visited, executor=self)
-        # TODO: 对requires_grad对象的回收
-        for var_name in current_node.release_list:
-            if not self.var_dict[var_name].requires_grad:
-                if current_node.in_loop == -1 or '@' in var_name:
-                    self.var_dict.pop(var_name)
-                else:
-                    # loop结束后再回收
-                    self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
-        # for var_name in list(self.var_dict.keys()):
-        #     if var_name not in self.last_use.keys():
+        # print(f'{current_node.id}')
+        # # TODO: 对requires_grad对象的回收
+        # for var_name in current_node.release_list:
+        #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
+        #         if current_node.in_loop == -1 or re.match(r'^_[^_]+',var_name) is None:
+        #             self.var_dict.pop(var_name)
+        #         else:
+        #             # loop结束后再回收
+        #             self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
+        # # for var_name in list(self.var_dict.keys()):
+        # #     if var_name not in self.last_use.keys():
+        # #         self.var_dict.pop(var_name)
+        # if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
+        #     for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
         #         self.var_dict.pop(var_name)
-        if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
-            for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
-                self.var_dict.pop(var_name)
         current_node.finished = True
         return True
 

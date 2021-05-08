@@ -143,7 +143,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -851,16 +851,22 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test.txt'
-    with open('operators/KNN.sql', 'r', encoding='utf-8') as f:
+    path = 'test/logistic.sql'
+    with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    # if 'operators/' not in path:
-    #     executor = Executor(result)
-    #     s = time()
-    #     executor.run()
-    #     print(f'time:{time()-s} s')
-    #     print(executor.var_dict['loss'])
+    if 'operators/' not in path:
+        executor = Executor(result)
+        s = time()
+        executor.run()
+        print(f'time:{time()-s} s')
+        print(executor.var_dict['acc'])
+        print(executor.var_dict['auc'])
+        print(executor.var_dict['prec'])
+        print(executor.var_dict['recall'])
+        print(executor.var_dict['mse'])
+        print(executor.var_dict['f1'])
+

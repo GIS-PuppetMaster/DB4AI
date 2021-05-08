@@ -100,13 +100,13 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                        'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                        'REVERSE', 'GRADIENT', 'UNSQUEEZE')
     multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
-                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward')
+                         'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward', 'CleanGrad')
     all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                     'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                     'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                     'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
                     'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-                    'UNSQUEEZE'}
+                    'UNSQUEEZE', 'CleanGrad'}
     # 常量dict,用于建立对应val节点
     constant_dict = {'CONSTANT.E': numpy.e, 'CONSTANT.PI': numpy.pi}
 
@@ -734,6 +734,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 for t in range(len(e.GetStart().vars)):
                     if not e.GetStart().vars[t].startswith('_') and e.GetStart().vars[t] not in var:
                         e.GetStart().vars[t] = '__' + str(inner_count) + e.GetStart().vars[t]
+                    if isinstance(e.GetStart(), nd.Val) and not e.GetStart().vars[t].startswith('__'):
+                        old_var = e.GetStart().vars[t]
+                        e.GetStart().vars[t] = '__' + e.GetStart().vars[t][1:]
+                        for tt in range(len(e.GetEnd().vars)):
+                            if e.GetEnd().vars[tt] == old_var:
+                                e.GetEnd().vars[tt] = '__' + e.GetEnd().vars[tt][1:]
                 for t in range(len(e.GetEnd().vars)):
                     if not e.GetEnd().vars[t].startswith('_') and e.GetEnd().vars[t] not in var:
                         e.GetEnd().vars[t] = '__' + str(inner_count) + e.GetEnd().vars[t]
@@ -756,6 +762,22 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     for key in list(e.GetStart().boundary_var.keys()):
                         if not key.startswith('_') and key not in var:
                             e.GetStart().boundary_var['__' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
+                if hasattr(e.GetStart(), 'dead_cycle'):
+                    if isinstance(e.GetStart().dead_cycle, str):
+                        if not e.GetStart().dead_cycle.startswith('_') and e.GetStart().dead_cycle not in var:
+                            e.GetStart().dead_cycle = '__' + str(inner_count) + e.GetStart().dead_cycle
+                if hasattr(e.GetStart(), '_slice'):
+                    if e.GetStart().slice is not None:
+                        for p in range(len(e.GetStart().slice)):
+                            if isinstance(e.GetStart().slice[p], str):
+                                if not e.GetStart().slice[p].startswith('_') and e.GetStart().slice[p] not in var:
+                                    e.GetStart().slice[p] = '__' + str(inner_count) + e.GetStart().slice[p]
+                if hasattr(e.GetStart(), 'slice_index'):
+                    if e.GetStart().slice_index is not None:
+                        for p in range(len(e.GetStart().slice_index)):
+                            if isinstance(e.GetStart().slice_index[p], str):
+                                if not e.GetStart().slice_index[p].startswith('_') and e.GetStart().slice_index[p] not in var:
+                                    e.GetStart().slice_index[p] = '__' + str(inner_count) + e.GetStart().slice_index[p]
                 if hasattr(e.GetEnd(), 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
@@ -775,6 +797,22 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     for key in list(e.GetEnd().boundary_var.keys()):
                         if not key.startswith('_') and key not in var:
                             e.GetEnd().boundary_var['__' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
+                if hasattr(e.GetEnd(), 'dead_cycle'):
+                    if isinstance(e.GetEnd().dead_cycle, str):
+                        if not e.GetEnd().dead_cycle.startswith('_') and e.GetEnd().dead_cycle not in var:
+                            e.GetEnd().dead_cycle = '__' + str(inner_count) + e.GetEnd().dead_cycle
+                if hasattr(e.GetEnd(), '_slice'):
+                    if e.GetEnd().slice is not None:
+                        for p in range(len(e.GetEnd().slice)):
+                            if isinstance(e.GetEnd().slice[p], str):
+                                if not e.GetEnd().slice[p].startswith('_') and e.GetEnd().slice[p] not in var:
+                                    e.GetEnd().slice[p] = '__' + str(inner_count) + e.GetEnd().slice[p]
+                if hasattr(e.GetEnd(), 'slice_index'):
+                    if e.GetEnd().slice_index is not None:
+                        for p in range(len(e.GetEnd().slice_index)):
+                            if isinstance(e.GetEnd().slice_index[p], str):
+                                if not e.GetEnd().slice_index[p].startswith('_') and e.GetEnd().slice_index[p] not in var:
+                                    e.GetEnd().slice_index[p] = '__' + str(inner_count) + e.GetEnd().slice_index[p]
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
@@ -784,7 +822,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         G.edges[-1].reverse = old_edge.reverse
                         G.edges[-1].need_var = old_edge.need_var
             for o in range(len(operator_info[0])):
-                list(operator_info[0])[o].set_vars('_' + str(list(operator_info[0])[o].id))
+                if isinstance(list(operator_info[0])[o], nd.Val) or list(operator_info[0])[o].__class__.__name__ in all_operator:
+                    list(operator_info[0])[o].set_vars('_' + str(list(operator_info[0])[o].id))
             inner_count += 1
             current_graph.set_val(list(operator_info[0])[0])
             current_graph = parent
@@ -801,8 +840,11 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             x += 1
             slice_info = i[i.index('[') + 1:i.rfind(']')]
             new_slice_info = []
-            for s in slice_info[0].split(','):
-                new_slice_info.append(s.strip())
+            if slice_info.find(',') == -1:
+                new_slice_info.append(slice_info)
+            else:
+                for s in slice_info.split(','):
+                    new_slice_info.append(s.strip())
             current_graph.keynode.set_slice(new_slice_info)
             parent = new_stack.pop()
             G.InsertNode(current_graph.keynode)
@@ -837,7 +879,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
-        if not isinstance(top_node, nd.Backward):
+        if not isinstance(top_node, nd.Backward) and not isinstance(top_node, nd.Assignment) and not isinstance(top_node, nd.CleanGrad):
             top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
@@ -852,7 +894,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -876,8 +918,11 @@ if __name__ == '__main__':
     # s = 's = Backward(X,Y,z,n)'
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
+    s = 's = Backward(x,y,loss)'
+    s = 's = KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, x, y, k)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
     # print(p[2])
+
     # p[3].Show()
