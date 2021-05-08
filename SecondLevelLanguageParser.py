@@ -143,7 +143,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -759,14 +759,14 @@ class Parser:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
-            for v in use_vars:
-                self.UpdateVarList(v, self.node_id, up_use=True)
             use_li = self.var_use_dict.get(v_name, None)
             if use_li and self.branches == self.graph.nodes[use_li[-1]].branches:
                 self.graph.InsertEdge(e_node, self.graph.nodes[use_li[-1]])
                 self.graph.InsertEdge(self.graph.nodes[use_li[-1]], ass_n)
             else:
                 self.graph.InsertEdge(e_node, ass_n)
+            for v in use_vars:
+                self.UpdateVarList(v, self.node_id, up_use=True)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
             for e in e_node:
@@ -851,22 +851,22 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test/logistic.sql'
+    path = 'operators/logistic.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     # lp = LineProfiler()
     # lp.add_function()
-    if 'operators/' not in path:
-        executor = Executor(result)
-        s = time()
-        executor.run()
-        print(f'time:{time()-s} s')
-        print(executor.var_dict['acc'])
-        print(executor.var_dict['auc'])
-        print(executor.var_dict['prec'])
-        print(executor.var_dict['recall'])
-        print(executor.var_dict['mse'])
-        print(executor.var_dict['f1'])
+    # if 'operators/' not in path:
+    #     executor = Executor(result)
+    #     s = time()
+    #     executor.run()
+    #     print(f'time:{time()-s} s')
+    #     print(executor.var_dict['acc'])
+    #     print(executor.var_dict['auc'])
+    #     print(executor.var_dict['prec'])
+    #     print(executor.var_dict['recall'])
+    #     print(executor.var_dict['mse'])
+    #     print(executor.var_dict['f1'])
 
