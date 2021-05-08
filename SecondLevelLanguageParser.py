@@ -761,10 +761,8 @@ class Parser:
             self.UpdateVarList(v_name, self.node_id)
             use_li = self.var_use_dict.get(v_name, None)
             if use_li and self.branches == self.graph.nodes[use_li[-1]].branches:
-                self.graph.InsertEdge(e_node, self.graph.nodes[use_li[-1]])
                 self.graph.InsertEdge(self.graph.nodes[use_li[-1]], ass_n)
-            else:
-                self.graph.InsertEdge(e_node, ass_n)
+            self.graph.InsertEdge(e_node, ass_n)
             for v in use_vars:
                 self.UpdateVarList(v, self.node_id, up_use=True)
             self.DealInVar(v_name)
