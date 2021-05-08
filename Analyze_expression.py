@@ -552,6 +552,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         current_graph.keynode.set_dim(eval(var[1]))
                     else:
                         current_graph.keynode.set_dim(var[1])
+            elif j == 'Softmax':
+                if len(var) != 1:
+                    if type(var[1]) == str:
+                        current_graph.keynode.set_dim(eval(var[1]))
+                    else:
+                        current_graph.keynode.set_dim(var[1])
             current_graph = new_stack.pop()
         elif i.startswith(multiple_operator):
             for j in multiple_operator:
@@ -919,7 +925,7 @@ if __name__ == '__main__':
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
     s = 's = Backward(x,y,loss)'
-    s = 's = KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, x, y, k)'
+    s = 's = Softmax(x,1)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
