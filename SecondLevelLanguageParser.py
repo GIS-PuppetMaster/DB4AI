@@ -143,16 +143,17 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
             else:
                 raise Exception('多余括号！' + ' 错误在第' + str(self.line_id) + '行')
 
-    def UpdateVarList(self, v_name, nd_id, up_use = False):
+    def UpdateVarList(self, v_name, nd_id, up_use=False):
         """
         用于维护变量名列表的函数
+        :param up_use:
         :param v_name: 需要维护的变量名
         :param nd_id: 该变量名对应的最近一次赋值的节点
         :return: 无
@@ -709,7 +710,6 @@ class Parser:
                                     self.graph.InsertEdge(self.graph.nodes[var_li[-1]], in_v[1])
                                 else:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 if use_o:
@@ -731,7 +731,6 @@ class Parser:
             if isinstance(e_node, set):
                 e_node = e_node.pop()
             r_var = e_node.get_vars()[0]
-            self.UpdateVarList(r_var, e_node.id)
             var_li = self.var_ass_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
@@ -849,7 +848,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'operators/logistic.sql'
+    path = 'test.txt'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
