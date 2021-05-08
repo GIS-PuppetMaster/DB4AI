@@ -5,8 +5,11 @@ create tensor i(1,) from 0
 create tensor temp(1,) from 0
 loop(1000){
     select tmp[i] as t
-    if(t>1){
+    if(t==2){
         select 1 as y[i,...]
+    }
+    elif(t>2){
+        select 2 as y[i,...]
     }
     select i+1 as i
 }
@@ -16,13 +19,17 @@ select Argmax(test_x, 1) as tmp
 select 0 as i
 loop(100){
     select tmp[i] as t
-    if(t>1){
+    if(t==2){
         select 1 as test_y[i,...]
+    }
+    elif(t>2){
+        select 2 as test_y[i,...]
     }
     select i+1 as i
 }
 create tensor lr(1,) from 0.01
-create tensor class_num(1,) from 2
+create tensor class_num(1,) from 3
+create tensor hidden(1,) from 32
 create tensor ridge(1,) from 0.01
 create tensor iter_times(1,) from 10000
 create tensor mse(1,)
@@ -31,6 +38,6 @@ create tensor f1(1,)
 create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
-select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, lr, class_num, iter_times)
+select softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y,hidden, ridge, lr, class_num, iter_times)
 
 
