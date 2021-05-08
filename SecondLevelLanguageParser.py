@@ -635,6 +635,7 @@ class Parser:
         elif match_obj2:
             self.EndIf()
             need_up_vars = False
+            use_vars = set()
             if re.search('(update|UPDATE)', match_obj2.group()):
                 update = True
             v_name = match_obj2.group(5)
@@ -687,10 +688,12 @@ class Parser:
                         else:
                             var_li = self.var_dict.get(in_v[0], None)
                             if var_li:
+                                use_vars.add(in_v[0])
                                 if self.graph.nodes[var_li[-1]].branches == in_v[1].branches:
                                     self.graph.InsertEdge(self.graph.nodes[var_li[-1]], in_v[1])
                                 else:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
+
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 if use_o:
@@ -741,6 +744,8 @@ class Parser:
                     self.graph.InsertEdge(self.graph.nodes[self.root_id], node_l)
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
+            for v in use_vars:
+                self.UpdateVarList(v, use_vars)
             self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
