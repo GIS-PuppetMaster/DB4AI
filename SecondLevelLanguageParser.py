@@ -13,7 +13,8 @@ global inner_var_count
 class Parser:
     def __init__(self, queries: list):
         self.queries = queries
-        self.var_dict = dict()
+        self.var_ass_dict = dict()
+        self.var_use_dict = dict()
         self.graph = DG.Graph()
         self.node_id = 0
         # 记录”状态“，用于特殊语句的解析使用
@@ -83,7 +84,7 @@ class Parser:
         if len(self.state) == 0 and (c_state == 'loop' or c_state == 'if'):
             self.root_id = self.node_id
             self.state = c_state
-            self.out_var = copy.deepcopy(self.var_dict)
+            self.out_var = copy.deepcopy(self.var_ass_dict)
             self.loop_or_if_id = self.node_id
             if c_state == 'loop':
                 self.loop_id = self.root_id
@@ -111,7 +112,7 @@ class Parser:
             elif c_state == 'if':
                 self.current_if_branches.clear()
             self.state = c_state
-            self.out_var = copy.deepcopy(self.var_dict)
+            self.out_var = copy.deepcopy(self.var_ass_dict)
             self.loop_or_if_id = self.root_id
         elif self.state == 'if' and c_state == 'if_branch':
             self.root_id = self.node_id
@@ -149,22 +150,31 @@ class Parser:
             else:
                 raise Exception('多余括号！' + ' 错误在第' + str(self.line_id) + '行')
 
-    def UpdateVarList(self, v_name, nd_id):
+    def UpdateVarList(self, v_name, nd_id, up_use = False):
         """
         用于维护变量名列表的函数
         :param v_name: 需要维护的变量名
         :param nd_id: 该变量名对应的最近一次赋值的节点
         :return: 无
         """
-        v_name = v_name
-        var_li = self.var_dict.get(v_name, None)
-        if var_li:
-            var_li.append(nd_id)
-            self.var_dict[v_name] = var_li
+        if up_use:
+            var_li = self.var_use_dict.get(v_name, None)
+            if var_li:
+                var_li.append(nd_id)
+                self.var_use_dict[v_name] = var_li
+            else:
+                new_li = list()
+                new_li.append(nd_id)
+                self.var_use_dict[v_name] = new_li
         else:
-            new_li = list()
-            new_li.append(nd_id)
-            self.var_dict[v_name] = new_li
+            var_li = self.var_ass_dict.get(v_name, None)
+            if var_li:
+                var_li.append(nd_id)
+                self.var_ass_dict[v_name] = var_li
+            else:
+                new_li = list()
+                new_li.append(nd_id)
+                self.var_ass_dict[v_name] = new_li
 
     def EndIf(self):
         """
@@ -210,10 +220,10 @@ class Parser:
             v_li = list()
             for v in match_obj:
                 if v != 'or' and v != 'and':
-                    var_li = self.var_dict.get(v, None)
+                    var_li = self.var_ass_dict.get(v, None)
                     if var_li:
-                        last_use = var_li[-1]
-                        v_li.append([v, self.graph.nodes[last_use]])
+                        ass_li = var_li[-1]
+                        v_li.append([v, self.graph.nodes[ass_li]])
                     else:
                         return None
             return v_li
@@ -236,10 +246,11 @@ class Parser:
     def ConnectVarAndNode(self, var_info, node):
         if len(var_info) != 0:
             for v in list(var_info):
-                last_use = self.var_dict.get(v, None)
-                if last_use:
-                    if self.graph.nodes[last_use[-1]].branches == node.branches:
-                        self.graph.InsertEdge(self.graph.nodes[last_use[-1]], node)
+                ass_li = self.var_ass_dict.get(v, None)
+                if ass_li:
+                    self.UpdateVarList(v, node.id, up_use=True)
+                    if self.graph.nodes[ass_li[-1]].branches == node.branches:
+                        self.graph.InsertEdge(self.graph.nodes[ass_li[-1]], node)
                     else:
                         self.graph.InsertEdge(self.graph.nodes[self.root_id], node)
                 else:
@@ -287,7 +298,7 @@ class Parser:
                 from_str = fromObj.group(5)
             T_info = re.sub('[ \t]+', '', match_obj.group(3))
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
-            if self.var_dict.get(T_name, None):
+            if self.var_ass_dict.get(T_name, None):
                 raise Exception('重复创建张量：' + T_name + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             data = re.search(data_shape_reg, T_info)
             if data:
@@ -431,7 +442,7 @@ class Parser:
             elif re.search('[1-9][0-9]*', loop_str):
                 condition = int(loop_str)
             else:
-                if self.var_dict.get(loop_str, None):
+                if self.var_ass_dict.get(loop_str, None):
                     condition = loop_str
                 else:
                     raise Exception('loop的条件使用未创建张量：' + ' 错误在第' + str(self.line_id) + '行')
@@ -619,8 +630,10 @@ class Parser:
         match_obj1 = re.match(ass_reg1, query)
         match_obj2 = re.match(ass_reg2, query)
         slice_info = list()
+        slice_use_vars = list()
         with_grad = False
         update = False
+        use_vars = set()
         if match_obj1:
             self.EndIf()
             v_name = match_obj1.group(1)
@@ -645,6 +658,9 @@ class Parser:
                 if match_obj:
                     v_name = match_obj.group(1)
                     slice_info = match_obj.group(2).split(',')
+                    slice_use_vars = slice_info[:len(slice_info)-1]
+                    slice_use_vars.append(slice_info[-1].split(':')[0])
+                    use_vars = use_vars | set(slice_use_vars)
             else:
                 v_name = '$'
                 match_back = re.match(f'(Backward|CleanGrad)(.+)', match_obj2.group(2))
@@ -686,7 +702,7 @@ class Parser:
                             else:
                                 self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                         else:
-                            var_li = self.var_dict.get(in_v[0], None)
+                            var_li = self.var_ass_dict.get(in_v[0], None)
                             if var_li:
                                 use_vars.add(in_v[0])
                                 if self.graph.nodes[var_li[-1]].branches == in_v[1].branches:
@@ -716,7 +732,7 @@ class Parser:
                 e_node = e_node.pop()
             r_var = e_node.get_vars()[0]
             self.UpdateVarList(r_var, e_node.id)
-            var_li = self.var_dict.get(v_name, None)
+            var_li = self.var_ass_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
                 ass_n = Nd.InstantiationClass(self.node_id, 'Assignment', self.branches, var_li=[v_name, r_var], with_grad=with_grad)
@@ -744,12 +760,17 @@ class Parser:
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
             for v in use_vars:
-                self.UpdateVarList(v, self.node_id)
-            self.graph.InsertEdge(e_node, ass_n)
+                self.UpdateVarList(v, self.node_id, up_use=True)
+            use_li = self.var_use_dict.get(v_name, None)
+            if use_li and self.branches == self.graph.nodes[use_li[-1]].branches:
+                self.graph.InsertEdge(e_node, self.graph.nodes[use_li[-1]])
+                self.graph.InsertEdge(self.graph.nodes[use_li[-1]], ass_n)
+            else:
+                self.graph.InsertEdge(e_node, ass_n)
             self.DealInVar(v_name)
         elif self.state == 'loop' or self.state == 'if_branch':
-            e_node = e_node.pop()
-            self.graph.without_out.add(e_node)
+            for e in e_node:
+                self.graph.without_out.add(e)
         return True
 
     # 自定义算子需要递归使用解析器，所以要使用一些特殊方法
@@ -787,7 +808,7 @@ class Parser:
             return False
 
     def Reset(self):
-        self.var_dict = dict()
+        self.var_ass_dict = dict()
         self.graph = DG.Graph()
         self.node_id = 0
         self.root_id = 0
