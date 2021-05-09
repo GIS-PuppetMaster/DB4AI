@@ -1010,6 +1010,14 @@ class Tanh(Node):
 class Softmax(Node):
     def __init__(self, **kwargs):
         super().__init__(53, **kwargs)
+        self.dim = 0
+
+    def set_dim(self, dim):
+        self.dim = dim
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], self.dim)
 
     @preprocessing
     def run(self, **kwargs):
