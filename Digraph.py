@@ -96,17 +96,17 @@ class Graph:
         dot = Digraph(name="computation graph", format="svg")
         for node in self.nodes:
             node_info = 'id:' + str(node.id) + '\n' + 'type:' + str(node.__class__) + '\n' + 'area:' +str(node.branches)\
-                        + '\n' + 'vars:' + str(node.vars) + '\n' + 'grad:' + str(node.with_grad)
+                        + '\n' + 'vars:' + str(node.vars) + '\n' + 'grad:' + str(node.with_grad) + '\n'
             if isinstance(node, nd.Loop) or isinstance(node, nd.LoopEnd) or isinstance(node, nd.Break):
                 node_info = node_info + 'loop_pair:' + str(node.loop_pair)
-            elif isinstance(node, nd.IfEnd) or isinstance(node, nd.IfBranch):
+            elif isinstance(node, nd.IfBranch):
                 node_info = node_info + 'loop_pair:' + str(node.end_if_pair)
             elif isinstance(node, nd.Zeros) or isinstance(node, nd.Ones) or isinstance(node, nd.Full):
                 node_info = node_info + 'data_shape:' + str(node.data_shape)
             elif isinstance(node, nd.Random):
-                node_info = node_info + 'data_shape:' + str(node.data_shape) + 'boundary:' + str(node.boundary)
+                node_info = node_info + 'data_shape:' + str(node.data_shape) + '\n' + 'boundary:' + str(node.boundary)
             elif isinstance(node, nd.Assignment):
-                node_info = node_info + 'slice:' + str(node._slice) + 'update:' + str(node.update)
+                node_info = node_info + 'slice:' + str(node._slice) + '\n' +'update:' + str(node.update)
             dot.node(name=str(node.id), label=node_info)
         for edge in self.edges:
             if not edge.GetCondition()[1]:
