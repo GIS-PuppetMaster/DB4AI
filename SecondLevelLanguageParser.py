@@ -95,21 +95,21 @@ class Parser:
                 self.current_if_branches.clear()
         elif (self.state == 'loop' or self.state == 'if_branch') and (c_state == 'loop' or c_state == 'if'):
             self.root_id = self.node_id
-            if c_state == 'if':
+            if self.state == 'if_branch':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.oth_branch, self.current_if_branches.copy(),
-                                         self.extra_pop_num])
-                self.current_if_branches.clear()
-                self.extra_pop_num = 0
-            elif c_state == 'loop':
+                                         self.branches.copy(), self.oth_branch, self.extra_pop_num,
+                                         self.current_if_branches.copy(), self.current_break.copy()])
+            elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.loop_id, self.current_break.copy(),
-                                         self.extra_pop_num])
-                self.extra_pop_num = 0
+                                         self.branches.copy(), self.loop_id, self.extra_pop_num])
+            self.extra_pop_num = 0
+            if c_state == 'loop':
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
                 self.current_break.clear()
+            elif c_state == 'if':
+                self.current_if_branches.clear()
             self.state = c_state
             self.out_var = copy.deepcopy(self.var_ass_dict)
             self.loop_or_if_id = self.root_id
@@ -129,12 +129,12 @@ class Parser:
                 self.state = ''
             else:
                 state_li = self.state_stack.pop(-1)
-                self.extra_pop_num = state_li[6]
+                self.extra_pop_num = state_li[5]
                 if state_li[1] == 'if_branch':
-                    self.current_if_branches = state_li[5]
                     self.oth_branch = state_li[4]
+                    self.current_if_branches = state_li[6]
+                    self.current_break = state_li[7]
                 elif state_li[1] == 'loop':
-                    self.current_break = state_li[5]
                     self.loop_id = state_li[4]
                 self.branches = state_li[3]
                 self.out_var = state_li[2]
@@ -847,7 +847,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test/softmax.sql'
+    path = 'test/logistic.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
