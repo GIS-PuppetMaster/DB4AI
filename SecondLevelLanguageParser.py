@@ -29,6 +29,7 @@ class Parser:
         self.branches = list()
         self.current_if_branches = set()
         self.current_break = set()
+        self.break_stack = list()
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.operator = ''
@@ -98,12 +99,13 @@ class Parser:
             if self.state == 'if_branch':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
                                          self.branches.copy(), self.oth_branch, self.extra_pop_num,
-                                         self.current_if_branches.copy(), self.current_break.copy()])
+                                         self.current_if_branches.copy()])
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
                                          self.branches.copy(), self.loop_id, self.extra_pop_num])
             self.extra_pop_num = 0
             if c_state == 'loop':
+                self.break_stack.append(self.current_break.copy())
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
@@ -133,7 +135,6 @@ class Parser:
                 if state_li[1] == 'if_branch':
                     self.oth_branch = state_li[4]
                     self.current_if_branches = state_li[6]
-                    self.current_break = state_li[7]
                 elif state_li[1] == 'loop':
                     self.loop_id = state_li[4]
                 self.branches = state_li[3]
@@ -142,7 +143,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -597,8 +598,10 @@ class Parser:
                 self.StateConvert('end')
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=loop_id)
                 node.loop_pair = self.graph.nodes[loop_id]
-                for b in self.current_break:
-                    b.loop_pair = node
+                if len(self.current_break) != 0:
+                    for b in self.current_break:
+                        b.loop_pair = node
+                    self.current_break = self.break_stack.pop(-1)
                 self.graph.nodes[loop_id].loop_pair = node
                 self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
@@ -847,7 +850,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    path = 'test/logistic.sql'
+    path = 'operators/RBF.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
