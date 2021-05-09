@@ -1019,10 +1019,6 @@ class Softmax(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], self.dim)
 
-    @preprocessing
-    def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], 1)
-
 
 class Sigmod(Node):
     def __init__(self, **kwargs):
