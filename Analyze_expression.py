@@ -794,12 +794,40 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             if isinstance(e.GetStart().slice[p], str):
                                 if not e.GetStart().slice[p].startswith('_') and e.GetStart().slice[p] not in var:
                                     e.GetStart().slice[p] = '__' + str(inner_count) + e.GetStart().slice[p]
+                            if isinstance(e.GetStart().slice[p], slice):
+                                new_start = e.GetStart().slice[p].start
+                                new_stop = e.GetStart().slice[p].stop
+                                new_step = e.GetStart().slice[p].step
+                                if isinstance(e.GetStart().slice[p].start, str):
+                                    if not e.GetStart().slice[p].start.startswith('_') and e.GetStart().slice[p].start not in var:
+                                        new_start = '__' + str(inner_count) + e.GetStart().slice[p].start
+                                if isinstance(e.GetStart().slice[p].stop, str):
+                                    if not e.GetStart().slice[p].stop.startswith('_') and e.GetStart().slice[p].stop not in var:
+                                        new_stop = '__' + str(inner_count) + e.GetStart().slice[p].stop
+                                if isinstance(e.GetStart().slice[p].step, str):
+                                    if not e.GetStart().slice[p].step.startswith('_') and e.GetStart().slice[p].step not in var:
+                                        new_step = '__' + str(inner_count) + e.GetStart().slice[p].step
+                                e.GetStart().slice[p] = slice(new_start, new_stop, new_step)
                 if hasattr(e.GetStart(), 'slice_index'):
                     if e.GetStart().slice_index is not None:
                         for p in range(len(e.GetStart().slice_index)):
                             if isinstance(e.GetStart().slice_index[p], str):
                                 if not e.GetStart().slice_index[p].startswith('_') and e.GetStart().slice_index[p] not in var:
                                     e.GetStart().slice_index[p] = '__' + str(inner_count) + e.GetStart().slice_index[p]
+                            if isinstance(e.GetStart().slice_index[p], slice):
+                                new_start = e.GetStart().slice_index[p].start
+                                new_stop = e.GetStart().slice_index[p].stop
+                                new_step = e.GetStart().slice_index[p].step
+                                if isinstance(e.GetStart().slice_index[p].start, str):
+                                    if not e.GetStart().slice_index[p].start.startswith('_') and e.GetStart().slice_index[p].start not in var:
+                                        new_start = '__' + str(inner_count) + e.GetStart().slice_index[p].start
+                                if isinstance(e.GetStart().slice_index[p].stop, str):
+                                    if not e.GetStart().slice_index[p].stop.startswith('_') and e.GetStart().slice_index[p].stop not in var:
+                                        new_stop = '__' + str(inner_count) + e.GetStart().slice_index[p].stop
+                                if isinstance(e.GetStart().slice_index[p].step, str):
+                                    if not e.GetStart().slice_index[p].step.startswith('_') and e.GetStart().slice_index[p].step not in var:
+                                        new_step = '__' + str(inner_count) + e.GetStart().slice_index[p].step
+                                e.GetStart().slice_index[p] = slice(new_start, new_stop, new_step)
                 if hasattr(e.GetEnd(), 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
@@ -829,12 +857,41 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             if isinstance(e.GetEnd().slice[p], str):
                                 if not e.GetEnd().slice[p].startswith('_') and e.GetEnd().slice[p] not in var:
                                     e.GetEnd().slice[p] = '__' + str(inner_count) + e.GetEnd().slice[p]
+                            if isinstance(e.GetEnd().slice[p], slice):
+                                new_start = e.GetEnd().slice[p].start
+                                new_stop = e.GetEnd().slice[p].stop
+                                new_step = e.GetEnd().slice[p].step
+                                if isinstance(e.GetEnd().slice[p].start, str):
+                                    if not e.GetEnd().slice[p].start.startswith('_') and e.GetEnd().slice[p].start not in var:
+                                        new_start = '__' + str(inner_count) + e.GetEnd().slice[p].start
+                                if isinstance(e.GetEnd().slice[p].stop, str):
+                                    if not e.GetEnd().slice[p].stop.startswith('_') and e.GetEnd().slice[p].stop not in var:
+                                        new_stop = '__' + str(inner_count) + e.GetEnd().slice[p].stop
+                                if isinstance(e.GetEnd().slice[p].step, str):
+                                    if not e.GetEnd().slice[p].step.startswith('_') and e.GetEnd().slice[p].step not in var:
+                                        new_step = '__' + str(inner_count) + e.GetEnd().slice[p].step
+                                e.GetEnd().slice[p] = slice(new_start, new_stop, new_step)
                 if hasattr(e.GetEnd(), 'slice_index'):
                     if e.GetEnd().slice_index is not None:
                         for p in range(len(e.GetEnd().slice_index)):
                             if isinstance(e.GetEnd().slice_index[p], str):
                                 if not e.GetEnd().slice_index[p].startswith('_') and e.GetEnd().slice_index[p] not in var:
                                     e.GetEnd().slice_index[p] = '__' + str(inner_count) + e.GetEnd().slice_index[p]
+                            if isinstance(e.GetEnd().slice_index[p], slice):
+                                new_start = e.GetEnd().slice_index[p].start
+                                new_stop = e.GetEnd().slice_index[p].stop
+                                new_step = e.GetEnd().slice_index[p].step
+                                if isinstance(e.GetEnd().slice_index[p].start, str):
+                                    if not e.GetEnd().slice_index[p].start.startswith('_') and e.GetEnd().slice_index[p].start not in var:
+                                        new_start = '__' + str(inner_count) + e.GetEnd().slice_index[p].start
+                                if isinstance(e.GetEnd().slice_index[p].stop, str):
+                                    if not e.GetEnd().slice_index[p].stop.startswith('_') and e.GetEnd().slice_index[p].stop not in var:
+                                        new_stop = '__' + str(inner_count) + e.GetEnd().slice_index[p].stop
+                                if isinstance(e.GetEnd().slice_index[p].step, str):
+                                    if not e.GetEnd().slice_index[p].step.startswith('_') and e.GetEnd().slice_index[p].step not in var:
+                                        new_step = '__' + str(inner_count) + e.GetEnd().slice_index[p].step
+                                e.GetEnd().slice_index[p] = slice(new_start, new_stop, new_step)
+
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
