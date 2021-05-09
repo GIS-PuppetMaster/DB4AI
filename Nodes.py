@@ -373,6 +373,7 @@ class Break(Node):
         self.loop_pair = None
 
     def next_nodes(self):
+        assert self.loop_pair is not None
         self.executor.finished_loop_id.add(self.loop_id)
         return [self.loop_pair]
 

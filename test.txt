@@ -1,5 +1,7 @@
 create tensor x(1,) from 0
-create tensor y(1,)
-select x as y
-select x as y
-select 1 as x
+create tensor y(1,) from 1
+loop(true){
+    if(y>=x){
+        break
+    }
+}

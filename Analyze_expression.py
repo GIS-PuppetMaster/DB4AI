@@ -48,7 +48,7 @@ class BuildGraph:
         try:
             return self.children[- 1]
         except IndexError:
-            print('无子节点')
+            raise Exception('无子节点')
 
     def get_children(self):
         return self.children
@@ -344,7 +344,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             try:
                 G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
             except AttributeError:
-                print('无子图')
+                raise Exception('无子图')
             current_graph.insert(x, 'Blank', branches, grad=requires_grad)
             new_stack.push(current_graph)
             current_graph = current_graph.get_child()

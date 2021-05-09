@@ -28,9 +28,9 @@ operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_
             # (n_input, n_centers, n_in)
             select REPEAT(UNSQUEEZE(batch_x, 1), 1, n_centers, 1) as B with grad
             # (n_input, n_centers)
-            select EXP(-beta*SQRT(SUM(POW(A-B,2),2))) as C with grad
+            select EXP(0-beta*SQRT(SUM(POW(A-B,2),2))) as C with grad
             select MATMUL(C,w)+b as class_score with grad
-            select -MEAN(batch_y*LOG(class_score)) as loss with grad
+            select 0-MEAN(batch_y*LOG(class_score)) as loss with grad
             select CleanGrad(centers, beta, w, b)
             select Backward(loss, centers, beta, w, b)
             select GRADIENT(centers) as g_centers
@@ -51,7 +51,7 @@ operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_
     select x_shape[0] as n_input
     select REPEAT(centers, n_input, 1, 1) as A
     select REPEAT(UNSQUEEZE(test_x, 1), 1, n_centers, 1) as B
-    select EXP(-beta*SQRT(SUM(POW(A-B,2),2))) as C
+    select EXP(0-beta*SQRT(SUM(POW(A-B,2),2))) as C
     select MATMUL(C,w)+b as pred
     select AUC(test_y, pred) as auc
     select ACC(test_y, pred) as acc

@@ -849,7 +849,7 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    algorithm = 'rbf'
+    algorithm = 'RBF'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
