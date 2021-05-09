@@ -79,7 +79,7 @@ class Node:
         self.release_list = []
         self.in_loop = -1
         self.finished = False
-        self.visited_sequence=[]
+        self.visited_sequence = []
 
     @property
     def default_batch_size(self):
@@ -169,6 +169,7 @@ class CreateTensor(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = None
+
 
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
@@ -885,7 +886,6 @@ class Full(Node):
         self.set_vars(var)
         self.num = eval(num)
 
-
     @preprocessing
     def run(self, **kwargs):
         if isinstance(self.data_shape, str):
@@ -1012,7 +1012,7 @@ class Softmax(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]])
+        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], 1)
 
 
 class Sigmod(Node):
@@ -1155,7 +1155,14 @@ class AUC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        test_y = self.executor.var_dict[self.vars[1]]
+        pred = self.executor.var_dict[self.vars[2]]
+        if len(test_y.shape)==2 and len(pred.shape)==1:
+            pred = torch.unsqueeze(pred,len(pred.shape))
+        if len(torch.unique(self.executor.var_dict[self.vars[1]])) > 2:
+            self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr'))
+        else:
+            self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred))
 
 
 class MSE(Node):
@@ -1173,7 +1180,7 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class REVERSE(Node):
@@ -1219,7 +1226,7 @@ class RECALL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class PRECISION(Node):
@@ -1228,7 +1235,7 @@ class PRECISION(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class Backward(Node):

@@ -872,10 +872,17 @@ if __name__ == '__main__':
         executor.run()
         time_sum += (time()-s)
     print(f'time:{time_sum/repeat} s')
-    print(executor.var_dict['acc'])
-    print(executor.var_dict['auc'])
-    print(executor.var_dict['prec'])
-    print(executor.var_dict['recall'])
-    print(executor.var_dict['mse'])
-    print(executor.var_dict['f1'])
+    acc = executor.var_dict['acc']
+    print(f'acc:{acc}')
+    auc = executor.var_dict['auc']
+    print(f'auc:{auc}')
+    prec = executor.var_dict['prec']
+    print(f'prec:{prec}')
+    recall = executor.var_dict['recall']
+    print(f'recall:{recall}')
+    mse = executor.var_dict['mse']
+    print(f'mse:{mse}')
+    f1= executor.var_dict['f1']
+    print(f'f1:{f1}')
+    print(executor.var_dict['__0pred'])
 

@@ -10,7 +10,7 @@ operator KNN(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
     LOOP(data_input_len){
         select data_input[data_input_index] as data
         select POW(x-data,2) as dis
-        create tensor distance(data_len,) from full((data_len, ), 0)
+        create tensor distance(data_len,) from full((data_len, ), 0.0)
         create tensor i(1,) from 0
         LOOP(data_len){
             create tensor j(1,) from 0
@@ -31,7 +31,7 @@ operator KNN(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
             select classes[yink]+1 as classes[yink]
             select k_iter+1 as k_iter
         }
-        select REVERSE(SORT(classes)) as classes_order
+        select REVERSE(ARGSORT(classes)) as classes_order
         select classes_order[0] as answer[data_input_index]
         select data_input_index+1 as data_input_index
     }
