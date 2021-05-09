@@ -717,7 +717,23 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     for inp in operator_info[1]:
                         if n.vars[v] == inp[0]:
                             n.vars[v] = var[operator_info[1].index(inp)]
-
+                if hasattr(n, 'data_shape'):
+                    pattern = re.compile(r'[(](.*?)[)]', re.S)
+                    data_shape = re.findall(pattern,n.data_shape)[0].split(',')
+                    for p in range(len(data_shape)):
+                        for inp in operator_info[1]:
+                            if data_shape[p] == inp[0]:
+                                data_shape[p] = var[operator_info[1].index(inp)]
+                    str_data_shape = '('
+                    for p in data_shape:
+                        str_data_shape = str_data_shape + p + ','
+                    str_data_shape = str_data_shape[:-1] + ')'
+                    n.data_shape = str_data_shape
+                if hasattr(n, 'data_shape_var'):
+                    for key in list(n.data_shape_var.keys()):
+                        for inp in operator_info[1]:
+                            if key == inp[0]:
+                                n.data_shape_var[var[operator_info[1].index(inp)]] = n.data_shape_var.pop(key)
             if_out_edges = defaultdict(dict)
             for n in range(len(operator_info[2].nodes) - len(operator_info[1])):
                 node = operator_info[2].nodes[len(operator_info[1]) + n]
@@ -926,6 +942,7 @@ if __name__ == '__main__':
     # s = 's = Backward(loss)'
     s = 's = Backward(x,y,loss)'
     s = 's = Softmax(x,1)'
+    s = 's = rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, class_number,learning_rate, batch_size, iter_times)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
