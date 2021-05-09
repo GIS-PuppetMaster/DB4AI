@@ -1,5 +1,4 @@
 IBk
 Logistic
-SVM
 RBF
 softmax_classification

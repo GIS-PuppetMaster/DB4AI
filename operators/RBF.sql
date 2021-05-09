@@ -1,4 +1,5 @@
 operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, n_classes,learning_rate, batch_size, iter_times){
+    # reference: https://github.com/csnstat/rbfn/blob/master/RBFN.py
     select SHAPE(train_x) as x_shape
     select x_shape[0] as n_inputs
     select x_shape[1] as n_in
@@ -28,14 +29,14 @@ operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_
             select REPEAT(UNSQUEEZE(batch_x, 1), 1, n_centers, 1) as B with grad
             # (n_input, n_centers)
             select EXP(-beta*SQRT(SUM(POW(A-B,2),2))) as C with grad
-            select MATMUL(c,w)+b as class_score with grad
+            select MATMUL(C,w)+b as class_score with grad
             select -MEAN(batch_y*LOG(class_score)) as loss with grad
+            select CleanGrad(centers, beta, w, b)
             select Backward(loss, centers, beta, w, b)
             select GRADIENT(centers) as g_centers
             select GRADIENT(beta) as g_beta
             select GRADIENT(w) as g_w
             select GRADIENT(b) as g_b
-            select CleanGrad(centers, beta, w, b)
             update centers-learning_rate*g_centers as centers
             update beta-learning_rate*g_beta as beta
             update w-learning_rate*g_w as w
@@ -51,7 +52,7 @@ operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_
     select REPEAT(centers, n_input, 1, 1) as A
     select REPEAT(UNSQUEEZE(test_x, 1), 1, n_centers, 1) as B
     select EXP(-beta*SQRT(SUM(POW(A-B,2),2))) as C
-    select MATMUL(c,w)+b as pred
+    select MATMUL(C,w)+b as pred
     select AUC(test_y, pred) as auc
     select ACC(test_y, pred) as acc
     select RECALL(test_y, pred) as recall

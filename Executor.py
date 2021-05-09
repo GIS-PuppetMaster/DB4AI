@@ -26,8 +26,9 @@ class Executor:
         # self.parameter_set = set()
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
-        self.graph = deepcopy(graph)
+        self.graph = graph
         # 有错误
+        # self.graph = deepcopy(graph)
         # self.remove_extra_edges()
         self.init_executor()
 
