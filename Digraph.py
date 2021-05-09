@@ -136,6 +136,35 @@ class Graph:
             if with_grad:
                 self.nodes[i].with_grad = with_grad
 
+    def get_state(self):
+        nodes_num = len(self.nodes)
+        nodes_feature_num = 100
+        # 0-无边，1-数据流边，2-控制流+数据流边
+        adj_matrix = np.zeros(shape=(nodes_num, nodes_num))
+        nodes_feature_matrix = np.zeros(shape=(nodes_num, nodes_feature_num))
+        # 填充邻接矩阵
+        for node_id, node in enumerate(self.nodes):
+            assert node.id == node_id
+            for in_edge in node.in_edges:
+                start_node = in_edge.start
+                start_node_id = in_edge.start.id
+                if isinstance(start_node, nd.Loop) or isinstance(start_node, nd.If) or isinstance(start_node, nd.IfBranch) or isinstance(node, nd.LoopEnd) or isinstance(node, nd.IfEnd):
+                    adj_matrix[start_node_id, node_id] = 2
+                else:
+                    adj_matrix[start_node_id, node_id] = 1
+            for out_edge in node.in_edges:
+                end_node = out_edge.end
+                end_node_id = out_edge.end.id
+                if isinstance(node, nd.Loop) or isinstance(node, nd.If) or isinstance(node, nd.IfBranch) or isinstance(end_node, nd.LoopEnd) or isinstance(end_node, nd.IfEnd):
+                    adj_matrix[node_id, end_node_id] = 2
+                else:
+                    adj_matrix[node_id, end_node_id] = 1
+        # 填充特征矩阵
+        # for node_id, node in enumerate(self.nodes):
+        #     if isinstance()
+        #     nodes_feature_matrix[node_id, ...] = []
+        return adj_matrix, nodes_feature_matrix
+
 
 if __name__ == '__main__':
     G = Graph()

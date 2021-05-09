@@ -3,6 +3,7 @@ import torch
 from functools import wraps
 from copy import copy, deepcopy
 import sklearn
+from sklearn import metrics as sk_metrics
 import pickle as pk
 
 
@@ -78,7 +79,7 @@ class Node:
         self.release_list = []
         self.in_loop = -1
         self.finished = False
-        self.visited_sequence=[]
+        self.visited_sequence = []
 
     @property
     def default_batch_size(self):
@@ -168,6 +169,7 @@ class CreateTensor(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = None
+
 
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
@@ -318,6 +320,7 @@ class Loop(Node):
         if self.dead_cycle <= self.times:
             # 找到对应的Loop_End
             self.executor.finished_loop_id.add(self.loop_id)
+            self.loop_pair.return_next = True
             return [self.loop_pair]
         else:
             return end_nodes
@@ -328,6 +331,7 @@ class LoopEnd(Node):
         super().__init__(6, **kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
+        self.return_next = False
 
     @preprocessing
     def run(self, **kwargs):
@@ -345,6 +349,8 @@ class LoopEnd(Node):
             if node in visited:
                 visited.remove(node)
             node.finished = False
+            if isinstance(node, LoopEnd):
+                node.return_next = False
 
     def next_nodes(self):
         assert self.loop_pair is not None
@@ -390,6 +396,12 @@ class If(Node):
 class IfBranch(Node):
     def __init__(self, **kwargs):
         super().__init__(9, **kwargs)
+        self.end_if_pair = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        assert self.end_if_pair is not None
+        self.end_if_pair.selected_branch = self.id
 
     def next_nodes(self):
         if self.out_edges[0].condition is None:
@@ -409,15 +421,19 @@ class IfBranch(Node):
 class IfEnd(Node):
     def __init__(self, **kwargs):
         super().__init__(10, **kwargs)
+        self.selected_branch = None
 
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
         super().__init__(11, **kwargs)
         self.vars = var_li
+        self.update = False
         self._slice = None
         if 'slice' in kwargs.keys():
             self.slice = kwargs['slice']
+        if 'update' in kwargs.keys():
+            self.update = True
 
     @property
     def slice(self):
@@ -433,10 +449,13 @@ class Assignment(Node):
     def run(self, **kwargs):
         right = self.executor.var_dict[self.vars[1]]
         left = self.executor.var_dict[self.vars[0]]
-        if isinstance(right, torch.Tensor):
+        if right is None or isinstance(right, torch.Tensor):
             if left is None or isinstance(left, torch.Tensor):
                 if self.slice is None:
-                    self.executor.var_dict[self.vars[0]] = right
+                    if self.update:
+                        self.executor.var_dict[self.vars[0]].data = right.data
+                    else:
+                        self.executor.var_dict[self.vars[0]] = right
                 else:
                     s = copy(self.slice)
                     for idx in range(len(s)):
@@ -444,8 +463,11 @@ class Assignment(Node):
                             s[idx] = int(self.executor.var_dict[s[idx]])
                     # if self.vars[0] not in self.executor.var_dict:
                     #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-                    self.executor.var_dict[self.vars[0]].__setitem__(s, right)
-
+                    s = tuple(s)
+                    if self.update:
+                        self.executor.var_dict[self.vars[0]].data.__setitem__(s, right.data)
+                    else:
+                        self.executor.var_dict[self.vars[0]].__setitem__(s, right)
             else:
                 if self.slice is None:
                     # TODO: transpose to madlib matrix then assignment
@@ -466,7 +488,7 @@ class Assignment(Node):
                 # TODO: madlib_to_tensor，赋值
                 pass
 
-        if self.with_grad and not self.executor.var_dict[self.vars[0]].requires_grad:
+        if self.with_grad and self.executor.var_dict[self.vars[0]] is not None and not self.executor.var_dict[self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
 
 
@@ -505,8 +527,7 @@ class Mul(Node):
     @preprocessing
     def run(self, **kwargs):
         if self.physic_algorithm != 'madlib':
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
-                self.vars[2]]
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[self.vars[2]]
         else:
             # TODO
             pass
@@ -760,6 +781,10 @@ class EXP(Node):
     def __init__(self, **kwargs):
         super().__init__(38, **kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.exp(self.executor.var_dict[self.vars[1]])
+
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
@@ -778,6 +803,7 @@ class Slice(Node):
         for idx in range(len(s)):
             if isinstance(s[idx], str):
                 s[idx] = int(self.executor.var_dict[s[idx]])
+        s = tuple(s)
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(s)
 
 
@@ -858,7 +884,7 @@ class Full(Node):
         self.data_shape_var = {}
         # TODO: infer data_shape
         self.set_vars(var)
-        self.num = num
+        self.num = eval(num)
 
     @preprocessing
     def run(self, **kwargs):
@@ -991,6 +1017,10 @@ class Softmax(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], self.dim)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], 1)
 
 
 class Sigmod(Node):
@@ -1133,7 +1163,14 @@ class AUC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.roc_auc_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        test_y = self.executor.var_dict[self.vars[1]]
+        pred = self.executor.var_dict[self.vars[2]]
+        if len(test_y.shape)==2 and len(pred.shape)==1:
+            pred = torch.unsqueeze(pred,len(pred.shape))
+        if len(torch.unique(self.executor.var_dict[self.vars[1]])) > 2:
+            self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr'))
+        else:
+            self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred))
 
 
 class MSE(Node):
@@ -1142,7 +1179,7 @@ class MSE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class F1(Node):
@@ -1151,22 +1188,35 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class REVERSE(Node):
     def __init__(self, **kwargs):
         super().__init__(67, **kwargs)
+        # TODO: dims
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.flip(self.executor.var_dict[self.vars[1]], (0,))
 
 
 class ARGSORT(Node):
     def __init__(self, **kwargs):
         super().__init__(68, **kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.argsort(self.executor.var_dict[self.vars[1]])
+
 
 class SORT(Node):
     def __init__(self, **kwargs):
         super().__init__(69, **kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.executor.var_dict[self.vars[0]] = torch.sort(self.executor.var_dict[self.vars[1]])[0]
 
 
 class ACC(Node):
@@ -1175,7 +1225,7 @@ class ACC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class RECALL(Node):
@@ -1184,7 +1234,7 @@ class RECALL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class PRECISION(Node):
@@ -1193,7 +1243,7 @@ class PRECISION(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
 
 
 class Backward(Node):
@@ -1244,7 +1294,9 @@ class CleanGrad(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        pass
+        for name in self.vars:
+            if self.executor.var_dict[name].grad is not None:
+                self.executor.var_dict[name].grad.data.zero_()
 
 
 def shallow_copy(fun):

@@ -320,7 +320,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     flag = 1
                 if e.GetStart() == parent.keynode and e.GetEnd() == current_graph.keynode:
                     flag = 1
-            if flag == 0 and current_graph.keynode != parent.keynode and not isinstance(parent.keynode, nd.Blank)\
+            if flag == 0 and current_graph.keynode != parent.keynode and not isinstance(parent.keynode, nd.Blank) \
                     and parent.keynode in G.without_out:
                 G.InsertEdge(current_graph.keynode, parent.keynode)
             current_graph = parent
@@ -753,7 +753,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetStart().data_shape)[0].split(',')
                     for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var:
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var and data_shape[p]!='':
                             data_shape[p] = '__' + str(inner_count) + data_shape[p]
                     str_data_shape = '('
                     for p in data_shape:
@@ -788,7 +788,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
                     data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
                     for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var:
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var and data_shape[p]!='':
                             data_shape[p] = '__' + str(inner_count) + data_shape[p]
                     str_data_shape = '('
                     for p in data_shape:
@@ -885,7 +885,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 对算子节点添加输入输出信息
     if isinstance(top_node, nd.Val) or top_node.__class__.__name__ in all_operator:
-        if not isinstance(top_node, nd.Backward) and not isinstance(top_node, nd.Assignment):
+        if not isinstance(top_node, nd.Backward) and not isinstance(top_node, nd.Assignment) and not isinstance(top_node, nd.CleanGrad):
             top_node.set_vars('_' + str(top_node.id))
     for e in G.edges:
         if isinstance(e.GetStart(), nd.Val) or e.GetStart().__class__.__name__ in all_operator:
@@ -900,7 +900,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    G.Show()
+    # G.Show()
     return G.GetSet(), vallist, inner_count
 
 

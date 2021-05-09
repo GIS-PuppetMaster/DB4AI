@@ -26,7 +26,9 @@ class Executor:
         # self.parameter_set = set()
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
-        self.graph = deepcopy(graph)
+        self.graph = graph
+        # 有错误
+        # self.graph = deepcopy(graph)
         # self.remove_extra_edges()
         self.init_executor()
 
@@ -75,21 +77,21 @@ class Executor:
 
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
-        if isinstance(current_node, Loop):
-            if 'loop' not in kwargs['info'].keys():
-                kwargs['info']['loop'] = {}
-            loop_info = kwargs['info']['loop']
-            loop_info[current_node.loop_id] = current_node
-        elif isinstance(current_node, LoopEnd):
-            loop = kwargs['info']['loop'][current_node.loop_id]
-            current_node.loop_pair = loop
-            loop.loop_pair = current_node
-            if 'break' in kwargs['info']:
-                kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
-        elif isinstance(current_node, Break):
-            if 'break' not in kwargs['info'].keys():
-                kwargs['info']['break'] = {}
-            kwargs['info']['break'][current_node.loop_id] = current_node
+        # if isinstance(current_node, Loop):
+        #     if 'loop' not in kwargs['info'].keys():
+        #         kwargs['info']['loop'] = {}
+        #     loop_info = kwargs['info']['loop']
+        #     loop_info[current_node.loop_id] = current_node
+        # elif isinstance(current_node, LoopEnd):
+        #     loop = kwargs['info']['loop'][current_node.loop_id]
+        #     current_node.loop_pair = loop
+        #     loop.loop_pair = current_node
+        #     if 'break' in kwargs['info']:
+        #         kwargs['info']['break'][current_node.loop_id].loop_pair = current_node
+        # elif isinstance(current_node, Break):
+        #     if 'break' not in kwargs['info'].keys():
+        #         kwargs['info']['break'] = {}
+        #     kwargs['info']['break'][current_node.loop_id] = current_node
         current_node.fathers = list(set([edge.start for edge in current_node.in_edges]))
         current_node.sons = list(set([edge.end for edge in current_node.out_edges]))
         current_node.branches_set = set(current_node.branches)
@@ -136,25 +138,32 @@ class Executor:
     def execute(self, current_node, **kwargs):
         visited = kwargs['visited']
         # 确保父节点都执行完了再执行他
-        if not isinstance(current_node, IfEnd) and not isinstance(current_node, LoopEnd):
+        if isinstance(current_node, LoopEnd) and current_node.return_next:
+            pass
+        else:
             for father in current_node.fathers:
                 if not father.finished and not isinstance(father, LoopEnd):
-                    return False
+                    if not isinstance(current_node, IfEnd):
+                        return False
+                    elif father.branches[-1] == current_node.selected_branch:
+                        return False
+
         current_node.run(visited=visited, executor=self)
-        # TODO: 对requires_grad对象的回收
-        for var_name in current_node.release_list:
-            if not self.var_dict[var_name].requires_grad:
-                if current_node.in_loop == -1 or '@' in var_name:
-                    self.var_dict.pop(var_name)
-                else:
-                    # loop结束后再回收
-                    self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
-        # for var_name in list(self.var_dict.keys()):
-        #     if var_name not in self.last_use.keys():
+        print(f'{current_node.id}')
+        # # TODO: 对requires_grad对象的回收
+        # for var_name in current_node.release_list:
+        #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
+        #         if current_node.in_loop == -1 or re.match(r'^_[^_]+',var_name) is None:
+        #             self.var_dict.pop(var_name)
+        #         else:
+        #             # loop结束后再回收
+        #             self.wait_to_be_release_after_loop[current_node.in_loop].add(var_name)
+        # # for var_name in list(self.var_dict.keys()):
+        # #     if var_name not in self.last_use.keys():
+        # #         self.var_dict.pop(var_name)
+        # if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
+        #     for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
         #         self.var_dict.pop(var_name)
-        if isinstance(current_node, LoopEnd) and current_node.loop_id in self.finished_loop_id:
-            for var_name in self.wait_to_be_release_after_loop[current_node.loop_id]:
-                self.var_dict.pop(var_name)
         current_node.finished = True
         return True
 

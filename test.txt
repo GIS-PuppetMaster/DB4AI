@@ -1,6 +1,5 @@
-create tensor x(100,3)
-select SHAPE(x) as sx
-select sx[0] as record_num
-select sx[1] as feature_num
-create tensor tmp(1,) from 2
-create tensor w(feature_num,tmp) from RANDOM((feature_num,tmp),(0,1)) with grad
+create tensor x(1,) from 0
+create tensor y(1,)
+select x as y
+select x as y
+select 1 as x
