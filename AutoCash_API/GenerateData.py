@@ -2,7 +2,6 @@ import os
 import Details
 import time
 import Evaluation
-import weka.core.jvm as jvm
 import math
 ##分配算法
 def Allocationalgorithm(time_limit,evaluation_indicator):

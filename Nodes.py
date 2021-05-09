@@ -32,6 +32,25 @@ def dump_tensor(tensors: dict, path: str):
         pk.dump(tensors, f)
 
 
+def fill_slice_var(slice_index, executor):
+    s = copy(slice_index)
+    for idx in range(len(s)):
+        if isinstance(s[idx], str):
+            s[idx] = int(executor.var_dict[s[idx]])
+        elif isinstance(s[idx], slice):
+            start = s[idx].start
+            step = s[idx].step
+            stop = s[idx].stop
+            if isinstance(s[idx].start, str):
+                start = int(executor.var_dict[s[idx].start])
+            if isinstance(s[idx].step, str):
+                step = int(executor.var_dict[s[idx].step])
+            if isinstance(s[idx].stop, str):
+                stop = int(executor.var_dict[s[idx].stop])
+            s[idx] = slice(start, stop, step)
+    return tuple(s)
+
+
 def load_tensor(path):
     with open(path, 'rb') as f:
         return pk.load(f)
@@ -458,13 +477,9 @@ class Assignment(Node):
                     else:
                         self.executor.var_dict[self.vars[0]] = right
                 else:
-                    s = copy(self.slice)
-                    for idx in range(len(s)):
-                        if isinstance(s[idx], str):
-                            s[idx] = int(self.executor.var_dict[s[idx]])
+                    s = fill_slice_var(self.slice, self.executor)
                     # if self.vars[0] not in self.executor.var_dict:
                     #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-                    s = tuple(s)
                     if self.update:
                         self.executor.var_dict[self.vars[0]].data.__setitem__(s, right.data)
                     else:
@@ -795,16 +810,13 @@ class Slice(Node):
         self.slice_index = None
 
     def set_slice(self, slice_info):
+        self.slice_info = slice_info
         total_slice = parse_slice(slice_info)
         self.slice_index = total_slice
 
     @preprocessing
     def run(self, **kwargs):
-        s = copy(self.slice_index)
-        for idx in range(len(s)):
-            if isinstance(s[idx], str):
-                s[idx] = int(self.executor.var_dict[s[idx]])
-        s = tuple(s)
+        s = fill_slice_var(self.slice_index, self.executor)
         self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(s)
 
 
@@ -994,7 +1006,7 @@ class SUM(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.SUM(self.executor.var_dict[self.vars[1]], self.axis)
+        self.executor.var_dict[self.vars[0]] = torch.sum(self.executor.var_dict[self.vars[1]], self.axis)
 
 
 class Relu(Node):
@@ -1162,8 +1174,8 @@ class AUC(Node):
     def run(self, **kwargs):
         test_y = self.executor.var_dict[self.vars[1]]
         pred = self.executor.var_dict[self.vars[2]]
-        if len(test_y.shape)==2 and len(pred.shape)==1:
-            pred = torch.unsqueeze(pred,len(pred.shape))
+        if len(test_y.shape) == 2 and len(pred.shape) == 1:
+            pred = torch.unsqueeze(pred, len(pred.shape))
         if len(torch.unique(self.executor.var_dict[self.vars[1]])) > 2:
             self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr'))
         else:
@@ -1268,8 +1280,7 @@ class REPEAT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO:  待补充
-        pass
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].repeat(self.executor.var_dict[self.vars[2]],self.executor.var_dict[self.vars[3]],self.executor.var_dict[self.vars[4]])
 
 
 class UNSQUEEZE(Node):

@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 from Executor import Executor
+
 global inner_var_count
 
 
@@ -661,7 +662,7 @@ class Parser:
                 if match_obj:
                     v_name = match_obj.group(1)
                     slice_info = match_obj.group(2).split(',')
-                    slice_use_vars = slice_info[:len(slice_info)-1]
+                    slice_use_vars = slice_info[:len(slice_info) - 1]
                     slice_use_vars.append(slice_info[-1].split(':')[0])
                     use_vars = use_vars | set(slice_use_vars)
             else:
@@ -673,7 +674,7 @@ class Parser:
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
                 for v_i in var_info:
-                    v_i = re.sub('[ \t]+','',v_i)
+                    v_i = re.sub('[ \t]+', '', v_i)
                     as_obj = re.search('(.+?)AS|as(.+?)', v_i)
                     if as_obj:
                         as_replace[as_obj.group(2)] = as_obj.group(1)
@@ -850,7 +851,8 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    algorithm = 'softmax'
+
+    algorithm = 'rbf'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
@@ -871,8 +873,8 @@ if __name__ == '__main__':
         executor = Executor(result)
         s = time()
         executor.run()
-        time_sum += (time()-s)
-    print(f'time:{time_sum/repeat} s')
+        time_sum += (time() - s)
+    print(f'time:{time_sum / repeat} s')
     acc = executor.var_dict['acc']
     print(f'acc:{acc}')
     auc = executor.var_dict['auc']
@@ -883,7 +885,6 @@ if __name__ == '__main__':
     print(f'recall:{recall}')
     mse = executor.var_dict['mse']
     print(f'mse:{mse}')
-    f1= executor.var_dict['f1']
+    f1 = executor.var_dict['f1']
     print(f'f1:{f1}')
     print(executor.var_dict['__0pred'])
-

@@ -1,6 +1,5 @@
 from sklearn.ensemble import RandomForestClassifier
 import time
-from imblearn.over_sampling import SMOTE
 import numpy as np
 
 
@@ -14,7 +13,6 @@ def try_clfs(X_train,FeatureList,data_file):
     X_data = np.loadtxt(data_file, delimiter=',', usecols=tuple(featurelist))
     Y_data = np.loadtxt(data_file, delimiter=',', usecols=featureLength, dtype=str)
 
-    smo = SMOTE(k_neighbors=1)
 
     clf = RandomForestClassifier()
     t0 = time.time()
