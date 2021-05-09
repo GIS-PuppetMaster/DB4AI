@@ -1,4 +1,4 @@
-operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, n_classes,learning_rate, batch_size, iter_times){
+    operator rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, n_classes,learning_rate, batch_size, iter_times){
     # reference: https://github.com/csnstat/rbfn/blob/master/RBFN.py
     select SHAPE(train_x) as x_shape
     select x_shape[0] as n_inputs

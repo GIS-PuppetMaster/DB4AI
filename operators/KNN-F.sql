@@ -1,4 +1,4 @@
-operator KNNI(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
+operator KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
     select MAX(y)+1 as class_number
     select SHAPE(data_input) as data_input_shape
     select data_input_shape[0] as data_input_len
@@ -20,7 +20,7 @@ operator KNNI(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
                 select j+1 as j
             }
             select SQRT(s) as distance[i]
-            select 1/distance[i] as weight[i]
+            select 1-distance[i] as weight[i]
             select i+1 as i
         }
         select ARGSORT(distance) as index_order

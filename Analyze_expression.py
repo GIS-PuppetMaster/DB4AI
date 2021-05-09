@@ -46,7 +46,7 @@ class BuildGraph:
 
     def get_child(self):
         try:
-            return self.children[- 1]
+            return self.children[-1]
         except IndexError:
             print('无子节点')
 
@@ -690,8 +690,79 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         operator_info = t.get(j)
                     break
             # operator_info[2].Show()
+            formal_param = []
+            for o in operator_info[1]:
+                formal_param.append(o[0])
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
+            for node in operator_info[2].nodes:
+                for t in range(len(node.vars)):
+                    if not node.vars[t].startswith('_') and node.vars[t] not in formal_param:
+                        node.vars[t] = '__' + str(inner_count) + node.vars[t]
+                if hasattr(node, 'data_shape'):
+                    pattern = re.compile(r'[(](.*?)[)]', re.S)
+                    data_shape = re.findall(pattern, node.data_shape)[0].split(',')
+                    for p in range(len(data_shape)):
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p]!='':
+                            data_shape[p] = '__' + str(inner_count) + data_shape[p]
+                    str_data_shape = '('
+                    for p in data_shape:
+                        str_data_shape = str_data_shape + p + ','
+                    str_data_shape = str_data_shape[:-1] + ')'
+                    node.data_shape = str_data_shape
+                if hasattr(node, 'data_shape_var'):
+                    for key in list(node.data_shape_var.keys()):
+                        if not key.startswith('_') and key not in formal_param:
+                            node.data_shape_var['__' + str(inner_count) + key] = node.data_shape_var.pop(key)
+                if hasattr(node, 'boundary_var'):
+                    for key in list(node.boundary_var.keys()):
+                        if not key.startswith('_') and key not in formal_param:
+                            node.boundary_var['__' + str(inner_count) + key] = node.boundary_var.pop(key)
+                if hasattr(node, 'dead_cycle'):
+                    if isinstance(node.dead_cycle, str):
+                        if not node.dead_cycle.startswith('_') and node.dead_cycle not in formal_param:
+                            node.dead_cycle = '__' + str(inner_count) + node.dead_cycle
+                if hasattr(node, '_slice'):
+                    if node.slice is not None:
+                        for p in range(len(node.slice)):
+                            if isinstance(node.slice[p], str):
+                                if not node.slice[p].startswith('_') and node.slice[p] not in formal_param:
+                                    node.slice[p] = '__' + str(inner_count) + node.slice[p]
+                            if isinstance(node.slice[p], slice):
+                                new_start = node.slice[p].start
+                                new_stop = node.slice[p].stop
+                                new_step = node.slice[p].step
+                                if isinstance(node.slice[p].start, str):
+                                    if not node.slice[p].start.startswith('_') and node.slice[p].start not in formal_param:
+                                        new_start = '__' + str(inner_count) + node.slice[p].start
+                                if isinstance(node.slice[p].stop, str):
+                                    if not node.slice[p].stop.startswith('_') and node.slice[p].stop not in formal_param:
+                                        new_stop = '__' + str(inner_count) + node.slice[p].stop
+                                if isinstance(node.slice[p].step, str):
+                                    if not node.slice[p].step.startswith('_') and node.slice[p].step not in formal_param:
+                                        new_step = '__' + str(inner_count) + node.slice[p].step
+                                node.slice[p] = slice(new_start, new_stop, new_step)
+                if hasattr(node, 'slice_index'):
+                    if node.slice_index is not None:
+                        for p in range(len(node.slice_index)):
+                            if isinstance(node.slice_index[p], str):
+                                if not node.slice_index[p].startswith('_') and node.slice_index[p] not in formal_param:
+                                    node.slice_index[p] = '__' + str(inner_count) + node.slice_index[p]
+                            if isinstance(node.slice_index[p], slice):
+                                new_start = node.slice_index[p].start
+                                new_stop = node.slice_index[p].stop
+                                new_step = node.slice_index[p].step
+                                if isinstance(node.slice_index[p].start, str):
+                                    if not node.slice_index[p].start.startswith('_') and node.slice_index[p].start not in formal_param:
+                                        new_start = '__' + str(inner_count) + node.slice_index[p].start
+                                if isinstance(node.slice_index[p].stop, str):
+                                    if not node.slice_index[p].stop.startswith('_') and node.slice_index[p].stop not in formal_param:
+                                        new_stop = '__' + str(inner_count) + node.slice_index[p].stop
+                                if isinstance(node.slice_index[p].step, str):
+                                    if not node.slice_index[p].step.startswith('_') and node.slice_index[p].step not in formal_param:
+                                        new_step = '__' + str(inner_count) + node.slice_index[p].step
+                                node.slice_index[p] = slice(new_start, new_stop, new_step)
             # 预备topnode
+            # operator_info[2].Show()
             G.without_in = G.without_in | operator_info[2].without_in
             G.without_out = G.without_out | operator_info[2].without_out
             parent = new_stack.pop()
@@ -754,144 +825,12 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             if in_edge.GetStart() == input[1]:
                                 e.GetEnd().in_edges.remove(in_edge)
                 for t in range(len(e.GetStart().vars)):
-                    if not e.GetStart().vars[t].startswith('_') and e.GetStart().vars[t] not in var:
-                        e.GetStart().vars[t] = '__' + str(inner_count) + e.GetStart().vars[t]
                     if isinstance(e.GetStart(), nd.Val) and not e.GetStart().vars[t].startswith('__'):
                         old_var = e.GetStart().vars[t]
                         e.GetStart().vars[t] = '__' + e.GetStart().vars[t][1:]
                         for tt in range(len(e.GetEnd().vars)):
                             if e.GetEnd().vars[tt] == old_var:
                                 e.GetEnd().vars[tt] = '__' + e.GetEnd().vars[tt][1:]
-                for t in range(len(e.GetEnd().vars)):
-                    if not e.GetEnd().vars[t].startswith('_') and e.GetEnd().vars[t] not in var:
-                        e.GetEnd().vars[t] = '__' + str(inner_count) + e.GetEnd().vars[t]
-                if hasattr(e.GetStart(), 'data_shape'):
-                    pattern = re.compile(r'[(](.*?)[)]', re.S)
-                    data_shape = re.findall(pattern, e.GetStart().data_shape)[0].split(',')
-                    for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var and data_shape[p]!='':
-                            data_shape[p] = '__' + str(inner_count) + data_shape[p]
-                    str_data_shape = '('
-                    for p in data_shape:
-                        str_data_shape = str_data_shape + p + ','
-                    str_data_shape = str_data_shape[:-1] + ')'
-                    e.GetStart().data_shape = str_data_shape
-                if hasattr(e.GetStart(), 'data_shape_var'):
-                    for key in list(e.GetStart().data_shape_var.keys()):
-                        if not key.startswith('_') and key not in var:
-                            e.GetStart().data_shape_var['__' + str(inner_count) + key] = e.GetStart().data_shape_var.pop(key)
-                if hasattr(e.GetStart(), 'boundary_var'):
-                    for key in list(e.GetStart().boundary_var.keys()):
-                        if not key.startswith('_') and key not in var:
-                            e.GetStart().boundary_var['__' + str(inner_count) + key] = e.GetStart().boundary_var.pop(key)
-                if hasattr(e.GetStart(), 'dead_cycle'):
-                    if isinstance(e.GetStart().dead_cycle, str):
-                        if not e.GetStart().dead_cycle.startswith('_') and e.GetStart().dead_cycle not in var:
-                            e.GetStart().dead_cycle = '__' + str(inner_count) + e.GetStart().dead_cycle
-                if hasattr(e.GetStart(), '_slice'):
-                    if e.GetStart().slice is not None:
-                        for p in range(len(e.GetStart().slice)):
-                            if isinstance(e.GetStart().slice[p], str):
-                                if not e.GetStart().slice[p].startswith('_') and e.GetStart().slice[p] not in var:
-                                    e.GetStart().slice[p] = '__' + str(inner_count) + e.GetStart().slice[p]
-                            if isinstance(e.GetStart().slice[p], slice):
-                                new_start = e.GetStart().slice[p].start
-                                new_stop = e.GetStart().slice[p].stop
-                                new_step = e.GetStart().slice[p].step
-                                if isinstance(e.GetStart().slice[p].start, str):
-                                    if not e.GetStart().slice[p].start.startswith('_') and e.GetStart().slice[p].start not in var:
-                                        new_start = '__' + str(inner_count) + e.GetStart().slice[p].start
-                                if isinstance(e.GetStart().slice[p].stop, str):
-                                    if not e.GetStart().slice[p].stop.startswith('_') and e.GetStart().slice[p].stop not in var:
-                                        new_stop = '__' + str(inner_count) + e.GetStart().slice[p].stop
-                                if isinstance(e.GetStart().slice[p].step, str):
-                                    if not e.GetStart().slice[p].step.startswith('_') and e.GetStart().slice[p].step not in var:
-                                        new_step = '__' + str(inner_count) + e.GetStart().slice[p].step
-                                e.GetStart().slice[p] = slice(new_start, new_stop, new_step)
-                if hasattr(e.GetStart(), 'slice_index'):
-                    if e.GetStart().slice_index is not None:
-                        for p in range(len(e.GetStart().slice_index)):
-                            if isinstance(e.GetStart().slice_index[p], str):
-                                if not e.GetStart().slice_index[p].startswith('_') and e.GetStart().slice_index[p] not in var:
-                                    e.GetStart().slice_index[p] = '__' + str(inner_count) + e.GetStart().slice_index[p]
-                            if isinstance(e.GetStart().slice_index[p], slice):
-                                new_start = e.GetStart().slice_index[p].start
-                                new_stop = e.GetStart().slice_index[p].stop
-                                new_step = e.GetStart().slice_index[p].step
-                                if isinstance(e.GetStart().slice_index[p].start, str):
-                                    if not e.GetStart().slice_index[p].start.startswith('_') and e.GetStart().slice_index[p].start not in var:
-                                        new_start = '__' + str(inner_count) + e.GetStart().slice_index[p].start
-                                if isinstance(e.GetStart().slice_index[p].stop, str):
-                                    if not e.GetStart().slice_index[p].stop.startswith('_') and e.GetStart().slice_index[p].stop not in var:
-                                        new_stop = '__' + str(inner_count) + e.GetStart().slice_index[p].stop
-                                if isinstance(e.GetStart().slice_index[p].step, str):
-                                    if not e.GetStart().slice_index[p].step.startswith('_') and e.GetStart().slice_index[p].step not in var:
-                                        new_step = '__' + str(inner_count) + e.GetStart().slice_index[p].step
-                                e.GetStart().slice_index[p] = slice(new_start, new_stop, new_step)
-                if hasattr(e.GetEnd(), 'data_shape'):
-                    pattern = re.compile(r'[(](.*?)[)]', re.S)
-                    data_shape = re.findall(pattern, e.GetEnd().data_shape)[0].split(',')
-                    for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in var and data_shape[p]!='':
-                            data_shape[p] = '__' + str(inner_count) + data_shape[p]
-                    str_data_shape = '('
-                    for p in data_shape:
-                        str_data_shape = str_data_shape + p + ','
-                    str_data_shape = str_data_shape[:-1] + ')'
-                    e.GetEnd().data_shape = str_data_shape
-                if hasattr(e.GetEnd(), 'data_shape_var'):
-                    for key in list(e.GetEnd().data_shape_var.keys()):
-                        if not key.startswith('_') and key not in var:
-                            e.GetEnd().data_shape_var['__' + str(inner_count) + key] = e.GetEnd().data_shape_var.pop(key)
-                if hasattr(e.GetEnd(), 'boundary_var'):
-                    for key in list(e.GetEnd().boundary_var.keys()):
-                        if not key.startswith('_') and key not in var:
-                            e.GetEnd().boundary_var['__' + str(inner_count) + key] = e.GetEnd().boundary_var.pop(key)
-                if hasattr(e.GetEnd(), 'dead_cycle'):
-                    if isinstance(e.GetEnd().dead_cycle, str):
-                        if not e.GetEnd().dead_cycle.startswith('_') and e.GetEnd().dead_cycle not in var:
-                            e.GetEnd().dead_cycle = '__' + str(inner_count) + e.GetEnd().dead_cycle
-                if hasattr(e.GetEnd(), '_slice'):
-                    if e.GetEnd().slice is not None:
-                        for p in range(len(e.GetEnd().slice)):
-                            if isinstance(e.GetEnd().slice[p], str):
-                                if not e.GetEnd().slice[p].startswith('_') and e.GetEnd().slice[p] not in var:
-                                    e.GetEnd().slice[p] = '__' + str(inner_count) + e.GetEnd().slice[p]
-                            if isinstance(e.GetEnd().slice[p], slice):
-                                new_start = e.GetEnd().slice[p].start
-                                new_stop = e.GetEnd().slice[p].stop
-                                new_step = e.GetEnd().slice[p].step
-                                if isinstance(e.GetEnd().slice[p].start, str):
-                                    if not e.GetEnd().slice[p].start.startswith('_') and e.GetEnd().slice[p].start not in var:
-                                        new_start = '__' + str(inner_count) + e.GetEnd().slice[p].start
-                                if isinstance(e.GetEnd().slice[p].stop, str):
-                                    if not e.GetEnd().slice[p].stop.startswith('_') and e.GetEnd().slice[p].stop not in var:
-                                        new_stop = '__' + str(inner_count) + e.GetEnd().slice[p].stop
-                                if isinstance(e.GetEnd().slice[p].step, str):
-                                    if not e.GetEnd().slice[p].step.startswith('_') and e.GetEnd().slice[p].step not in var:
-                                        new_step = '__' + str(inner_count) + e.GetEnd().slice[p].step
-                                e.GetEnd().slice[p] = slice(new_start, new_stop, new_step)
-                if hasattr(e.GetEnd(), 'slice_index'):
-                    if e.GetEnd().slice_index is not None:
-                        for p in range(len(e.GetEnd().slice_index)):
-                            if isinstance(e.GetEnd().slice_index[p], str):
-                                if not e.GetEnd().slice_index[p].startswith('_') and e.GetEnd().slice_index[p] not in var:
-                                    e.GetEnd().slice_index[p] = '__' + str(inner_count) + e.GetEnd().slice_index[p]
-                            if isinstance(e.GetEnd().slice_index[p], slice):
-                                new_start = e.GetEnd().slice_index[p].start
-                                new_stop = e.GetEnd().slice_index[p].stop
-                                new_step = e.GetEnd().slice_index[p].step
-                                if isinstance(e.GetEnd().slice_index[p].start, str):
-                                    if not e.GetEnd().slice_index[p].start.startswith('_') and e.GetEnd().slice_index[p].start not in var:
-                                        new_start = '__' + str(inner_count) + e.GetEnd().slice_index[p].start
-                                if isinstance(e.GetEnd().slice_index[p].stop, str):
-                                    if not e.GetEnd().slice_index[p].stop.startswith('_') and e.GetEnd().slice_index[p].stop not in var:
-                                        new_stop = '__' + str(inner_count) + e.GetEnd().slice_index[p].stop
-                                if isinstance(e.GetEnd().slice_index[p].step, str):
-                                    if not e.GetEnd().slice_index[p].step.startswith('_') and e.GetEnd().slice_index[p].step not in var:
-                                        new_step = '__' + str(inner_count) + e.GetEnd().slice_index[p].step
-                                e.GetEnd().slice_index[p] = slice(new_start, new_stop, new_step)
-
                 # 若不是形参，则添加到图G中
                 if flag == 0:
                     G.edges.append(e)
@@ -999,7 +938,10 @@ if __name__ == '__main__':
     # s = 's = Backward(loss)'
     s = 's = Backward(x,y,loss)'
     s = 's = Softmax(x,1)'
-    s = 's = rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, class_number,learning_rate, batch_size, iter_times)'
+    s = 's = rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,centers, class_number,learning_rate, batch_size, iter_times)'
+    s = 's = EXP((-beta)*SQRT(SUM(POW(A-B,2),2)))'
+    s = 's = KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k)'
+    # s = 's = -3'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
