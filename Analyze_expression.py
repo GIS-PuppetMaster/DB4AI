@@ -939,8 +939,8 @@ if __name__ == '__main__':
     s = 's = Backward(x,y,loss)'
     s = 's = Softmax(x,1)'
     s = 's = rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,centers, class_number,learning_rate, batch_size, iter_times)'
-    s = 's = EXP((-beta)*SQRT(SUM(POW(A-B,2),2)))'
-    s = 's = KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k)'
+    # s = 's = EXP((-beta)*SQRT(SUM(POW(A-B,2),2)))'
+    # s = 's = KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k)'
     # s = 's = -3'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
