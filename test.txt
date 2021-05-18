@@ -1,5 +1,21 @@
-create tensor x(1,) from 0
-create tensor y(1,)
-select x as y
-select x as y
-select 1 as x
+create tensor n_inputs(1,) from 0
+create tensor iter_times(1,) from 10
+create tensor train_x(10,3) from full((10,3),1)
+create tensor train_y(10,3) from full((10,3),1)
+loop(iter_times){
+    create tensor i(1,) from 0
+    loop(true){
+        select i+1 as j
+        if(j<=n_inputs){
+            select train_x[i:j] as batch_x
+            select train_y[i:j] as batch_y
+        }
+        else{
+            select train_x[i:] as batch_x
+            select train_y[i:] as batch_y
+        }
+        if(i>=n_inputs){
+            break
+        }
+    }
+}

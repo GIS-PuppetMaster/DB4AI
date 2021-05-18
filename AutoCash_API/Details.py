@@ -1,7 +1,7 @@
 def details():
     classifiers = []
     classifier_dict = {}
-    with open("HPO.txt", 'r') as fr:
+    with open("./AutoCash_API/HPO.txt", 'r') as fr:
         lines = fr.readlines()
     i = 0
     for line in lines:

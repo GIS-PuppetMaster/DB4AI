@@ -1,7 +1,6 @@
 import loadUserData as lud
 import HPO
 import dqn
-import weka.core.jvm as jvm
 import Evaluation as ev
 import GenerateDataSet as gds
 import GenerateData as gd
@@ -20,17 +19,12 @@ def ClassSelectionMain(filename='pasture.arff', alg_selection_time=200,hpo_itera
     注意：如果要重新训练的话请多给一点时间，如果时间过少Customization_result.txt中只有一行数
     据程序将会报错
     '''
-    with open("dataset1.txt", 'r+') as file:
-        file.truncate(0)
-    with open("Customization_result.txt", 'r+') as file:
-        file.truncate(0)
-
     ##读取用户数据集进行分析
     FeatureList = [0, 2, 4, 6, 7, 9, 13]  # 选择的元特征的值
 
     features = []
 
-    lud.loadUserData(filename, classp)
+    # lud.loadUserData(filename, classp)
 
     if train_flag == "y":
         dqn_time_limit = alg_selection_time * 0.5
@@ -45,7 +39,7 @@ def ClassSelectionMain(filename='pasture.arff', alg_selection_time=200,hpo_itera
     features.append(cf.loadData(filename, FeatureList, classp))
     alg = mm.modelFit(features, FeatureList, dataset)
     alg_name = alg[0].split('.')[3]
-    option = HPO.hpo(alg_name, filename,hpo_iteration_num)
+    option = HPO.hpo(alg_name, filename,hpo_iteration_num,evaluation_indicator,classp)
     evaluation=ev.evaluation(filename,evaluation_indicator,alg[0],option,classp)
     return alg_name,option,evaluation
 

@@ -33,10 +33,10 @@ loop(100){
     }
     select i+1 as i
 }
-create tensor lr(1,) from 0.01
-create tensor batch_size(1,) from 16
+create tensor lr(1,) from 0.0005
+create tensor batch_size(1,) from 128
 create tensor class_num(1,) from 3
-create tensor centers(1,) from 4
+create tensor n_centers(1,) from 32
 create tensor iter_times(1,) from 10000
 create tensor mse(1,)
 create tensor auc(1,)
@@ -44,6 +44,6 @@ create tensor f1(1,)
 create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
-select rbf_network(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y,centers, class_num, lr, batch_size, iter_times)
+select rbf_network(acc, auc, prec, recall, mse, f1, test_x, test_y, x, y, n_centers, class_num, lr, batch_size, iter_times)
 
 

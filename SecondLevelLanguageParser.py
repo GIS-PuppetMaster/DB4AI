@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 from Executor import Executor
+
 global inner_var_count
 
 
@@ -29,6 +30,7 @@ class Parser:
         self.branches = list()
         self.current_if_branches = set()
         self.current_break = set()
+        self.break_stack = list()
         #  用于自定义算子使用的特殊域
         self.input = list()
         self.operator = ''
@@ -97,14 +99,14 @@ class Parser:
             self.root_id = self.node_id
             if self.state == 'if_branch':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.oth_branch, self.current_if_branches.copy(),
-                                         self.extra_pop_num])
+                                         self.branches.copy(), self.oth_branch, self.extra_pop_num,
+                                         self.current_if_branches.copy()])
             elif self.state == 'loop':
                 self.state_stack.append([self.loop_or_if_id, self.state, copy.deepcopy(self.out_var),
-                                         self.branches.copy(), self.loop_id, self.current_break.copy(),
-                                         self.extra_pop_num])
+                                         self.branches.copy(), self.loop_id, self.extra_pop_num])
             self.extra_pop_num = 0
             if c_state == 'loop':
+                self.break_stack.append(self.current_break.copy())
                 self.loop_id = self.node_id
                 self.branches.append(self.root_id)
                 self.extra_pop_num += 1
@@ -130,12 +132,11 @@ class Parser:
                 self.state = ''
             else:
                 state_li = self.state_stack.pop(-1)
-                self.extra_pop_num = state_li[6]
+                self.extra_pop_num = state_li[5]
                 if state_li[1] == 'if_branch':
-                    self.current_if_branches = state_li[5]
                     self.oth_branch = state_li[4]
+                    self.current_if_branches = state_li[6]
                 elif state_li[1] == 'loop':
-                    self.current_break = state_li[5]
                     self.loop_id = state_li[4]
                 self.branches = state_li[3]
                 self.out_var = state_li[2]
@@ -143,16 +144,17 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                # self.graph.Show()
+                self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
             else:
                 raise Exception('多余括号！' + ' 错误在第' + str(self.line_id) + '行')
 
-    def UpdateVarList(self, v_name, nd_id, up_use = False):
+    def UpdateVarList(self, v_name, nd_id, up_use=False):
         """
         用于维护变量名列表的函数
+        :param up_use:
         :param v_name: 需要维护的变量名
         :param nd_id: 该变量名对应的最近一次赋值的节点
         :return: 无
@@ -597,8 +599,10 @@ class Parser:
                 self.StateConvert('end')
                 node = Nd.InstantiationClass(self.node_id, 'LoopEnd', self.branches, loop_id=loop_id)
                 node.loop_pair = self.graph.nodes[loop_id]
-                for b in self.current_break:
-                    b.loop_pair = node
+                if len(self.current_break) != 0:
+                    for b in self.current_break:
+                        b.loop_pair = node
+                    self.current_break = self.break_stack.pop(-1)
                 self.graph.nodes[loop_id].loop_pair = node
                 self.graph.InsertNode(node)
                 for l_n in self.graph.GetNoOutNodes().copy():
@@ -658,7 +662,7 @@ class Parser:
                 if match_obj:
                     v_name = match_obj.group(1)
                     slice_info = match_obj.group(2).split(',')
-                    slice_use_vars = slice_info[:len(slice_info)-1]
+                    slice_use_vars = slice_info[:len(slice_info) - 1]
                     slice_use_vars.append(slice_info[-1].split(':')[0])
                     use_vars = use_vars | set(slice_use_vars)
             else:
@@ -670,7 +674,7 @@ class Parser:
             if var_str is not None:
                 var_info = list(map(lambda x: x.strip(), var_str.split(',')))
                 for v_i in var_info:
-                    v_i = re.sub('[ \t]+','',v_i)
+                    v_i = re.sub('[ \t]+', '', v_i)
                     as_obj = re.search('(.+?)AS|as(.+?)', v_i)
                     if as_obj:
                         as_replace[as_obj.group(2)] = as_obj.group(1)
@@ -709,7 +713,6 @@ class Parser:
                                     self.graph.InsertEdge(self.graph.nodes[var_li[-1]], in_v[1])
                                 else:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
-
                             else:
                                 raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 if use_o:
@@ -731,7 +734,6 @@ class Parser:
             if isinstance(e_node, set):
                 e_node = e_node.pop()
             r_var = e_node.get_vars()[0]
-            self.UpdateVarList(r_var, e_node.id)
             var_li = self.var_ass_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1
@@ -849,7 +851,8 @@ class Parser:
 
 if __name__ == '__main__':
     from time import time
-    algorithm = 'KNN-F'
+
+    algorithm = 'rbf'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
@@ -870,8 +873,8 @@ if __name__ == '__main__':
         executor = Executor(result)
         s = time()
         executor.run()
-        time_sum += (time()-s)
-    print(f'time:{time_sum/repeat} s')
+        time_sum += (time() - s)
+    print(f'time:{time_sum / repeat} s')
     acc = executor.var_dict['acc']
     print(f'acc:{acc}')
     auc = executor.var_dict['auc']
@@ -882,7 +885,6 @@ if __name__ == '__main__':
     print(f'recall:{recall}')
     mse = executor.var_dict['mse']
     print(f'mse:{mse}')
-    f1= executor.var_dict['f1']
+    f1 = executor.var_dict['f1']
     print(f'f1:{f1}')
     print(executor.var_dict['__0pred'])
-

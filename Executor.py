@@ -67,6 +67,7 @@ class Executor:
     def init_executor(self):
         # for _, para in self.parameters:
         #     self.parameter_set.add(para)
+
         self.init_nodes()
         for var_name, node in self.last_use.items():
             if isinstance(node, If):
@@ -149,7 +150,7 @@ class Executor:
                         return False
 
         current_node.run(visited=visited, executor=self)
-        print(f'{current_node.id}')
+        # print(f'{current_node.id}')
         # # TODO: 对requires_grad对象的回收
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
