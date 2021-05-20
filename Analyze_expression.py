@@ -998,8 +998,7 @@ if __name__ == '__main__':
     # s = 's = UNSQUEEZE(x,1)'
     # s = 's = Backward(loss)'
     s = 's = Backward(x,y,loss)'
-    s = 's = Softmax(x,1)'
-    s = 's = rbf_network(acc,auc,prec,recall,mse,f1, test_x, test_y, train_x, train_y,n_centers, class_number,learning_rate, batch_size, iter_times)'
+    s = 's = KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, x, y, k)'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])

@@ -144,7 +144,7 @@ class Parser:
                 self.loop_or_if_id = state_li[0]
         elif len(self.state) == 0 and c_state == 'end':
             if self.isCu:
-                self.graph.Show()
+                # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
                 self.Reset()
@@ -185,6 +185,7 @@ class Parser:
         """
         if self.state == 'if':
             self.node_id += 1
+            c_i_b = self.current_if_branches.copy()
             self.StateConvert('end')  # 以if状态下非if型语句解析结束if状态
             node = Nd.InstantiationClass(self.node_id, 'IfEnd', self.branches)
             self.graph.InsertNode(node)
@@ -193,7 +194,7 @@ class Parser:
                     self.graph.InsertEdge(l_n, node)
                 else:
                     continue
-            for bra in self.current_if_branches:
+            for bra in c_i_b:
                 bra.end_if_pair = node
             self.branches.append(self.root_id)
             self.extra_pop_num += 1
@@ -216,7 +217,7 @@ class Parser:
         :param m_str: 用于解析的"条件"
         :return: 包含"条件"和变量名最后一次赋值
         """
-        match_reg = '[a-zA-Z_]+[a-zA-Z_0-9]*'
+        match_reg = '[a-zA-Z_][a-zA-Z_0-9]*'
         match_obj = re.findall(match_reg, m_str)
         if match_obj:
             v_li = list()
@@ -227,6 +228,7 @@ class Parser:
                         ass_li = var_li[-1]
                         v_li.append([v, self.graph.nodes[ass_li]])
                     else:
+                        print(v)
                         return None
             return v_li
         else:
@@ -809,6 +811,7 @@ class Parser:
 
     def Reset(self):
         self.var_ass_dict = dict()
+        self.var_use_dict = dict()
         self.graph = DG.Graph()
         self.node_id = 0
         self.root_id = 0
@@ -850,9 +853,15 @@ class Parser:
 
 
 if __name__ == '__main__':
+
+    # with open('test.txt', 'r', encoding='utf-8') as f:
+    #     create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
+
     from time import time
 
-    algorithm = 'rbf'
+    algorithm = 'KNN'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()

@@ -21,7 +21,7 @@ operator take_step(i, j, w,b, a, x, y, c, eps, kernel_cache, error_cache){
         select error_cache[i] as e1
         select error_cache[j] as e2
         select y1 * y2 as s
-        if(alpha2-alpha1>0){
+        if((alpha2-alpha1)>0){
             select alpha2-alpha1 as l
             select c as h
         }
@@ -120,7 +120,7 @@ operator SVM(x, y, c, eps, iter_times){
             elif(a[j2]==0 or a[j2]==c or tmp2[j2]==1){
                 select 0 as c2[j2]
             }
-            elif(a[j2]<C or tmp2[j2]<=1){
+            elif(a[j2]<c or tmp2[j2]<=1){
                 select 0 as c3[j2]
             }
             select j2+1 as j2

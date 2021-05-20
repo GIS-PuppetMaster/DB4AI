@@ -33,3 +33,4 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
     select MSE(test_y, pred) as mse
     select F1(test_y, pred) as f1
 }
+# 测试通过

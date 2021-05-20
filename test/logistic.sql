@@ -32,5 +32,5 @@ create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
 select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, lr, class_num, iter_times)
-
+# 测试通过
 
