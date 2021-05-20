@@ -762,8 +762,12 @@ class Parser:
                 self.graph.InsertEdge(node_l, ass_n)
             self.UpdateVarList(v_name, self.node_id)
             use_li = self.var_use_dict.get(v_name, None)
-            if use_li and self.branches == self.graph.nodes[use_li[-1]].branches:
-                self.graph.InsertEdge(self.graph.nodes[use_li[-1]], ass_n)
+            try:
+                if use_li and self.branches == self.graph.nodes[use_li[-1]].branches:
+                    self.graph.InsertEdge(self.graph.nodes[use_li[-1]], ass_n)
+            except IndexError:
+                print(use_li)
+
             self.graph.InsertEdge(e_node, ass_n)
             for v in use_vars:
                 self.UpdateVarList(v, self.node_id, up_use=True)
@@ -852,7 +856,7 @@ class Parser:
 if __name__ == '__main__':
     from time import time
 
-    algorithm = 'rbf'
+    algorithm = 'SVM'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()

@@ -700,7 +700,11 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         node.vars[t] = '__' + str(inner_count) + node.vars[t]
                 if hasattr(node, 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
-                    data_shape = re.findall(pattern, node.data_shape)[0].split(',')
+                    try:
+                        data_shape = re.findall(pattern, str(node.data_shape))[0].split(',')
+                    except TypeError:
+                        print(node.data_shape)
+                        print(type(node.data_shape))
                     for p in range(len(data_shape)):
                         if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p]!='':
                             data_shape[p] = '__' + str(inner_count) + data_shape[p]

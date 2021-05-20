@@ -120,7 +120,7 @@ operator SVM(x, y, c, eps, iter_times){
             elif(a[j2]==0 or a[j2]==c or tmp2[j2]==1){
                 select 0 as c2[j2]
             }
-            elif(a[j2]<C or tmp2[j2]<=1){
+            elif(a[j2]<c or tmp2[j2]<=1){
                 select 0 as c3[j2]
             }
             select j2+1 as j2
