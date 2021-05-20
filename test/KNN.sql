@@ -28,3 +28,4 @@ create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
 select KNN(acc,auc,prec,recall,mse,f1, test_x, test_y, x, y, k)
+# 测试通过

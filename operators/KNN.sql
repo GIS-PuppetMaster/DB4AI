@@ -42,3 +42,4 @@ operator KNN(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k){
     select MSE(test_y, answer) as mse
     select F1(test_y, answer) as f1
 }
+# 测试通过
