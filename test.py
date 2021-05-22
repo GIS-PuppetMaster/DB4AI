@@ -1,4 +1,9 @@
-li = [2,3,4]
-t = str(li)
-print(li)
-print(type(li))
+import re
+
+
+test = 'SQL(\'select * from dataset\') '
+res = re.match('(SQL|sql)[(](.+)[)]', test)
+if res:
+    print(res.group())
+else:
+    print('null')

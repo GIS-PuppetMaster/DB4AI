@@ -105,6 +105,10 @@ class Graph:
                 node_info = node_info + 'data_shape:' + str(node.data_shape)
             elif isinstance(node, nd.Random):
                 node_info = node_info + 'data_shape:' + str(node.data_shape) + '\n' + 'boundary:' + str(node.boundary)
+            elif isinstance(node, nd.Sql):
+                node_info = node_info + 'sql:' + node.t_search_sentences
+            elif isinstance(node, nd.Val):
+                node_info = node_info + 'value:' + node.value
             elif isinstance(node, nd.Assignment):
                 node_info = node_info + 'slice:' + str(node._slice) + '\n' +'update:' + str(node.update)
             dot.node(name=str(node.id), label=node_info)
