@@ -637,7 +637,7 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         variable_name_reg = '([a-zA-Z]+[a-zA-Z0-9_]*)'
-        ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
+        ass_reg1 = '(SQL|sql)[(](.+)[)]\n$'
         ass_reg2 = f'^(SELECT|select|update|UPDATE)[ \t]+(.+?)([ \t]+(AS|as)[ \t]+(.+?))?' \
                    f'([ \t]+(FROM|from)[ \t]+(.+?))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         match_obj1 = re.match(ass_reg1, query)
@@ -649,15 +649,14 @@ class Parser:
         use_vars = set()
         if match_obj1:
             self.EndIf()
-            v_name = match_obj1.group(1)
             search_exp = match_obj1.group(2)
             self.node_id += 1
             e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp,
                                            var=['_' + str(self.node_id)])
             self.graph.InsertNode(e_node)
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
-            r_var = '_' + str(e_node.id)
-            self.UpdateVarList(r_var, e_node.id)
+            if not (self.isCu and self.root_id == 0):
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
+            return True
         elif match_obj2:
             self.EndIf()
             need_up_vars = False

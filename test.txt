@@ -1,1 +1,1 @@
-create tensor x from SQL('select * from dataset') with grad
+SQL('select * from dataset')

@@ -6,26 +6,10 @@ vars:[]
 grad:False
 "]
 	1 [label="id:1
-type:<class 'Nodes.CreateTensor'>
-area:[0]
-vars:['x']
-grad:False
-"]
-	2 [label="id:2
 type:<class 'Nodes.Sql'>
 area:[0]
-vars:['_2']
+vars:['_1']
 grad:False
-sql:SQL"]
-	3 [label="id:3
-type:<class 'Nodes.Assignment'>
-area:[0]
-vars:['x', '_2']
-grad:False
-slice:None
-update:False"]
-	1 -> 3 [color=green]
-	2 -> 3 [color=green]
-	0 -> 2 [color=green]
+sql:'select * from dataset'"]
 	0 -> 1 [color=green]
 }
