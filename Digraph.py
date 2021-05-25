@@ -100,7 +100,8 @@ class Graph:
             if isinstance(node, nd.Loop) or isinstance(node, nd.LoopEnd) or isinstance(node, nd.Break):
                 node_info = node_info + 'loop_pair:' + str(node.loop_pair.id)
             elif isinstance(node, nd.IfBranch):
-                node_info = node_info + 'end_if_pair:' + str(node.end_if_pair.id)
+                if node.end_if_pair is not None:
+                    node_info = node_info + 'end_if_pair:' + str(node.end_if_pair.id)
             elif isinstance(node, nd.Zeros) or isinstance(node, nd.Ones) or isinstance(node, nd.Full):
                 node_info = node_info + 'data_shape:' + str(node.data_shape)
             elif isinstance(node, nd.Random):
