@@ -1,10 +1,15 @@
+#coding:utf-8
+import math
 import re
+
+import numpy as np
 import torch
 from functools import wraps
 from copy import copy, deepcopy
 import sklearn
 from sklearn import metrics as sk_metrics
 import pickle as pk
+from Analyze_expression import all_operator
 
 
 def preprocessing(fun):
@@ -65,8 +70,9 @@ def parse_slice(slice_info):
         elif idx == '...':
             total_slice.append(...)
         elif ':' in idx:
-            total_slice.append(slice(*list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
-                                                                               else int(x)), idx.split(':')))))
+            total_slice.append(slice(
+                *list(map(lambda x: None if x == '' else (str(x) if re.fullmatch(re.compile(r'[a-zA-Z]+.*', re.S), x)
+                                                          else int(x)), idx.split(':')))))
         else:
             if re.fullmatch(re.compile(r'([a-zA-Z_]+[a-zA-Z0-9_]*)', re.S), idx):
                 total_slice.append(idx)
@@ -99,6 +105,7 @@ class Node:
         self.in_loop = -1
         self.finished = False
         self.visited_sequence = []
+        self.grad = None
 
     @property
     def default_batch_size(self):
@@ -133,7 +140,12 @@ class Node:
         pass
 
     def next_nodes(self):
+        self.sons = list(set([edge.end for edge in self.out_edges]))
         return self.sons
+
+    def pre_nodes(self):
+        self.fathers = list(set([edge.start for edge in self.in_edges]))
+        return self.fathers
 
     def infer_data(self):
         pass
@@ -184,6 +196,7 @@ class CreateTensor(Node):
         #     self.data_shape = None
         # TODO: infer data_shape
         self.set_vars(var)
+        self.grad = None
 
     @preprocessing
     def run(self, **kwargs):
@@ -504,7 +517,8 @@ class Assignment(Node):
                 # TODO: madlib_to_tensor，赋值
                 pass
 
-        if self.with_grad and self.executor.var_dict[self.vars[0]] is not None and not self.executor.var_dict[self.vars[0]].requires_grad:
+        if self.with_grad and self.executor.var_dict[self.vars[0]] is not None and not self.executor.var_dict[
+            self.vars[0]].requires_grad:
             self.executor.var_dict[self.vars[0]].requires_grad = True
 
 
@@ -521,6 +535,9 @@ class Add(Node):
             # TODO
             pass
 
+    def backward(self, grad_output=1):
+        return grad_output, grad_output
+
 
 class Sub(Node):
     def __init__(self, **kwargs):
@@ -535,6 +552,9 @@ class Sub(Node):
             # TODO
             pass
 
+    def backward(self, grad_output=1):
+        return grad_output, -1 * grad_output
+
 
 class Mul(Node):
     def __init__(self, **kwargs):
@@ -543,10 +563,14 @@ class Mul(Node):
     @preprocessing
     def run(self, **kwargs):
         if self.physic_algorithm != 'madlib':
-            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[self.vars[2]]
+            self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] * self.executor.var_dict[
+                self.vars[2]]
         else:
             # TODO
             pass
+
+    def backward(self, grad_output=1):
+        return self.executor.var_dict[self.vars[2]] * grad_output, self.executor.var_dict[self.vars[1]] * grad_output
 
 
 class Div(Node):
@@ -562,6 +586,10 @@ class Div(Node):
             # TODO
             pass
 
+    def backward(self, grad_output=1):
+        return 1 / self.executor.var_dict[self.vars[2]] * grad_output, -math.pow(self.executor.var_dict[self.vars[1]],
+                                                                                 2) * grad_output
+
 
 class LOG(Node):
     def __init__(self, **kwargs):
@@ -574,6 +602,9 @@ class LOG(Node):
         else:
             # TODO
             pass
+
+    def backward(self, grad_output=1):
+        return 1 / self.executor.var_dict[self.vars[1]] * grad_output
 
 
 class POW(Node):
@@ -589,6 +620,10 @@ class POW(Node):
             # TODO
             pass
 
+    def backward(self, grad_output=1):
+        return self.executor.var_dict[self.vars[2]] * torch.pow(self.executor.var_dict[self.vars[1]],
+                                                                self.executor.var_dict[self.vars[2]] - 1) * grad_output
+
 
 class SQRT(Node):
     def __init__(self, **kwargs):
@@ -602,6 +637,9 @@ class SQRT(Node):
             # TODO
             pass
 
+    def backward(self, grad_output=1):
+        return 0.5 / torch.sqrt(self.executor.var_dict[self.vars[1]]) * grad_output
+
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
@@ -611,6 +649,10 @@ class MATMUL(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.matmul(self.executor.var_dict[self.vars[1]],
                                                             self.executor.var_dict[self.vars[2]])
+
+    def backward(self, grad_output=1):
+        return np.matmul(grad_output, self.executor.var_dict[self.vars[2]].T), \
+               np.matmul(self.executor.var_dict[self.vars[1]].T, grad_output)
 
 
 class DOT(Node):
@@ -800,6 +842,9 @@ class EXP(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.exp(self.executor.var_dict[self.vars[1]])
+
+    def backward(self, grad_output=1):
+        return grad_output * torch.exp(self.executor.var_dict[self.vars[1]])
 
 
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
@@ -1008,15 +1053,36 @@ class SUM(Node):
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.sum(self.executor.var_dict[self.vars[1]], self.axis)
 
+    def backward(self, grad_output=1):
+        return grad_output
+
 
 class Relu(Node):
     def __init__(self, **kwargs):
         super().__init__(51, **kwargs)
 
+    '''参数待补充'''
+
+    def backward(self, grad_output):
+        input_x, = self.saved_tensors
+        if input_x < 0:
+            grad_x = grad_output * 0
+        else:
+            grad_x = grad_output
+        return grad_x
+
 
 class Tanh(Node):
     def __init__(self, **kwargs):
         super().__init__(52, **kwargs)
+
+    '''参数待补充'''
+
+    def backward(self, grad_output):
+        input_x, = self.saved_tensors
+        grad_x = grad_output * (1 - torch.pow(
+            ((torch.exp(input_x) - torch.exp(-1 * input_x)) / (torch.exp(input_x) + torch.exp(-1 * input_x))), 2))
+        return grad_x
 
 
 class Softmax(Node):
@@ -1066,6 +1132,9 @@ class MEAN(Node):
 
     def set_axis(self, axis):
         self.axis = axis
+
+    def backward(self, grad_output=1):
+        return 1 / self.executor.var_dict[self.vars[1]].numel() * grad_output
 
 
 class MAX(Node):
@@ -1177,7 +1246,8 @@ class AUC(Node):
         if len(test_y.shape) == 2 and len(pred.shape) == 1:
             pred = torch.unsqueeze(pred, len(pred.shape))
         if len(torch.unique(self.executor.var_dict[self.vars[1]])) > 2:
-            self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr'))
+            self.executor.var_dict[self.vars[0]] = torch.tensor(
+                sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr'))
         else:
             self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.roc_auc_score(test_y, pred))
 
@@ -1188,7 +1258,8 @@ class MSE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(
+            sk_metrics.mean_squared_error(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class F1(Node):
@@ -1197,7 +1268,9 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(
+            sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
+                                average='macro'))
 
 
 class REVERSE(Node):
@@ -1234,7 +1307,8 @@ class ACC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(
+            sk_metrics.accuracy_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]]))
 
 
 class RECALL(Node):
@@ -1243,7 +1317,9 @@ class RECALL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(
+            sk_metrics.recall_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
+                                    average='macro'))
 
 
 class PRECISION(Node):
@@ -1252,7 +1328,14 @@ class PRECISION(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
+        self.executor.var_dict[self.vars[0]] = torch.tensor(
+            sk_metrics.precision_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
+                                       average='macro'))
+
+
+"""
+Backward计算叶节点梯度，初步测试pytorch的梯度存放于叶节点属性值(如a.grad)中
+"""
 
 
 class Backward(Node):
@@ -1261,7 +1344,57 @@ class Backward(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]].backward()
+        # self.executor.var_dict[self.vars[0]].backward()
+        """
+        初始化
+        """
+        nodes = []
+        for pre_node in self.pre_nodes():
+            nodes.append(pre_node)
+        """
+        遍历所有点 
+        """
+        while nodes:
+            node = nodes.pop()
+            # 计算算子梯度
+            if node.__class__.__name__ in all_operator:
+                if hasattr(node, "grad"):
+                    if node.grad is None:
+                        tup = node.backward()
+                    else:
+                        tup = node.backward(node.grad)
+                if not isinstance(tup, tuple):
+                    tup = (tup,)
+                # id由小到大排序父节点
+                fathers = []
+                for pre_node in node.pre_nodes():
+                    index = 0
+                    for father in fathers:
+                        if pre_node.id > father.id:
+                            index += 1
+                    fathers.insert(index, pre_node)
+                index = 0
+                for father in fathers:
+                    if not isinstance(father, Root):
+                        if isinstance(father, Var) or father.__class__.__name__ in all_operator:
+                            if father.with_grad is True:
+                                if father.grad is None:
+                                    father.grad = tup[index]
+                                else:
+                                    father.grad *= tup[index]
+                        index += 1
+                        nodes.append(father)
+                        node.grad = None
+            # 继承梯度
+            else:
+                for father in node.pre_nodes():
+                    if not isinstance(father, Root):
+                        if node.grad is not None:
+                            if isinstance(father, Assignment) and father.grad is not None:
+                                father.grad += node.grad
+                            else:
+                                father.grad = node.grad
+                        nodes.append(father)
 
 
 class WLS(Node):
@@ -1271,7 +1404,8 @@ class WLS(Node):
     @preprocessing
     def run(self, **kwargs):
         self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.linear_model.LinearRegression(
-            self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]], sample_weight=self.executor.var_dict[self.vars[2]]))
+            self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
+            sample_weight=self.executor.var_dict[self.vars[2]]))
 
 
 class REPEAT(Node):
@@ -1280,7 +1414,14 @@ class REPEAT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].repeat(self.executor.var_dict[self.vars[2]],self.executor.var_dict[self.vars[3]],self.executor.var_dict[self.vars[4]])
+        self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].repeat(
+            self.executor.var_dict[self.vars[2]], self.executor.var_dict[self.vars[3]],
+            self.executor.var_dict[self.vars[4]])
+
+    def backward(self, grad_output=1):
+        temp = self.executor.var_dict[self.vars[2]] * self.executor.var_dict[self.vars[3]] * self.executor.var_dict[
+            self.vars[4]] * grad_output
+        return torch.Tensor(temp, temp, temp)
 
 
 class UNSQUEEZE(Node):
