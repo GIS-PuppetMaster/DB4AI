@@ -1,4 +1,4 @@
-#coding:utf-8
+# coding:utf-8
 import math
 import re
 
@@ -651,8 +651,14 @@ class MATMUL(Node):
                                                             self.executor.var_dict[self.vars[2]])
 
     def backward(self, grad_output=1):
-        return np.matmul(grad_output, self.executor.var_dict[self.vars[2]].T), \
-               np.matmul(self.executor.var_dict[self.vars[1]].T, grad_output)
+        if grad_output == 1:
+            grad_output_1 = torch.ones_like(self.executor.var_dict[self.vars[2]].T)
+            grad_output_2 = torch.ones_like(self.executor.var_dict[self.vars[1]].T)
+        else:
+            grad_output_1 = grad_output
+            grad_output_2 = grad_output
+        return np.matmul(grad_output_1, self.executor.var_dict[self.vars[2]].T), \
+               np.matmul(self.executor.var_dict[self.vars[1]].T, grad_output_2)
 
 
 class DOT(Node):
