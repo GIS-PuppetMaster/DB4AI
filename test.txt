@@ -1,50 +1,5 @@
-operator SVM(x, y, c, eps, iter_times){
-    select SHAPE(x) as sx
-    select sx[0] as n
-    select sx[1] as m
-    create tensor kernel_cache(n,n)
-    create tensor error_cache(n,)
-    create tensor w(m,) from RANDOM((m,),(0,1))
-    create tensor b(n,) from RANDOM((n,),(0,1))
-    create tensor a(n,) from 0
-    create tensor i(1,) from 0
-    LOOP(n){
-        create tensor j(1,) from 0
-        LOOP(n){
-            select TRANSPOSE(x[i,:]) * x[j:] as kernel_cache[i,j]
-            select j+1 as j
-        }
-        select i+1 as i
-    }
-    select 0 as t
-    create tensor g(n,)
-    select SUM(a*y*x) as tmp
-    LOOP(iter_times){
-        create tensor j1(1,) from 0
-        loop(n){
-            select tmp*x[j1]+b as g[j1]
-            select j1+1 as j1
-        }
-        select y*g as tmp2
-        select POW(tmp2-1,2) as c1
-        select Deepcopy(c1) as c2
-        select Deepcopy(c1) as c3
-        select 0 as j2
-        loop(n){
-            if(a[j2]>0 or tmp2[j2]>=1){
-                select 0 as c1[j2]
-            }
-            elif(a[j2]==0 or a[j2]==c or tmp2[j2]==1){
-                select 0 as c2[j2]
-            }
-            elif(a[j2]<c or tmp2[j2]<=1){
-                select 0 as c3[j2]
-            }
-            select j2+1 as j2
-        }
-        select Argmax(c1+c2+c3) as i
-        create tensor j3(1,) from RANDOM((1,),(0,n),'uniform')
-        select take_step(i,j3,w,b,a,x,y,c,eps,kernel_cache,error_cache)
-        select t+1 as t
-    }
-}
+create tensor a(3,3) from ones((3, 3)) with grad
+select POW(a,2) as b with grad
+select MATMUL(a,b) as c with grad
+select Backward(c)
+

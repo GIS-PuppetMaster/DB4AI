@@ -854,12 +854,14 @@ class Parser:
 
 if __name__ == '__main__':
 
-    # with open('test.txt', 'r', encoding='utf-8') as f:
-    #     create_test = f.readlines()
-    # testPar = Parser(create_test)
-    # result = testPar()
+    with open('test.txt', 'r', encoding='utf-8') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    result = testPar()
+    executor = Executor(result)
+    executor.run()
 
-    from time import time
+    '''from time import time
 
     algorithm = 'SVM'
     path = f'operators/{algorithm}.sql'
@@ -896,4 +898,4 @@ if __name__ == '__main__':
     print(f'mse:{mse}')
     f1 = executor.var_dict['f1']
     print(f'f1:{f1}')
-    print(executor.var_dict['__0pred'])
+    print(executor.var_dict['__0pred'])'''
