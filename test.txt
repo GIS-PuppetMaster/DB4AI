@@ -1,5 +1,1 @@
-create tensor a(3,3) from ones((3, 3)) with grad
-select POW(a,2) as b with grad
-select MATMUL(a,b) as c with grad
-select Backward(c)
-
+SQL('select * from dataset')

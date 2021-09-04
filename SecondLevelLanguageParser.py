@@ -51,6 +51,7 @@ class Parser:
         self.queries.append('$')
         for query in self.queries:
             query = query.lstrip()
+            query.replace(';', '')
             self.line_id += 1
             if len(query) == 0 or query[0] == '#':
                 continue
@@ -279,10 +280,10 @@ class Parser:
                      '|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)|[a-zA-Z]+[a-zA-Z0-9_]*)' \
                      ',([+-]?([1-9][0-9]*|0)(.[0-9]+)?|[+-]?([1-9][0-9]*(.[0-9]+)?|0.[0-9]+)e([+-]?[1-9][0-9]*|0)' \
                      '|[a-zA-Z]+[a-zA-Z0-9_]*)[)]'
-        create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[ \t]*(.+?))' \
+        create_tensor_reg = f'^(CREATE|create)[ \t]*(TENSOR|tensor)[ \t]*({variable_name_reg}[ \t]*(.*?))' \
                             f'([ \t]*(FROM|from)[ \t]*(.+?))?([ \t]*(WITH|with)[ \t]*(GRAD|grad))?\n$'
         val_info_reg1 = '[+-]?([1-9][0-9]*|0)(.[0-9]+)?'
-        val_info_reg2 = '(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
+        val_info_reg2 = r'(SQL|sql)[(](.+)[)]'  # 暂时考虑使用变量名的要求,待修改
         val_info_reg3 = f'^(RANDOM|random)([(]({data_shape_reg}),({random_reg})(,\'[a-zA-Z]+\')?[)])'
 
         # 对读入的字符进行匹配检验是否合法和提取信息
@@ -292,28 +293,31 @@ class Parser:
         legal_info = []  # 记录合法的信息
         match_obj = re.match(create_tensor_reg, query)
         if match_obj:
-            query = re.sub('[ \t]+', '', match_obj.group())
             if re.search('WITH|with', query):
                 hasWith = True
-            fromObj = re.search('(FROM|from)(.+)(with|WITH)|(FROM|from)(.+)', query)
+            fromObj = re.search('(FROM|from)(.+?)(with|WITH)|(FROM|from)(.+)', query)
             if fromObj and hasWith:
-                from_str = fromObj.group(2)
+                from_str = fromObj.group(2).lstrip()
             elif fromObj:
-                from_str = fromObj.group(5)
+                from_str = fromObj.group(5).lstrip()
             T_info = re.sub('[ \t]+', '', match_obj.group(3))
             T_name = re.match(f'^{variable_name_reg}', T_info).group()
             if self.var_ass_dict.get(T_name, None):
                 raise Exception('重复创建张量：' + T_name + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
-            data = re.search(data_shape_reg, T_info)
-            if data:
-                data_shape = data.group()
+            if re.search('(SQL|sql)', from_str):
                 legal_info.append(T_name)
-                legal_info.append(data_shape)
+                legal_info.append(None)
             else:
-                raise Exception('张量data_shape错误：' + T_info + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                data = re.search(data_shape_reg, T_info)
+                if data:
+                    data_shape = data.group()
+                    legal_info.append(T_name)
+                    legal_info.append(data_shape)
+                else:
+                    raise Exception('张量data_shape错误：' + T_info + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
             if len(from_str) != 0:
                 match1 = re.match(val_info_reg1, from_str)
-                match2 = re.match(val_info_reg2, from_str)
+                match2 = re.match('(SQL|sql)[(](.+)[)]', from_str)
                 match3 = re.match(val_info_reg3, from_str)
                 match4 = re.match(f'^(ZEROS|zeros)[(]({data_shape_reg})[)]', from_str)
                 match5 = re.match(f'^(ONES|ones)[(]({data_shape_reg})[)]', from_str)
@@ -342,7 +346,7 @@ class Parser:
                     legal_info.append([data_shape, boundary, type])
                     from_type = 3
                 elif match2:
-                    t_info = match2.group(1)
+                    t_info = match2.group(2)
                     legal_info.append(t_info)
                     from_type = 2
                 elif match4:
@@ -372,7 +376,10 @@ class Parser:
         self.node_id += 1
         node1 = Nd.InstantiationClass(self.node_id, 'CreateTensor', self.branches, with_grad, data_shape=legal_info[1],
                                       var=[legal_info[0]])
-        t_has_var, t_var = self.ExtractVar(legal_info[1])
+        if legal_info[1]:
+            t_has_var, t_var = self.ExtractVar(legal_info[1])
+        else:
+            t_var = []
         self.graph.InsertNode(node1)
         d_var = dict()
         b_var = dict()
@@ -630,7 +637,7 @@ class Parser:
         :return: True 语句合法，False 语句非法
         """
         variable_name_reg = '([a-zA-Z]+[a-zA-Z0-9_]*)'
-        ass_reg1 = f'^{variable_name_reg} = (SQL|sql)[(](.+)[)]\n$'
+        ass_reg1 = '(SQL|sql)[(](.+)[)]\n$'
         ass_reg2 = f'^(SELECT|select|update|UPDATE)[ \t]+(.+?)([ \t]+(AS|as)[ \t]+(.+?))?' \
                    f'([ \t]+(FROM|from)[ \t]+(.+?))?([ \t]+(WITH|with)[ \t]+(GRAD|grad))?\n$'
         match_obj1 = re.match(ass_reg1, query)
@@ -642,15 +649,14 @@ class Parser:
         use_vars = set()
         if match_obj1:
             self.EndIf()
-            v_name = match_obj1.group(1)
             search_exp = match_obj1.group(2)
             self.node_id += 1
             e_node = Nd.InstantiationClass(self.node_id, 'Sql', self.branches, t_info=search_exp,
                                            var=['_' + str(self.node_id)])
             self.graph.InsertNode(e_node)
-            self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
-            r_var = '_' + str(e_node.id)
-            self.UpdateVarList(r_var, e_node.id)
+            if not (self.isCu and self.root_id == 0):
+                self.graph.InsertEdge(self.graph.nodes[self.root_id], e_node)
+            return True
         elif match_obj2:
             self.EndIf()
             need_up_vars = False
@@ -858,44 +864,42 @@ if __name__ == '__main__':
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    executor = Executor(result)
-    executor.run()
 
-    '''from time import time
-
-    algorithm = 'SVM'
-    path = f'operators/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-
-    path = f'test/{algorithm}.sql'
-    # path = 'test.txt'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    # lp = LineProfiler()
-    # lp.add_function()
-    repeat = 1
-    time_sum = 0
-    for _ in range(repeat):
-        executor = Executor(result)
-        s = time()
-        executor.run()
-        time_sum += (time() - s)
-    print(f'time:{time_sum / repeat} s')
-    acc = executor.var_dict['acc']
-    print(f'acc:{acc}')
-    auc = executor.var_dict['auc']
-    print(f'auc:{auc}')
-    prec = executor.var_dict['prec']
-    print(f'prec:{prec}')
-    recall = executor.var_dict['recall']
-    print(f'recall:{recall}')
-    mse = executor.var_dict['mse']
-    print(f'mse:{mse}')
-    f1 = executor.var_dict['f1']
-    print(f'f1:{f1}')
-    print(executor.var_dict['__0pred'])'''
+    # from time import time
+    #
+    # algorithm = 'SVM'
+    # path = f'operators/{algorithm}.sql'
+    # with open(path, 'r', encoding='utf-8') as f:
+    #     create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
+    #
+    # path = f'test/{algorithm}.sql'
+    # # path = 'test.txt'
+    # with open(path, 'r', encoding='utf-8') as f:
+    #     create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
+    # # lp = LineProfiler()
+    # # lp.add_function()
+    # repeat = 1
+    # time_sum = 0
+    # for _ in range(repeat):
+    #     executor = Executor(result)
+    #     s = time()
+    #     executor.run()
+    #     time_sum += (time() - s)
+    # print(f'time:{time_sum / repeat} s')
+    # acc = executor.var_dict['acc']
+    # print(f'acc:{acc}')
+    # auc = executor.var_dict['auc']
+    # print(f'auc:{auc}')
+    # prec = executor.var_dict['prec']
+    # print(f'prec:{prec}')
+    # recall = executor.var_dict['recall']
+    # print(f'recall:{recall}')
+    # mse = executor.var_dict['mse']
+    # print(f'mse:{mse}')
+    # f1 = executor.var_dict['f1']
+    # print(f'f1:{f1}')
+    # print(executor.var_dict['__0pred'])
