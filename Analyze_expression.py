@@ -101,7 +101,7 @@ all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'Q
                 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                 'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
                 'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-                'UNSQUEEZE', 'CleanGrad'}
+                'UNSQUEEZE', 'CleanGrad', 'Negative'}
 
 
 def analyze_expression(expression, x, inner_count, branches: list, replace=None):
@@ -328,22 +328,34 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
         # 设置当前节点值，将当前节点与可能邻接边加入图G，添加子节点，操作节点转移到子节点
         elif i in simple_operator:
-            simple_operator_class = ['Add', 'Sub', 'Mul', 'Div']
-            for count in range(len(simple_operator)):
-                if i == simple_operator[count]:
-                    if isinstance(current_graph.keynode, nd.Blank):
-                        current_graph.set_val(
-                            nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
-                        x += 1
-                    else:
-                        label = 0
-                        parent_graph = BuildGraph(x, simple_operator_class[count], branches, with_grad=requires_grad)
-                        x += 1
-                        parent_graph.get_children().append(current_graph)
-                        current_graph = parent_graph
+            flag = 0
+            if i == '-':
+                if expression.index(i) == 1:
+                    current_graph.set_val(nd.InstantiationClass(x, 'Negative', branches, with_grad=requires_grad))
+                    x += 1
+                    flag = 1
+                elif expression[expression.index(i) - 1] == '(' or expression[expression.index(i) - 1] in simple_operator:
+                    current_graph.set_val(nd.InstantiationClass(x, 'Negative', branches, with_grad=requires_grad))
+                    x += 1
+                    flag = 1
+            if flag == 0:
+                simple_operator_class = ['Add', 'Sub', 'Mul', 'Div']
+                for count in range(len(simple_operator)):
+                    if i == simple_operator[count]:
+                        if isinstance(current_graph.keynode, nd.Blank):
+                            current_graph.set_val(
+                                nd.InstantiationClass(x, simple_operator_class[count], branches, with_grad=requires_grad))
+                            x += 1
+                        else:
+                            label = 0
+                            parent_graph = BuildGraph(x, simple_operator_class[count], branches, with_grad=requires_grad)
+                            x += 1
+                            parent_graph.get_children().append(current_graph)
+                            current_graph = parent_graph
             G.InsertNode(current_graph.keynode)
             try:
-                G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
+                if len(current_graph.get_children()) != 0:
+                    G.InsertEdge(current_graph.get_child().keynode, current_graph.keynode)
             except AttributeError:
                 raise Exception('无子图')
             current_graph.insert(x, 'Blank', branches, grad=requires_grad)

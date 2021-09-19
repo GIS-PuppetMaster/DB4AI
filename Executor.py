@@ -75,6 +75,9 @@ class Executor:
                     edge.end.release_list.append(var_name)
             else:
                 node.release_list.append(var_name)
+        '''for node in self.graph.nodes:
+            for var in node.vars:
+                node.vars[node.vars.index(var)] = 'p' + var'''
 
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):

@@ -74,6 +74,17 @@ class Parser:
             else:
                 # self.graph.Show()
                 raise Exception('非法语句：' + query + ' 错误在第' + str(self.line_id) + '行')
+
+        nodes = self.graph.nodes
+        flag = 1
+        while flag:
+            flag = 0
+            for node in nodes:
+                for father in node.pre_nodes():
+                    if father.with_grad and not node.with_grad:
+                        node.with_grad = True
+                        flag = 1
+
         self.graph.Show()
         return self.graph
 
@@ -864,7 +875,8 @@ if __name__ == '__main__':
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-
+    executor = Executor(result)
+    executor.run()
     # from time import time
     #
     # algorithm = 'SVM'

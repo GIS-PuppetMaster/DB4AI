@@ -1,1 +1,6 @@
-SQL('select * from dataset')
+create tensor a(3,3) from ones((3,3)) with grad
+create tensor b(3,3) from ones((3,3)) with grad
+select 2*b+b as c
+select CleanGrad(b)
+select Backward(c)
+
