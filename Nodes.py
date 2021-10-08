@@ -83,6 +83,10 @@ def parse_slice(slice_info):
     return total_slice
 
 
+class DimensionError(Exception):
+    pass
+
+
 class Node:
     # 计算图中节点类的父类
     def __init__(self, type_id, with_grad=False, physic_algorithm='tensor', **kwargs):
@@ -224,8 +228,83 @@ class Node:
         else:
             self.cursor.execute(f"update {table_name} set val_2 = {value} where name = {var_name}'")
 
+    def op_broadcast(self, op, input_table_1, input_table_2, output_table):
+        self.cursor.execute(f"select rows,cols from {input_table_1}")
+        result1 = self.cursor.fetchall()
+        self.cursor.execute(f"select rows,cols from {input_table_2}")
+        result2 = self.cursor.fetchall()
+        try:
+            if result1[0] == result2[0] and result1[1] == result2[1]:
+                #调用add函数
+                pass
+            elif result1[0] == result2[0]:
+                if result1[1] == 1:
+                    pass
+                else:
+                    pass
+            elif result1[0] != result2[0] and result1[1] == result2[1]:
+                self.cursor.execute(f"select data from {input_table_1}")
+                data1 = self.cursor.fetchall()
+                self.cursor.execute(f"select data from {input_table_2}")
+                data2 = self.cursor.fetchall()
+                new_data = []
+                if result1[0] == 1:
+                    for i in range(len(data1[0])):
+                        for j in range(len(data2[0])):
+                            if i == j % len(data1[0]):
+                                new_data.append(self.opt(op, data1[0][i], data2[0][j]))
+                    # TODO
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data [] )")
+                    self.cursor.execute(f"insert into {output_table} values({result2[0]}, {result2[1]}, 0, {new_data})")
+                    self.conn.commit()
+                elif result2[0] == 1:
+                    for i in range(len(data2[0])):
+                        for j in range(len(data1[0])):
+                            if i == j % len(data2[0]):
+                                new_data.append(self.opt(op, data1[0][i], data2[0][j]))
+                    # TODO
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data [] )")
+                    self.cursor.execute(f"insert into {output_table} values({result1[0]}, {result1[1]}, 0, {new_data})")
+                    self.conn.commit()
+            elif result1[0] != result2[0] and result1[1] != result2[1]:
+                self.cursor.execute(f"select data from {input_table_1}")
+                data1 = self.cursor.fetchall()
+                self.cursor.execute(f"select data from {input_table_2}")
+                data2 = self.cursor.fetchall()
+                new_data = []
+                if result1[0] == 1 and result1[1] == 1:
+                    for i in range(len(data2[0])):
+                        new_data.append(self.opt(op, data1[0][0], data2[0][i]))
+                    # TODO
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data [] )")
+                    self.cursor.execute(f"insert into {output_table} values({result2[0]}, {result2[1]}, 0, {new_data})")
+                    self.conn.commit()
+                elif result2[0] == 1 and result2[1] == 1:
+                    for i in range(len(data1[0])):
+                        new_data.append(self.opt(op, data1[0][0], data2[0][i]))
+                    # TODO
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data [] )")
+                    self.cursor.execute(f"insert into {output_table} values({result1[0]}, {result1[1]}, 0, {new_data})")
+                    self.conn.commit()
+                else:
+                    raise DimensionError()
+            else:
+                raise DimensionError()
+        except DimensionError:
+            print("矩阵不匹配，无法进行广播操作")
 
-# 通过继承实现的其它节点类
+    def opt(self, op, i, j):
+        if op == 'add':
+            return i + j
+        if op == 'sub':
+            return i - j
+        if op == 'mul':
+            return i * j
+        if op == 'div':
+            return i / j
+    # 通过继承实现的其它节点类
+
+
 class Root(Node):
     def __init__(self, **kwargs):
         super().__init__(0, **kwargs)
@@ -728,13 +807,14 @@ class Mul(Node):
         if grad_output == 1:
             return table_name_1, table_name_2
         else:
-            new_table_name_1 = 'new_grad_' + str(self.id) + '_1'
-            new_table_name_2 = 'new_grad_' + str(self.id) + '_2'
+            new_table_name_1 = 'grad_' + str(self.id) + '_temp1'
+            new_table_name_2 = 'grad_' + str(self.id) + '_temp2'
             self.cursor.execute(f"select * from {grad_output}")
             rows = self.cursor.fetchall()
             if isinstance(rows[0][0], list):
                 self.cursor.execute(f"select db4ai.mul('{table_name_1}','{grad_output}','{new_table_name_1}'); ")
                 self.cursor.execute(f"select db4ai.mul('{table_name_2}','{grad_output}','{new_table_name_2}'); ")
+                self.conn.commit()
             else:
                 if flag:
                     self.cursor.execute(f"create table {new_table_name_1}(row integer primary key, val double precision); ")
@@ -743,7 +823,9 @@ class Mul(Node):
                                     f"{rows[0][0]},'{new_table_name_1}'); ")
                     self.cursor.execute(f"select madlib.matrix_scalar_mult('{table_name_2}', 'row=row, val=val',"
                                     f"{rows[0][0]},'{new_table_name_2}'); ")
-            self.conn.commit()
+                    self.conn.commit()
+                else:
+                    return table_name_1, table_name_2
             return new_table_name_1, new_table_name_2
 
 
@@ -761,6 +843,10 @@ class Div(Node):
         self.conn.commit()
 
     def backward(self, grad_output=1):
+        if grad_output == 1:
+            pass
+        else:
+            pass
         return 1 / self.executor.var_dict[self.vars[2]] * grad_output, -math.pow(self.executor.var_dict[self.vars[1]],
                                                                                  2) * grad_output
 
@@ -1159,11 +1245,27 @@ class EXP(Node):
         self.conn.commit()
 
     def backward(self, grad_output=1):
-        temp_table_name = 'grad_' + str(self.id) + '_2'
-        self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{temp_table_name}');")
-        table_name = 'grad_' + str(self.id)
-        self.cursor.execute(f"select db4ai_mul('{grad_output}','{temp_table_name}', '{table_name}');")
-        self.conn.commit()
+        if grad_output == 1:
+            table_name = 'grad_' + str(self.id)
+            self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{table_name}');")
+            self.conn.commit()
+        else:
+
+            temp_table_name = 'grad_' + str(self.id) + '_temp1'
+            self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{temp_table_name}');")
+            table_name = 'grad_' + str(self.id)
+            self.cursor.execute(f"select val from {grad_output};")
+            rows = self.cursor.fetchall()
+            if isinstance(rows[0][0], list):
+                self.cursor.execute(f"select db4ai_mul('{grad_output}','{temp_table_name}', '{table_name}');")
+                self.conn.commit()
+            else:
+                if rows[0][0] == 1:
+                    self.cursor.execute(f"drop table if exists {table_name};")
+                    self.cursor.execute(f"select * into {table_name} from {temp_table_name};")
+                    self.conn.commit()
+                else:
+                    pass
         return table_name
 
 
@@ -1744,6 +1846,7 @@ class Backward(Node):
         初始化
         """
         nodes = []
+        assignment_list = []
         for pre_node in self.pre_nodes():
             nodes.append(pre_node)
         """
@@ -1790,13 +1893,13 @@ class Backward(Node):
                                 self.conn.commit()
                         index += 1
                         nodes.append(father)
-                self.cursor.execute(f"drop table if exists {table_name}")
-                self.cursor.execute(f"drop table if exists {table_name + '_1'}")
-                self.cursor.execute(f"drop table if exists {table_name + '_2'}")
-                self.cursor.execute(f"drop table if exists {table_name + '_temp1'}")
-                self.cursor.execute(f"drop table if exists {table_name + '_temp2'}")
+                '''self.cursor.execute(f"drop table if exists {table_name};")
+                self.cursor.execute(f"drop table if exists {table_name + '_1'};")
+                self.cursor.execute(f"drop table if exists {table_name + '_2'};")
+                self.cursor.execute(f"drop table if exists {table_name + '_temp1'};")
+                self.cursor.execute(f"drop table if exists {table_name + '_temp2'};")
                 self.conn.commit()
-                '''node.grad = None
+                node.grad = None
                 table_name = "grad_" + node.id
                 '''
             # 继承梯度
@@ -1821,17 +1924,39 @@ class Backward(Node):
                                 rows = self.cursor.fetchall()
                                 self.cursor.execute(f"select val from {fa_table_name}")
                                 fa_rows = self.cursor.fetchall()
-                                for row in fa_rows:
-                                    new_row = numpy.array(row[0]) + numpy.array(rows[list(fa_rows).index(row)])
-                                    self.cursor.execute(f"update {fa_table_name} set val = array{list(new_row)} where "
-                                                        f"row = {list(fa_rows).index(row) + 1}")
+                                if isinstance(fa_rows[0][0], list) and isinstance(rows[0][0], list):
+                                    pass
+                                elif isinstance(fa_rows[0][0], list) and not isinstance(rows[0][0], list):
+                                    for i in range(len(fa_rows)):
+                                        new_row = numpy.array(fa_rows[i][0]) + numpy.array(rows[0][0])
+                                        self.cursor.execute(f"update {fa_table_name} set val = array{new_row} where "
+                                                            f"row = {i + 1}")
+                                elif not isinstance(fa_rows[0][0], list) and isinstance(rows[0][0], list):
+                                    val = fa_rows[0][0]
+                                    self.cursor.execute(f"drop table if exists {fa_table_name}")
+                                    self.cursor.execute(f"select * into {fa_table_name} from {table_name}")
+                                    for i in range(len(rows)):
+                                        new_row = list(numpy.array(rows[i][0]) + numpy.array(val))
+                                        self.cursor.execute(f"update {fa_table_name} set val = array{new_row} where "
+                                                            f"row = {i + 1}")
+                                else:
+                                    self.cursor.execute(f"update {fa_table_name} set val = {fa_rows[0][0] + rows[0][0]} where "
+                                                        f"row = {1}")
                             else:
                                 self.cursor.execute(f"drop table if exists {fa_table_name}")
                                 self.cursor.execute(f"select * into {fa_table_name} from {table_name}")
+                        self.conn.commit()
                         nodes.append(father)
                 if not isinstance(node, CreateTensor):
-                    self.cursor.execute(f"drop table if exists {table_name}")
-                    self.conn.commit()
+                    if not isinstance(node, Assignment):
+                        self.cursor.execute(f"drop table if exists {table_name}")
+                        self.conn.commit()
+                    else:
+                        assignment_list.append(table_name)
+        for i in assignment_list:
+            self.cursor.execute(f"drop table if exists {i}")
+            self.conn.commit()
+
 
 
 class WLS(Node):

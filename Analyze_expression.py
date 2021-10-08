@@ -929,7 +929,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         e.GetEnd().set_vars(e.GetStart().get_vars()[0])
                 else:
                     e.GetEnd().set_vars(e.GetStart().get_vars()[0])
-    # G.Show()
+    G.Show()
     return G.GetSet(), vallist, inner_count
 
 
@@ -959,6 +959,7 @@ if __name__ == '__main__':
     # s = 's = EXP((-beta)*SQRT(SUM(POW(A-B,2),2)))'
     # s = 's = KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k)'
     # s = 's = -3'
+    s = 's = a[1:3]'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])
