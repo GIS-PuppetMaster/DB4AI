@@ -6,56 +6,152 @@ vars:[]
 grad:False
 "]
 	1 [label="id:1
-type:<class 'Nodes.Val'>
-area:[0]
-vars:['_1']
-grad:False
-"]
-	2 [label="id:2
 type:<class 'Nodes.CreateTensor'>
 area:[0]
 vars:['a']
-grad:False
+grad:True
 "]
+	2 [label="id:2
+type:<class 'Nodes.Ones'>
+area:[0]
+vars:['_2']
+grad:True
+data_shape:(3, 3)"]
 	3 [label="id:3
 type:<class 'Nodes.Assignment'>
 area:[0]
-vars:['a', '_1']
-grad:False
+vars:['a', '_2']
+grad:True
 slice:None
 update:False"]
+	4 [label="id:4
+type:<class 'Nodes.CreateTensor'>
+area:[0]
+vars:['b']
+grad:True
+"]
 	5 [label="id:5
+type:<class 'Nodes.Zeros'>
+area:[0]
+vars:['_5']
+grad:True
+data_shape:(3, 3)"]
+	6 [label="id:6
+type:<class 'Nodes.Assignment'>
+area:[0]
+vars:['b', '_5']
+grad:True
+slice:None
+update:False"]
+	7 [label="id:7
+type:<class 'Nodes.EXP'>
+area:[0]
+vars:['_7', '_9']
+grad:True
+"]
+	8 [label="id:8
+type:<class 'Nodes.Val'>
+area:[0]
+vars:['_8']
+grad:False
+"]
+	9 [label="id:9
+type:<class 'Nodes.Mul'>
+area:[0]
+vars:['_9', '_8', '_10']
+grad:True
+"]
+	10 [label="id:10
+type:<class 'Nodes.SQRT'>
+area:[0]
+vars:['_10', '_11']
+grad:True
+"]
+	11 [label="id:11
+type:<class 'Nodes.SUM'>
+area:[0]
+vars:['_11', '_12']
+grad:True
+"]
+	12 [label="id:12
+type:<class 'Nodes.POW'>
+area:[0]
+vars:['_12', '_14', '_16']
+grad:True
+"]
+	13 [label="id:13
 type:<class 'Nodes.Var'>
 area:[0]
 vars:['a']
-grad:False
+grad:True
 "]
-	4 [label="id:4
-type:<class 'Nodes.Slice'>
+	14 [label="id:14
+type:<class 'Nodes.Sub'>
 area:[0]
-vars:['_4', 'a']
+vars:['_14', 'a', 'b']
+grad:True
+"]
+	15 [label="id:15
+type:<class 'Nodes.Var'>
+area:[0]
+vars:['b']
+grad:True
+"]
+	16 [label="id:16
+type:<class 'Nodes.Val'>
+area:[0]
+vars:['_16']
 grad:False
 "]
-	6 [label="id:6
+	17 [label="id:17
 type:<class 'Nodes.CreateTensor'>
 area:[0]
 vars:['c']
 grad:False
 "]
-	7 [label="id:7
+	18 [label="id:18
 type:<class 'Nodes.Assignment'>
 area:[0]
-vars:['c', '_4']
-grad:False
+vars:['c', '_7']
+grad:True
 slice:None
 update:False"]
-	0 -> 1 [color=green]
-	0 -> 2 [color=green]
-	2 -> 3 [color=green]
+	19 [label="id:19
+type:<class 'Nodes.Backward'>
+area:[0]
+vars:['c']
+grad:True
+"]
+	20 [label="id:20
+type:<class 'Nodes.Var'>
+area:[0]
+vars:['c']
+grad:True
+"]
 	1 -> 3 [color=green]
-	5 -> 4 [color=green]
-	3 -> 5 [color=green]
-	0 -> 6 [color=green]
-	6 -> 7 [color=green]
-	4 -> 7 [color=green]
+	2 -> 3 [color=green]
+	0 -> 2 [color=green]
+	0 -> 1 [color=green]
+	4 -> 6 [color=green]
+	5 -> 6 [color=green]
+	0 -> 5 [color=green]
+	0 -> 4 [color=green]
+	9 -> 7 [color=green]
+	8 -> 9 [color=green]
+	10 -> 9 [color=green]
+	11 -> 10 [color=green]
+	12 -> 11 [color=green]
+	14 -> 12 [color=green]
+	13 -> 14 [color=green]
+	15 -> 14 [color=green]
+	16 -> 12 [color=green]
+	0 -> 8 [color=green]
+	3 -> 13 [color=green]
+	6 -> 15 [color=green]
+	0 -> 16 [color=green]
+	0 -> 17 [color=green]
+	17 -> 18 [color=green]
+	7 -> 18 [color=green]
+	20 -> 19 [color=green]
+	18 -> 20 [color=green]
 }
