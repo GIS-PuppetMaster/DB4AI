@@ -32,11 +32,19 @@ print(b)
 s = torch.exp(-2*b) # s = [0.0313, 0.0313, 0.0313]
 print(s)
 s.backward(torch.ones_like(s))
-print(b.grad)'''
+print(b.grad)
 a = torch.full((3,3),1.0,requires_grad=True)
 b = torch.full((3,3),0.0,requires_grad=True)
 print(torch.sum(a,0))
 c = torch.exp(-2*torch.sqrt(torch.sum(torch.pow((a-b),1),0)))
 c.backward(torch.ones_like(c))
 print(a.grad)
-print(b.grad)
+print(b.grad)'''
+a = np.array([[1, 5, 5, 2],
+              [9, 6, 2, 8],
+              [3, 7, 9, 1]])
+print(a[1,...])
+a = ...
+print(type(a))
+print(a is ...)
+print(int(5 / 3))

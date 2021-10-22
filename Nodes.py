@@ -56,21 +56,25 @@ def dump_tensor(tensors: dict, path: str):
         pk.dump(tensors, f)
 
 
-def fill_slice_var(slice_index, executor):
+def fill_slice_var(slice_index, cursor):
     s = copy(slice_index)
     for idx in range(len(s)):
         if isinstance(s[idx], str):
-            s[idx] = int(executor.var_dict[s[idx]])
+            cursor.execute(f"select data from {s[idx]};")
+            s[idx] = str_to_list(cursor.fetch()[0][0])[0]
         elif isinstance(s[idx], slice):
             start = s[idx].start
             step = s[idx].step
             stop = s[idx].stop
             if isinstance(s[idx].start, str):
-                start = int(executor.var_dict[s[idx].start])
+                cursor.execute(f"select data from {s[idx].start};")
+                start = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].step, str):
-                step = int(executor.var_dict[s[idx].step])
+                cursor.execute(f"select data from {s[idx].step};")
+                step = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].stop, str):
-                stop = int(executor.var_dict[s[idx].stop])
+                cursor.execute(f"select data from {s[idx].stop};")
+                stop = str_to_list(cursor.fetch()[0][0])[0]
             s[idx] = slice(start, stop, step)
     return tuple(s)
 
@@ -435,10 +439,12 @@ class Random(Node):
         # 记录data shape和boundary中可能出现的变量名
         self.data_shape_var = {}
         self.boundary_var = {}
+        distribution_list = ['normal', 'Uniform', 'Bernoulli']
+
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
-            self.distribution = 'normal'
+            self.distribution = 0
         else:
-            self.distribution = distribution
+            self.distribution = distribution_list.index(distribution)
         self.dis_args = 'mu=1000,sigma=1000'
 
     @preprocessing
@@ -474,14 +480,19 @@ class Random(Node):
         # else:
         #     # TODO:
         # 如果data shape中包含var
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
-            # 转换
+                self.cursor.execute(f"select data from {name};")
+                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
+        if self.distribution not in [0, 1, 2]:
+            distribution_list = ['normal', 'Uniform', 'Bernoulli']
+            self.distribution = distribution_list.index(self.distribution)
         self.cursor.execute(
-            f"select db4ai_random({self.data_shape[0]}, {self.data_shape[1]}, {self.distribution}, {self.dis_args}, {self.vars[0]}")
+            f"select db4ai_random({self.data_shape[0]}, {self.data_shape[1]}, {self.distribution}, 1000, 1000, 0, '{self.vars[0]}')")
         # self.conn.commit()
 
     def infer_data(self):
@@ -536,7 +547,8 @@ class Loop(Node):
         if self.loop_pair in end_nodes:
             end_nodes.remove(self.loop_pair)
         if isinstance(self.dead_cycle, str):
-            self.dead_cycle = self.executor.var_dict[self.dead_cycle]
+            self.cursor.execute(f"select data from {self.dead_cycle};")
+            self.dead_cycle = str_to_list(self.cursor.fetch()[0][0])[0]
         # 循环结束
         if self.dead_cycle <= self.times:
             # 找到对应的Loop_End
@@ -607,7 +619,8 @@ class If(Node):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
-                para[var_name] = self.executor.var_dict[var_node.vars[0]]
+                self.cursor.execute(f"select data from {var_node.vars[0]}")
+                para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
             res = eval(edge.condition, para)
             if edge.reverse:
                 res = not res
@@ -632,7 +645,8 @@ class IfBranch(Node):
             for edge in self.out_edges:
                 para = {}
                 for var_name, var_node in edge.need_var:
-                    para[var_name] = self.executor.var_dict[var_node.vars[0]]
+                    self.cursor.execute(f"select data from {var_node.vars[0]}")
+                    para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
                 res = eval(edge.condition, para)
                 if edge.reverse:
                     res = not res
@@ -669,13 +683,34 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}'")
+        self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
         flag_right = rows[0][0] == 1
-        if flag_right is True:
+        assert flag_right is True
+        if self.slice is None:
             self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
             self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
-            # self.conn.commit()
+        else:
+            self.cursor.execute(f"select data from {self.vars[1]}")
+            new_data = str_to_list(self.cursor.fetch()[0][0])[0]
+            self.cursor.execute(f"select rows,cols from {self.vars[0]}")
+            shape = self.cursor.fetch()
+            self.cursor.execute(f"select data from {self.vars[0]}")
+            old_data = str_to_list(self.cursor.fetch()[0][0])
+            s = fill_slice_var(self.slice, self.cursor)
+            if s[0] is ... and s[1] is ...:
+                for i in range(len(old_data)):
+                    old_data[i] = new_data
+            elif s[0] is ...:
+                for i in range(len(shape[0][0])):
+                    old_data[i * shape[0][1] + s[1]] = new_data
+            elif s[1] is ...:
+                for i in range(shape[0][1]):
+                    old_data[s[0] * shape[0][1] + i] = new_data
+            else:
+                old_data[s[0] * shape[0][0] + s[1]] = new_data
+            self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
+        # self.conn.commit()
         # self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[0]}'")
         # rows = self.cursor.fetch()
         # flag_left = rows[0][0] == 1
@@ -1274,7 +1309,12 @@ class SHAPE(Node):
     @preprocessing
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.tensor(self.executor.var_dict[self.vars[1]].shape)
+
         self.cursor.execute(f"select db4ai_shape('{self.vars[1]}', '{self.vars[0]}');")
+        '''self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]};")
+        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        shape = self.cursor.fetch()
+        self.cursor.execute(f"update {self.vars[1]} set rows = 1,cols = 2, data = array{[shape[0][0],shape[0][1]]};")'''
         # self.conn.commit()
 
 
@@ -1338,23 +1378,28 @@ class Slice(Node):
                 s[idx] = [start, stop]
             elif isinstance(s[idx], str):
                 self.cursor.execute(f"select data from {s[idx]};")
-                s[idx] = str_to_list(self.cursor.fetch()[0][0])
+                s[idx] = [str_to_list(self.cursor.fetch()[0][0])[0], str_to_list(self.cursor.fetch()[0][0])[0]]
             elif isinstance(s[idx], slice):
                 start = s[idx].start
                 stop = s[idx].stop
                 if isinstance(s[idx].start, str):
                     self.cursor.execute(f"select data from {s[idx].start};")
-                    start = str_to_list(self.cursor.fetch()[0][0])
+                    start = str_to_list(self.cursor.fetch()[0][0])[0]
                 if s[idx].start is None:
                     start = shape[0][0]
                 if isinstance(s[idx].stop, str):
                     self.cursor.execute(f"select data from {s[idx].stop};")
-                    stop = str_to_list(self.cursor.fetch()[0][0])
+                    stop = str_to_list(self.cursor.fetch()[0][0])[0]
                 if s[idx].stop is None:
                     stop = shape[0][1]
                 s[idx] = [start, stop]
+        if len(s) == 1:
+            if shape[0][0] == 1:
+                s.insert(0, [0, 0])
+            else:
+                s.append([0, shape[0][1]])
         self.cursor.execute(
-            f"select db4ai_slice({self.vars[1]}, {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, {self.vars[0]});")
+            f"select db4ai_slice('{self.vars[1]}', {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, '{self.vars[0]}');")
         # self.conn.commit()
 
 
@@ -1390,7 +1435,7 @@ class Argmax(Node):
     @preprocessing
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.argmax(self.executor.var_dict[self.vars[1]], self.axis)
-        self.cursor.execute(f"select db4ai_argmax('{self.vars[1]}', self.axis, '{self.vars[0]}');")
+        self.cursor.execute(f"select db4ai_argmax('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
         # self.conn.commit()
 
     def set_axis(self, axis):
@@ -1405,7 +1450,7 @@ class Argmin(Node):
     @preprocessing
     def run(self, **kwargs):
         # self.executor.var_dict[self.vars[0]] = torch.argmin(self.executor.var_dict[self.vars[1]], self.axis)
-        self.cursor.execute(f"select db4ai_argmin('{self.vars[1]}', self.axis, '{self.vars[0]}');")
+        self.cursor.execute(f"select db4ai_argmin('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
         # self.conn.commit()
 
     def set_axis(self, axis):

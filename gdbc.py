@@ -79,15 +79,18 @@ class GDBC(object):
 if __name__ == '__main__':
     gdbc = GDBC()
     gdbc.connect()
-    gdbc.execute("select count(*) from pg_class where relname = '\"A\"';")
-    ans = gdbc.fetch()
+    vars = ["tmp", "qqq"]
+    s = [[0, 0], [0, 0]]
+    gdbc.execute(f"select count(*) from pg_class where relname = '_14';")
+    print(gdbc.fetch())
+    '''ans = gdbc.fetch()
     print(len(ans))
     if ans[0][0] == 0:
         print(True)
     else:
         gdbc.execute("create table \"A\"(val integer);")
         gdbc.execute("insert into temp values(1);")
-    '''
+    
     gdbc.execute("create table temp(val integer);")
     gdbc.execute("insert into temp values (1);")
     gdbc.execute("select * from temp;")

@@ -8,126 +8,1252 @@ grad:False
 	1 [label="id:1
 type:<class 'Nodes.CreateTensor'>
 area:[0]
-vars:['a']
-grad:True
+vars:['x']
+grad:False
 "]
 	2 [label="id:2
-type:<class 'Nodes.Ones'>
+type:<class 'Nodes.Random'>
 area:[0]
 vars:['_2']
-grad:True
-data_shape:(3, 3)"]
+grad:False
+data_shape:(1, 4)
+boundary:(0, 1)"]
 	3 [label="id:3
 type:<class 'Nodes.Assignment'>
 area:[0]
-vars:['a', '_2']
-grad:True
+vars:['x', '_2']
+grad:False
 slice:None
 update:False"]
 	4 [label="id:4
 type:<class 'Nodes.CreateTensor'>
 area:[0]
-vars:['b']
-grad:True
+vars:['y']
+grad:False
 "]
 	5 [label="id:5
 type:<class 'Nodes.Zeros'>
 area:[0]
 vars:['_5']
-grad:True
-data_shape:(3, 3)"]
+grad:False
+data_shape:(1, 1)"]
 	6 [label="id:6
 type:<class 'Nodes.Assignment'>
 area:[0]
-vars:['b', '_5']
-grad:True
+vars:['y', '_5']
+grad:False
 slice:None
 update:False"]
 	7 [label="id:7
-type:<class 'Nodes.EXP'>
+type:<class 'Nodes.Argmax'>
 area:[0]
-vars:['_7', '_9']
-grad:True
+vars:['_7', 'x']
+grad:False
 "]
 	8 [label="id:8
-type:<class 'Nodes.Val'>
+type:<class 'Nodes.Var'>
 area:[0]
-vars:['_8']
+vars:['x']
 grad:False
 "]
 	9 [label="id:9
-type:<class 'Nodes.Mul'>
-area:[0]
-vars:['_9', '_8', '_10']
-grad:True
-"]
-	10 [label="id:10
-type:<class 'Nodes.SQRT'>
-area:[0]
-vars:['_10', '_11']
-grad:True
-"]
-	11 [label="id:11
-type:<class 'Nodes.SUM'>
-area:[0]
-vars:['_11', '_12']
-grad:True
-"]
-	12 [label="id:12
-type:<class 'Nodes.POW'>
-area:[0]
-vars:['_12', '_14', '_16']
-grad:True
-"]
-	13 [label="id:13
-type:<class 'Nodes.Var'>
-area:[0]
-vars:['a']
-grad:True
-"]
-	14 [label="id:14
-type:<class 'Nodes.Sub'>
-area:[0]
-vars:['_14', 'a', 'b']
-grad:True
-"]
-	15 [label="id:15
-type:<class 'Nodes.Var'>
-area:[0]
-vars:['b']
-grad:True
-"]
-	16 [label="id:16
-type:<class 'Nodes.Val'>
-area:[0]
-vars:['_16']
-grad:False
-"]
-	17 [label="id:17
 type:<class 'Nodes.CreateTensor'>
 area:[0]
-vars:['c']
+vars:['tmp']
+grad:False
+"]
+	10 [label="id:10
+type:<class 'Nodes.Assignment'>
+area:[0]
+vars:['tmp', '_7']
+grad:False
+slice:None
+update:False"]
+	11 [label="id:11
+type:<class 'Nodes.CreateTensor'>
+area:[0]
+vars:['i']
+grad:False
+"]
+	12 [label="id:12
+type:<class 'Nodes.Val'>
+area:[0]
+vars:['_12']
+grad:False
+"]
+	13 [label="id:13
+type:<class 'Nodes.Assignment'>
+area:[0]
+vars:['i', '_12']
+grad:False
+slice:None
+update:False"]
+	14 [label="id:14
+type:<class 'Nodes.CreateTensor'>
+area:[0]
+vars:['temp']
+grad:False
+"]
+	15 [label="id:15
+type:<class 'Nodes.Val'>
+area:[0]
+vars:['_15']
+grad:False
+"]
+	16 [label="id:16
+type:<class 'Nodes.Assignment'>
+area:[0]
+vars:['temp', '_15']
+grad:False
+slice:None
+update:False"]
+	17 [label="id:17
+type:<class 'Nodes.Loop'>
+area:[0, 17]
+vars:[]
+grad:False
+loop_pair:32"]
+	19 [label="id:19
+type:<class 'Nodes.Var'>
+area:[0, 17]
+vars:['tmp']
 grad:False
 "]
 	18 [label="id:18
+type:<class 'Nodes.Slice'>
+area:[0, 17]
+vars:['_18', 'tmp']
+grad:False
+"]
+	20 [label="id:20
+type:<class 'Nodes.CreateTensor'>
+area:[0, 17]
+vars:['t']
+grad:False
+"]
+	21 [label="id:21
 type:<class 'Nodes.Assignment'>
+area:[0, 17]
+vars:['t', '_18']
+grad:False
+slice:None
+update:False"]
+	22 [label="id:22
+type:<class 'Nodes.If'>
+area:[0, 17]
+vars:[]
+grad:False
+"]
+	23 [label="id:23
+type:<class 'Nodes.IfBranch'>
+area:[0, 17, 23]
+vars:[]
+grad:False
+end_if_pair:27"]
+	24 [label="id:24
+type:<class 'Nodes.IfBranch'>
+area:[0, 17, 24]
+vars:[]
+grad:False
+end_if_pair:27"]
+	25 [label="id:25
+type:<class 'Nodes.Val'>
+area:[0, 17, 23]
+vars:['_25']
+grad:False
+"]
+	26 [label="id:26
+type:<class 'Nodes.Assignment'>
+area:[0, 17, 23]
+vars:['y', '_25']
+grad:False
+slice:['i', Ellipsis]
+update:False"]
+	27 [label="id:27
+type:<class 'Nodes.IfEnd'>
+area:[0, 17]
+vars:[]
+grad:False
+"]
+	28 [label="id:28
+type:<class 'Nodes.Var'>
+area:[0, 17, 27]
+vars:['i']
+grad:False
+"]
+	29 [label="id:29
+type:<class 'Nodes.Add'>
+area:[0, 17, 27]
+vars:['_29', 'i', '_30']
+grad:False
+"]
+	30 [label="id:30
+type:<class 'Nodes.Val'>
+area:[0, 17, 27]
+vars:['_30']
+grad:False
+"]
+	31 [label="id:31
+type:<class 'Nodes.Assignment'>
+area:[0, 17, 27]
+vars:['i', '_29']
+grad:False
+slice:None
+update:False"]
+	32 [label="id:32
+type:<class 'Nodes.LoopEnd'>
 area:[0]
-vars:['c', '_7']
+vars:[]
+grad:False
+loop_pair:17"]
+	33 [label="id:33
+type:<class 'Nodes.CreateTensor'>
+area:[0, 32]
+vars:['test_x']
+grad:False
+"]
+	34 [label="id:34
+type:<class 'Nodes.Random'>
+area:[0, 32]
+vars:['_34']
+grad:False
+data_shape:(1, 4)
+boundary:(0, 1)"]
+	35 [label="id:35
+type:<class 'Nodes.Assignment'>
+area:[0, 32]
+vars:['test_x', '_34']
+grad:False
+slice:None
+update:False"]
+	36 [label="id:36
+type:<class 'Nodes.CreateTensor'>
+area:[0, 32]
+vars:['test_y']
+grad:False
+"]
+	37 [label="id:37
+type:<class 'Nodes.Zeros'>
+area:[0, 32]
+vars:['_37']
+grad:False
+data_shape:(1, 1)"]
+	38 [label="id:38
+type:<class 'Nodes.Assignment'>
+area:[0, 32]
+vars:['test_y', '_37']
+grad:False
+slice:None
+update:False"]
+	39 [label="id:39
+type:<class 'Nodes.Argmax'>
+area:[0, 32]
+vars:['_39', 'test_x']
+grad:False
+"]
+	40 [label="id:40
+type:<class 'Nodes.Var'>
+area:[0, 32]
+vars:['test_x']
+grad:False
+"]
+	41 [label="id:41
+type:<class 'Nodes.Assignment'>
+area:[0, 32]
+vars:['tmp', '_39']
+grad:False
+slice:None
+update:False"]
+	42 [label="id:42
+type:<class 'Nodes.Val'>
+area:[0, 32]
+vars:['_42']
+grad:False
+"]
+	43 [label="id:43
+type:<class 'Nodes.Assignment'>
+area:[0, 32]
+vars:['i', '_42']
+grad:False
+slice:None
+update:False"]
+	44 [label="id:44
+type:<class 'Nodes.Loop'>
+area:[0, 32, 44]
+vars:[]
+grad:False
+loop_pair:58"]
+	46 [label="id:46
+type:<class 'Nodes.Var'>
+area:[0, 32, 44]
+vars:['tmp']
+grad:False
+"]
+	45 [label="id:45
+type:<class 'Nodes.Slice'>
+area:[0, 32, 44]
+vars:['_45', 'tmp']
+grad:False
+"]
+	47 [label="id:47
+type:<class 'Nodes.Assignment'>
+area:[0, 32, 44]
+vars:['t', '_45']
+grad:False
+slice:None
+update:False"]
+	48 [label="id:48
+type:<class 'Nodes.If'>
+area:[0, 32, 44]
+vars:[]
+grad:False
+"]
+	49 [label="id:49
+type:<class 'Nodes.IfBranch'>
+area:[0, 32, 44, 49]
+vars:[]
+grad:False
+end_if_pair:53"]
+	50 [label="id:50
+type:<class 'Nodes.IfBranch'>
+area:[0, 32, 44, 50]
+vars:[]
+grad:False
+end_if_pair:53"]
+	51 [label="id:51
+type:<class 'Nodes.Val'>
+area:[0, 32, 44, 49]
+vars:['_51']
+grad:False
+"]
+	52 [label="id:52
+type:<class 'Nodes.Assignment'>
+area:[0, 32, 44, 49]
+vars:['test_y', '_51']
+grad:False
+slice:['i', Ellipsis]
+update:False"]
+	53 [label="id:53
+type:<class 'Nodes.IfEnd'>
+area:[0, 32, 44]
+vars:[]
+grad:False
+"]
+	54 [label="id:54
+type:<class 'Nodes.Var'>
+area:[0, 32, 44, 53]
+vars:['i']
+grad:False
+"]
+	55 [label="id:55
+type:<class 'Nodes.Add'>
+area:[0, 32, 44, 53]
+vars:['_55', 'i', '_56']
+grad:False
+"]
+	56 [label="id:56
+type:<class 'Nodes.Val'>
+area:[0, 32, 44, 53]
+vars:['_56']
+grad:False
+"]
+	57 [label="id:57
+type:<class 'Nodes.Assignment'>
+area:[0, 32, 44, 53]
+vars:['i', '_55']
+grad:False
+slice:None
+update:False"]
+	58 [label="id:58
+type:<class 'Nodes.LoopEnd'>
+area:[0]
+vars:[]
+grad:False
+loop_pair:44"]
+	59 [label="id:59
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['lr']
+grad:False
+"]
+	60 [label="id:60
+type:<class 'Nodes.Val'>
+area:[0, 58]
+vars:['_60']
+grad:False
+"]
+	61 [label="id:61
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['lr', '_60']
+grad:False
+slice:None
+update:False"]
+	62 [label="id:62
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['class_num']
+grad:False
+"]
+	63 [label="id:63
+type:<class 'Nodes.Val'>
+area:[0, 58]
+vars:['_63']
+grad:False
+"]
+	64 [label="id:64
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['class_num', '_63']
+grad:False
+slice:None
+update:False"]
+	65 [label="id:65
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['ridge']
+grad:False
+"]
+	66 [label="id:66
+type:<class 'Nodes.Val'>
+area:[0, 58]
+vars:['_66']
+grad:False
+"]
+	67 [label="id:67
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['ridge', '_66']
+grad:False
+slice:None
+update:False"]
+	68 [label="id:68
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['iter_times']
+grad:False
+"]
+	69 [label="id:69
+type:<class 'Nodes.Val'>
+area:[0, 58]
+vars:['_69']
+grad:False
+"]
+	70 [label="id:70
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['iter_times', '_69']
+grad:False
+slice:None
+update:False"]
+	71 [label="id:71
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['mse']
+grad:False
+"]
+	72 [label="id:72
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['auc']
+grad:False
+"]
+	73 [label="id:73
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['f1']
+grad:False
+"]
+	74 [label="id:74
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['acc']
+grad:False
+"]
+	75 [label="id:75
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['recall']
+grad:False
+"]
+	76 [label="id:76
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['prec']
+grad:False
+"]
+	77 [label="id:77
+type:<class 'Nodes.SHAPE'>
+area:[0, 58]
+vars:['_14', 'x']
+grad:False
+"]
+	78 [label="id:78
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['x']
+grad:False
+"]
+	79 [label="id:79
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__0sx']
+grad:False
+"]
+	80 [label="id:80
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__0sx', '_14']
+grad:False
+slice:None
+update:False"]
+	82 [label="id:82
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['__0sx']
+grad:False
+"]
+	81 [label="id:81
+type:<class 'Nodes.Slice'>
+area:[0, 58]
+vars:['_18', '__0sx']
+grad:False
+"]
+	83 [label="id:83
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__0record_num']
+grad:False
+"]
+	84 [label="id:84
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__0record_num', '_18']
+grad:False
+slice:None
+update:False"]
+	86 [label="id:86
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['__0sx']
+grad:False
+"]
+	85 [label="id:85
+type:<class 'Nodes.Slice'>
+area:[0, 58]
+vars:['_22', '__0sx']
+grad:False
+"]
+	87 [label="id:87
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__0feature_num']
+grad:False
+"]
+	88 [label="id:88
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__0feature_num', '_22']
+grad:False
+slice:None
+update:False"]
+	89 [label="id:89
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__0w']
+grad:True
+"]
+	90 [label="id:90
+type:<class 'Nodes.Random'>
+area:[0, 58]
+vars:['_27']
+grad:True
+data_shape:(__0feature_num,1)
+boundary:(0, 1)"]
+	91 [label="id:91
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__0w', '_27']
 grad:True
 slice:None
 update:False"]
-	19 [label="id:19
-type:<class 'Nodes.Backward'>
-area:[0]
-vars:['c']
+	92 [label="id:92
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__0hx']
+grad:False
+"]
+	93 [label="id:93
+type:<class 'Nodes.Loop'>
+area:[0, 58, 93]
+vars:[]
+grad:True
+loop_pair:142"]
+	94 [label="id:94
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__31']
 grad:True
 "]
-	20 [label="id:20
+	95 [label="id:95
+type:<class 'Nodes.Div'>
+area:[0, 58, 93]
+vars:['_32', '__31', '_34']
+grad:True
+"]
+	96 [label="id:96
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__33']
+grad:True
+"]
+	97 [label="id:97
+type:<class 'Nodes.Add'>
+area:[0, 58, 93]
+vars:['_34', '__33', '_35']
+grad:True
+"]
+	98 [label="id:98
+type:<class 'Nodes.POW'>
+area:[0, 58, 93]
+vars:['_35', '__36', '_37']
+grad:True
+"]
+	99 [label="id:99
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__36']
+grad:True
+"]
+	100 [label="id:100
+type:<class 'Nodes.MATMUL'>
+area:[0, 58, 93]
+vars:['_37', 'x', '__0w']
+grad:True
+"]
+	101 [label="id:101
 type:<class 'Nodes.Var'>
-area:[0]
-vars:['c']
+area:[0, 58, 93]
+vars:['x']
 grad:True
 "]
+	102 [label="id:102
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	103 [label="id:103
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 93]
+vars:['__0hx', '_32']
+grad:True
+slice:None
+update:False"]
+	104 [label="id:104
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['ridge']
+grad:True
+"]
+	105 [label="id:105
+type:<class 'Nodes.Mul'>
+area:[0, 58, 93]
+vars:['_42', 'ridge', '_43']
+grad:True
+"]
+	106 [label="id:106
+type:<class 'Nodes.MEAN'>
+area:[0, 58, 93]
+vars:['_43', '_44']
+grad:True
+"]
+	107 [label="id:107
+type:<class 'Nodes.POW'>
+area:[0, 58, 93]
+vars:['_44', '__0w', '__46']
+grad:True
+"]
+	108 [label="id:108
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	109 [label="id:109
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__46']
+grad:True
+"]
+	110 [label="id:110
+type:<class 'Nodes.Sub'>
+area:[0, 58, 93]
+vars:['_47', '_42', '_48']
+grad:True
+"]
+	111 [label="id:111
+type:<class 'Nodes.MEAN'>
+area:[0, 58, 93]
+vars:['_48', '_53']
+grad:True
+"]
+	112 [label="id:112
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['y']
+grad:True
+"]
+	113 [label="id:113
+type:<class 'Nodes.Mul'>
+area:[0, 58, 93]
+vars:['_50', 'y', '_51']
+grad:True
+"]
+	114 [label="id:114
+type:<class 'Nodes.LOG'>
+area:[0, 58, 93]
+vars:['_51', '__0hx']
+grad:True
+"]
+	115 [label="id:115
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0hx']
+grad:True
+"]
+	116 [label="id:116
+type:<class 'Nodes.Add'>
+area:[0, 58, 93]
+vars:['_53', '_50', '_57']
+grad:True
+"]
+	117 [label="id:117
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__54']
+grad:True
+"]
+	118 [label="id:118
+type:<class 'Nodes.Sub'>
+area:[0, 58, 93]
+vars:['_55', '__54', 'y']
+grad:True
+"]
+	119 [label="id:119
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['y']
+grad:True
+"]
+	120 [label="id:120
+type:<class 'Nodes.Mul'>
+area:[0, 58, 93]
+vars:['_57', '_55', '_58']
+grad:True
+"]
+	121 [label="id:121
+type:<class 'Nodes.LOG'>
+area:[0, 58, 93]
+vars:['_58', '_60']
+grad:True
+"]
+	122 [label="id:122
+type:<class 'Nodes.Val'>
+area:[0, 58, 93]
+vars:['__59']
+grad:True
+"]
+	123 [label="id:123
+type:<class 'Nodes.Sub'>
+area:[0, 58, 93]
+vars:['_60', '__59', '__0hx']
+grad:True
+"]
+	124 [label="id:124
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0hx']
+grad:True
+"]
+	125 [label="id:125
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 93]
+vars:['__0loss']
+grad:True
+"]
+	126 [label="id:126
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 93]
+vars:['__0loss', '_47']
+grad:True
+slice:None
+update:False"]
+	127 [label="id:127
+type:<class 'Nodes.CleanGrad'>
+area:[0, 58, 93]
+vars:['__0w', '__0w']
+grad:True
+"]
+	128 [label="id:128
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	129 [label="id:129
+type:<class 'Nodes.Backward'>
+area:[0, 58, 93]
+vars:['__0loss', '__0w']
+grad:True
+"]
+	130 [label="id:130
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0loss']
+grad:True
+"]
+	131 [label="id:131
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	132 [label="id:132
+type:<class 'Nodes.GRADIENT'>
+area:[0, 58, 93]
+vars:['_69', '__0w']
+grad:True
+"]
+	133 [label="id:133
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	134 [label="id:134
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 93]
+vars:['__0g']
+grad:True
+"]
+	135 [label="id:135
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 93]
+vars:['__0g', '_69']
+grad:True
+slice:None
+update:False"]
+	136 [label="id:136
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0w']
+grad:True
+"]
+	137 [label="id:137
+type:<class 'Nodes.Sub'>
+area:[0, 58, 93]
+vars:['_74', '__0w', '_76']
+grad:True
+"]
+	138 [label="id:138
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['lr']
+grad:True
+"]
+	139 [label="id:139
+type:<class 'Nodes.Mul'>
+area:[0, 58, 93]
+vars:['_76', 'lr', '__0g']
+grad:True
+"]
+	140 [label="id:140
+type:<class 'Nodes.Var'>
+area:[0, 58, 93]
+vars:['__0g']
+grad:True
+"]
+	141 [label="id:141
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 93]
+vars:['__0w', '_74']
+grad:True
+slice:None
+update:True"]
+	142 [label="id:142
+type:<class 'Nodes.LoopEnd'>
+area:[0, 58]
+vars:[]
+grad:True
+loop_pair:93"]
+	143 [label="id:143
+type:<class 'Nodes.SHAPE'>
+area:[0, 58, 142]
+vars:['_80', 'test_x']
+grad:True
+"]
+	144 [label="id:144
+type:<class 'Nodes.Var'>
+area:[0, 58, 142]
+vars:['test_x']
+grad:True
+"]
+	145 [label="id:145
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142]
+vars:['__0sx', '_80']
+grad:True
+slice:None
+update:False"]
+	147 [label="id:147
+type:<class 'Nodes.Var'>
+area:[0, 58, 142]
+vars:['__0sx']
+grad:True
+"]
+	146 [label="id:146
+type:<class 'Nodes.Slice'>
+area:[0, 58, 142]
+vars:['_83', '__0sx']
+grad:True
+"]
+	148 [label="id:148
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142]
+vars:['__0record_num', '_83']
+grad:True
+slice:None
+update:False"]
+	149 [label="id:149
+type:<class 'Nodes.Val'>
+area:[0, 58, 142]
+vars:['__86']
+grad:True
+"]
+	150 [label="id:150
+type:<class 'Nodes.Div'>
+area:[0, 58, 142]
+vars:['_87', '__86', '_89']
+grad:True
+"]
+	151 [label="id:151
+type:<class 'Nodes.Val'>
+area:[0, 58, 142]
+vars:['__88']
+grad:True
+"]
+	152 [label="id:152
+type:<class 'Nodes.Add'>
+area:[0, 58, 142]
+vars:['_89', '__88', '_90']
+grad:True
+"]
+	153 [label="id:153
+type:<class 'Nodes.POW'>
+area:[0, 58, 142]
+vars:['_90', '__91', '_92']
+grad:True
+"]
+	154 [label="id:154
+type:<class 'Nodes.Val'>
+area:[0, 58, 142]
+vars:['__91']
+grad:True
+"]
+	155 [label="id:155
+type:<class 'Nodes.MATMUL'>
+area:[0, 58, 142]
+vars:['_92', 'test_x', '__0w']
+grad:True
+"]
+	156 [label="id:156
+type:<class 'Nodes.Var'>
+area:[0, 58, 142]
+vars:['test_x']
+grad:True
+"]
+	157 [label="id:157
+type:<class 'Nodes.Var'>
+area:[0, 58, 142]
+vars:['__0w']
+grad:True
+"]
+	158 [label="id:158
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 142]
+vars:['__0pred']
+grad:True
+"]
+	159 [label="id:159
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142]
+vars:['__0pred', '_87']
+grad:True
+slice:None
+update:False"]
+	160 [label="id:160
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 142]
+vars:['__0i']
+grad:True
+"]
+	161 [label="id:161
+type:<class 'Nodes.Val'>
+area:[0, 58, 142]
+vars:['__98']
+grad:True
+"]
+	162 [label="id:162
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142]
+vars:['__0i', '__98']
+grad:True
+slice:None
+update:False"]
+	163 [label="id:163
+type:<class 'Nodes.Loop'>
+area:[0, 58, 142, 163]
+vars:[]
+grad:True
+loop_pair:177"]
+	164 [label="id:164
+type:<class 'Nodes.If'>
+area:[0, 58, 142, 163]
+vars:[]
+grad:True
+"]
+	165 [label="id:165
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 142, 163, 165]
+vars:[]
+grad:True
+end_if_pair:172"]
+	166 [label="id:166
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 142, 163, 166]
+vars:[]
+grad:True
+end_if_pair:172"]
+	167 [label="id:167
+type:<class 'Nodes.Val'>
+area:[0, 58, 142, 163, 165]
+vars:['__104']
+grad:True
+"]
+	168 [label="id:168
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142, 163, 165]
+vars:['__0pred', '__104']
+grad:True
+slice:['__0i', slice(None, None, None)]
+update:False"]
+	169 [label="id:169
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 142, 163, 166, 169]
+vars:[]
+grad:True
+end_if_pair:172"]
+	170 [label="id:170
+type:<class 'Nodes.Val'>
+area:[0, 58, 142, 163, 166, 169]
+vars:['__107']
+grad:True
+"]
+	171 [label="id:171
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142, 163, 166, 169]
+vars:['__0pred', '__107']
+grad:True
+slice:['__0i', slice(None, None, None)]
+update:False"]
+	172 [label="id:172
+type:<class 'Nodes.IfEnd'>
+area:[0, 58, 142, 163]
+vars:[]
+grad:True
+"]
+	173 [label="id:173
+type:<class 'Nodes.Var'>
+area:[0, 58, 142, 163, 172]
+vars:['__0i']
+grad:True
+"]
+	174 [label="id:174
+type:<class 'Nodes.Add'>
+area:[0, 58, 142, 163, 172]
+vars:['_111', '__0i', '__112']
+grad:True
+"]
+	175 [label="id:175
+type:<class 'Nodes.Val'>
+area:[0, 58, 142, 163, 172]
+vars:['__112']
+grad:True
+"]
+	176 [label="id:176
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 142, 163, 172]
+vars:['__0i', '_111']
+grad:True
+slice:None
+update:False"]
+	177 [label="id:177
+type:<class 'Nodes.LoopEnd'>
+area:[0, 58]
+vars:[]
+grad:True
+loop_pair:163"]
+	178 [label="id:178
+type:<class 'Nodes.AUC'>
+area:[0, 58, 177]
+vars:['_115', 'test_y', '__0pred']
+grad:True
+"]
+	179 [label="id:179
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	180 [label="id:180
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	181 [label="id:181
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['auc', '_115']
+grad:True
+slice:None
+update:False"]
+	182 [label="id:182
+type:<class 'Nodes.ACC'>
+area:[0, 58, 177]
+vars:['_119', 'test_y', '__0pred']
+grad:True
+"]
+	183 [label="id:183
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	184 [label="id:184
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	185 [label="id:185
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['acc', '_119']
+grad:True
+slice:None
+update:False"]
+	186 [label="id:186
+type:<class 'Nodes.RECALL'>
+area:[0, 58, 177]
+vars:['_123', 'test_y', '__0pred']
+grad:True
+"]
+	187 [label="id:187
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	188 [label="id:188
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	189 [label="id:189
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['recall', '_123']
+grad:True
+slice:None
+update:False"]
+	190 [label="id:190
+type:<class 'Nodes.PRECISION'>
+area:[0, 58, 177]
+vars:['_127', 'test_y', '__0pred']
+grad:True
+"]
+	191 [label="id:191
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	192 [label="id:192
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	193 [label="id:193
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['prec', '_127']
+grad:True
+slice:None
+update:False"]
+	194 [label="id:194
+type:<class 'Nodes.MSE'>
+area:[0, 58, 177]
+vars:['_131', 'test_y', '__0pred']
+grad:True
+"]
+	195 [label="id:195
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	196 [label="id:196
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	197 [label="id:197
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['mse', '_131']
+grad:True
+slice:None
+update:False"]
+	198 [label="id:198
+type:<class 'Nodes.F1'>
+area:[0, 58, 177]
+vars:['_135', 'test_y', '__0pred']
+grad:True
+"]
+	199 [label="id:199
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['test_y']
+grad:True
+"]
+	200 [label="id:200
+type:<class 'Nodes.Var'>
+area:[0, 58, 177]
+vars:['__0pred']
+grad:True
+"]
+	201 [label="id:201
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 177]
+vars:['f1', '_135']
+grad:True
+slice:None
+update:False"]
 	1 -> 3 [color=green]
 	2 -> 3 [color=green]
 	0 -> 2 [color=green]
@@ -136,22 +1262,273 @@ grad:True
 	5 -> 6 [color=green]
 	0 -> 5 [color=green]
 	0 -> 4 [color=green]
-	9 -> 7 [color=green]
-	8 -> 9 [color=green]
-	10 -> 9 [color=green]
-	11 -> 10 [color=green]
-	12 -> 11 [color=green]
-	14 -> 12 [color=green]
-	13 -> 14 [color=green]
-	15 -> 14 [color=green]
-	16 -> 12 [color=green]
-	0 -> 8 [color=green]
-	3 -> 13 [color=green]
-	6 -> 15 [color=green]
-	0 -> 16 [color=green]
-	0 -> 17 [color=green]
-	17 -> 18 [color=green]
-	7 -> 18 [color=green]
-	20 -> 19 [color=green]
-	18 -> 20 [color=green]
+	8 -> 7 [color=green]
+	3 -> 8 [color=green]
+	0 -> 9 [color=green]
+	9 -> 10 [color=green]
+	7 -> 10 [color=green]
+	11 -> 13 [color=green]
+	12 -> 13 [color=green]
+	0 -> 12 [color=green]
+	0 -> 11 [color=green]
+	14 -> 16 [color=green]
+	15 -> 16 [color=green]
+	0 -> 15 [color=green]
+	0 -> 14 [color=green]
+	6 -> 17 [color=green]
+	10 -> 17 [color=green]
+	13 -> 17 [color=green]
+	16 -> 17 [color=green]
+	19 -> 18 [color=green]
+	17 -> 19 [color=green]
+	17 -> 20 [color=green]
+	20 -> 21 [color=green]
+	18 -> 21 [color=green]
+	21 -> 22 [color=green]
+	22 -> 23 [label="t>1" color=yellow]
+	22 -> 24 [label="!t>1" color=red]
+	23 -> 25 [color=green]
+	25 -> 26 [color=green]
+	24 -> 27 [color=green]
+	26 -> 27 [color=green]
+	28 -> 29 [color=green]
+	30 -> 29 [color=green]
+	27 -> 28 [color=green]
+	27 -> 30 [color=green]
+	29 -> 31 [color=green]
+	31 -> 32 [color=green]
+	32 -> 17 [color=green]
+	33 -> 35 [color=green]
+	34 -> 35 [color=green]
+	32 -> 34 [color=green]
+	32 -> 33 [color=green]
+	36 -> 38 [color=green]
+	37 -> 38 [color=green]
+	32 -> 37 [color=green]
+	32 -> 36 [color=green]
+	40 -> 39 [color=green]
+	35 -> 40 [color=green]
+	39 -> 41 [color=green]
+	32 -> 42 [color=green]
+	42 -> 43 [color=green]
+	38 -> 44 [color=green]
+	41 -> 44 [color=green]
+	43 -> 44 [color=green]
+	46 -> 45 [color=green]
+	44 -> 46 [color=green]
+	45 -> 47 [color=green]
+	47 -> 48 [color=green]
+	48 -> 49 [label="t>1" color=yellow]
+	48 -> 50 [label="!t>1" color=red]
+	49 -> 51 [color=green]
+	51 -> 52 [color=green]
+	50 -> 53 [color=green]
+	52 -> 53 [color=green]
+	54 -> 55 [color=green]
+	56 -> 55 [color=green]
+	53 -> 54 [color=green]
+	53 -> 56 [color=green]
+	55 -> 57 [color=green]
+	57 -> 58 [color=green]
+	58 -> 44 [color=green]
+	59 -> 61 [color=green]
+	60 -> 61 [color=green]
+	58 -> 60 [color=green]
+	58 -> 59 [color=green]
+	62 -> 64 [color=green]
+	63 -> 64 [color=green]
+	58 -> 63 [color=green]
+	58 -> 62 [color=green]
+	65 -> 67 [color=green]
+	66 -> 67 [color=green]
+	58 -> 66 [color=green]
+	58 -> 65 [color=green]
+	68 -> 70 [color=green]
+	69 -> 70 [color=green]
+	58 -> 69 [color=green]
+	58 -> 68 [color=green]
+	58 -> 71 [color=green]
+	58 -> 72 [color=green]
+	58 -> 73 [color=green]
+	58 -> 74 [color=green]
+	58 -> 75 [color=green]
+	58 -> 76 [color=green]
+	78 -> 77 [color=green]
+	79 -> 80 [color=green]
+	77 -> 80 [color=green]
+	82 -> 81 [color=green]
+	80 -> 82 [color=green]
+	83 -> 84 [color=green]
+	81 -> 84 [color=green]
+	86 -> 85 [color=green]
+	80 -> 86 [color=green]
+	87 -> 88 [color=green]
+	85 -> 88 [color=green]
+	89 -> 91 [color=green]
+	90 -> 91 [color=green]
+	88 -> 90 [color=green]
+	88 -> 89 [color=green]
+	88 -> 92 [color=green]
+	92 -> 93 [color=green]
+	84 -> 93 [color=green]
+	91 -> 93 [color=green]
+	94 -> 95 [color=green]
+	96 -> 97 [color=green]
+	98 -> 97 [color=green]
+	99 -> 98 [color=green]
+	100 -> 98 [color=green]
+	101 -> 100 [color=green]
+	102 -> 100 [color=green]
+	97 -> 95 [color=green]
+	93 -> 94 [color=green]
+	93 -> 96 [color=green]
+	93 -> 99 [color=green]
+	93 -> 101 [color=green]
+	93 -> 102 [color=green]
+	95 -> 103 [color=green]
+	104 -> 105 [color=green]
+	106 -> 105 [color=green]
+	107 -> 106 [color=green]
+	108 -> 107 [color=green]
+	109 -> 107 [color=green]
+	105 -> 110 [color=green]
+	111 -> 110 [color=green]
+	116 -> 111 [color=green]
+	112 -> 113 [color=green]
+	114 -> 113 [color=green]
+	115 -> 114 [color=green]
+	113 -> 116 [color=green]
+	117 -> 118 [color=green]
+	119 -> 118 [color=green]
+	118 -> 120 [color=green]
+	121 -> 120 [color=green]
+	123 -> 121 [color=green]
+	122 -> 123 [color=green]
+	124 -> 123 [color=green]
+	120 -> 116 [color=green]
+	93 -> 104 [color=green]
+	93 -> 108 [color=green]
+	93 -> 109 [color=green]
+	93 -> 112 [color=green]
+	103 -> 115 [color=green]
+	93 -> 117 [color=green]
+	93 -> 119 [color=green]
+	93 -> 122 [color=green]
+	103 -> 124 [color=green]
+	93 -> 125 [color=green]
+	125 -> 126 [color=green]
+	110 -> 126 [color=green]
+	128 -> 127 [color=green]
+	93 -> 128 [color=green]
+	130 -> 129 [color=green]
+	131 -> 129 [color=green]
+	126 -> 130 [color=green]
+	127 -> 131 [color=green]
+	133 -> 132 [color=green]
+	129 -> 133 [color=green]
+	93 -> 134 [color=green]
+	134 -> 135 [color=green]
+	132 -> 135 [color=green]
+	136 -> 137 [color=green]
+	138 -> 139 [color=green]
+	140 -> 139 [color=green]
+	139 -> 137 [color=green]
+	129 -> 136 [color=green]
+	93 -> 138 [color=green]
+	135 -> 140 [color=green]
+	129 -> 141 [color=green]
+	135 -> 141 [color=green]
+	137 -> 141 [color=green]
+	141 -> 142 [color=green]
+	142 -> 93 [color=green]
+	144 -> 143 [color=green]
+	142 -> 144 [color=green]
+	143 -> 145 [color=green]
+	147 -> 146 [color=green]
+	145 -> 147 [color=green]
+	146 -> 148 [color=green]
+	149 -> 150 [color=green]
+	151 -> 152 [color=green]
+	153 -> 152 [color=green]
+	154 -> 153 [color=green]
+	155 -> 153 [color=green]
+	156 -> 155 [color=green]
+	157 -> 155 [color=green]
+	152 -> 150 [color=green]
+	142 -> 149 [color=green]
+	142 -> 151 [color=green]
+	142 -> 154 [color=green]
+	142 -> 156 [color=green]
+	142 -> 157 [color=green]
+	142 -> 158 [color=green]
+	158 -> 159 [color=green]
+	150 -> 159 [color=green]
+	160 -> 162 [color=green]
+	161 -> 162 [color=green]
+	142 -> 161 [color=green]
+	142 -> 160 [color=green]
+	148 -> 163 [color=green]
+	159 -> 163 [color=green]
+	162 -> 163 [color=green]
+	163 -> 164 [color=green]
+	164 -> 165 [label="pred[i,:]>=0.5" color=yellow]
+	164 -> 166 [label="!pred[i,:]>=0.5" color=red]
+	165 -> 167 [color=green]
+	167 -> 168 [color=green]
+	166 -> 169 [color=green]
+	169 -> 170 [color=green]
+	170 -> 171 [color=green]
+	168 -> 172 [color=green]
+	171 -> 172 [color=green]
+	173 -> 174 [color=green]
+	175 -> 174 [color=green]
+	172 -> 173 [color=green]
+	172 -> 175 [color=green]
+	174 -> 176 [color=green]
+	176 -> 177 [color=green]
+	177 -> 163 [color=green]
+	179 -> 178 [color=green]
+	180 -> 178 [color=green]
+	177 -> 179 [color=green]
+	177 -> 180 [color=green]
+	178 -> 181 [color=green]
+	183 -> 182 [color=green]
+	184 -> 182 [color=green]
+	177 -> 183 [color=green]
+	177 -> 184 [color=green]
+	182 -> 185 [color=green]
+	187 -> 186 [color=green]
+	188 -> 186 [color=green]
+	177 -> 187 [color=green]
+	177 -> 188 [color=green]
+	186 -> 189 [color=green]
+	191 -> 190 [color=green]
+	192 -> 190 [color=green]
+	177 -> 191 [color=green]
+	177 -> 192 [color=green]
+	190 -> 193 [color=green]
+	195 -> 194 [color=green]
+	196 -> 194 [color=green]
+	177 -> 195 [color=green]
+	177 -> 196 [color=green]
+	194 -> 197 [color=green]
+	199 -> 198 [color=green]
+	200 -> 198 [color=green]
+	177 -> 199 [color=green]
+	177 -> 200 [color=green]
+	198 -> 201 [color=green]
+	58 -> 78 [color=green]
+	64 -> 92 [color=green]
+	61 -> 93 [color=green]
+	71 -> 93 [color=green]
+	72 -> 93 [color=green]
+	73 -> 93 [color=green]
+	74 -> 93 [color=green]
+	75 -> 93 [color=green]
+	67 -> 93 [color=green]
+	76 -> 93 [color=green]
+	70 -> 93 [color=green]
+	58 -> 79 [color=green]
+	58 -> 83 [color=green]
+	58 -> 87 [color=green]
 }

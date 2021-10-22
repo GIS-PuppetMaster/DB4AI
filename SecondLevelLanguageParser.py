@@ -72,7 +72,6 @@ class Parser:
             elif query == '$':
                 self.EndIf()
             else:
-                # self.graph.Show()
                 raise Exception('非法语句：' + query + ' 错误在第' + str(self.line_id) + '行')
 
         nodes = self.graph.nodes
@@ -85,7 +84,7 @@ class Parser:
                         node.with_grad = True
                         flag = 1
 
-        self.graph.Show()
+        # self.graph.Show()
         return self.graph
 
     #  用于解析语句时维护解析器或计算图数据的主要函数
@@ -159,7 +158,8 @@ class Parser:
                 # self.graph.Show()
                 output = self.graph.GetNoOutNodes()
                 self.AddUserOperator(output, self.input, self.graph, self.operator)
-                self.Reset()
+                # TODO:
+                # self.Reset()
             else:
                 raise Exception('多余括号！' + ' 错误在第' + str(self.line_id) + '行')
 
@@ -871,20 +871,23 @@ class Parser:
 
 if __name__ == '__main__':
 
-    with open('test.txt', 'r', encoding='utf-8') as f:
+    '''with open('test.txt', 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
     executor = Executor(result)
+    executor.run()'''
+    from time import time
+
+    algorithm = 'logistic'
+    path = f'test/{algorithm}.sql'
+    with open(path, 'r', encoding='utf-8') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    result = testPar()
+    result.Show()
+    executor = Executor(result)
     executor.run()
-    # from time import time
-    #
-    # algorithm = 'SVM'
-    # path = f'operators/{algorithm}.sql'
-    # with open(path, 'r', encoding='utf-8') as f:
-    #     create_test = f.readlines()
-    # testPar = Parser(create_test)
-    # result = testPar()
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'
