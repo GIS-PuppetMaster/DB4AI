@@ -6,7 +6,7 @@ import yaml
 from collections import defaultdict
 import torch
 from copy import deepcopy
-
+from gdbc import GDBC
 
 class Tensor(torch.Tensor):
     def __init__(self, *args, **kwargs):
@@ -27,10 +27,13 @@ class Executor:
         self.parameters = {}
         self.wait_to_be_release_after_loop = defaultdict(set)
         self.graph = graph
+        self.cursor = GDBC()
+        self.cursor.connect()
         # 有错误
         # self.graph = deepcopy(graph)
         # self.remove_extra_edges()
         self.init_executor()
+
 
     def remove_extra_edges(self):
         queue = []
@@ -81,6 +84,7 @@ class Executor:
 
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
+        current_node.cursor = self.cursor
         # if isinstance(current_node, Loop):
         #     if 'loop' not in kwargs['info'].keys():
         #         kwargs['info']['loop'] = {}
@@ -153,7 +157,7 @@ class Executor:
                         return False
 
         current_node.run(visited=visited, executor=self)
-        # print(f'{current_node.id}')
+        print(f'{current_node.id}')
         # # TODO: 对requires_grad对象的回收
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:

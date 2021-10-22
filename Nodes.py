@@ -150,7 +150,10 @@ class Node:
         self.cursor = # self.conn.cursor()'''
         # self.conn = None
         self.cursor = None
-        self.set_conn()
+        # if 'cursor' in kwargs.keys():
+        #     self.cursor = kwargs['cursor']
+        # else:
+        #     self.set_conn()
 
     @property
     def default_batch_size(self):
@@ -220,10 +223,10 @@ class Node:
         return self.vars
 
     # 用于run方法的域设置
-    def set_conn(self):
-        # self.cursor = # self.conn.cursor()
-        self.cursor = GDBC()
-        self.cursor.connect()
+    # def set_conn(self):
+    #     # self.cursor = # self.conn.cursor()
+    #     self.cursor = GDBC()
+    #     self.cursor.connect()
 
     def __repr__(self):
         return f'id:{self.id}, branches:{self.branches}, vars:{self.vars}'
