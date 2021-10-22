@@ -65,7 +65,7 @@ class Executor:
             node.out_edges = list(filter(lambda x: x.end not in start_nodes_of_edges_to_remove or is_control_flow(x), node.out_edges))
         # 在图内移除
         self.graph.edges = list(filter(lambda x: x not in edges_to_removed or is_control_flow(x), self.graph.edges))
-        self.graph.Show()
+        # self.graph.Show()
 
     def init_executor(self):
         # for _, para in self.parameters:

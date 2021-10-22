@@ -207,4 +207,4 @@ if __name__ == '__main__':
     G.InsertEdge(W, Val)
     G.InsertEdge(Val, Ran)
     G.InsertEdge(Y, W)
-    G.Show()
+    # G.Show()

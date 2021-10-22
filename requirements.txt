@@ -1,0 +1,12 @@
+pandas
+sko==0.5.7
+psycopg2==2.8.5
+Keras==2.3.1
+scipy
+graphviz==0.16
+requests==2.25.1
+numpy
+matplotlib
+PyYAML==6.0
+scikit_learn
+torch==1.10.0
