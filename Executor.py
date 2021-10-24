@@ -6,7 +6,8 @@ import yaml
 from collections import defaultdict
 import torch
 from copy import deepcopy
-from gdbc import GDBC
+# from gdbc import GDBC
+import pyodbc
 
 class Tensor(torch.Tensor):
     def __init__(self, *args, **kwargs):
@@ -15,9 +16,9 @@ class Tensor(torch.Tensor):
 
 class Executor:
     def __init__(self, graph):
-        with open('./config.yaml', encoding='utf-8') as f:
-            config = yaml.load_all(f)
-        self.config = config
+        # with open('./config.yaml', encoding='utf-8') as f:
+        #     config = yaml.load_all(f)
+        # self.config = config
         self.raw_graph = graph
         self.var_dict = dict()
         self.finished_loop_id = set()

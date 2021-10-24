@@ -12,6 +12,7 @@ import sklearn
 from sklearn import metrics as sk_metrics
 import pickle as pk
 from gdbc import GDBC
+
 all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                 'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
@@ -32,21 +33,26 @@ def preprocessing(fun):
                 # torch->sql
                 pass'''
         table_name = "grad_" + str(node.id)
-        node.cursor.execute(f"drop table if exists {table_name};")
-        node.cursor.execute(f"drop table if exists {table_name + '_1'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_2'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_temp1'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_temp2'};")
+        node.cursor.execute(
+            f"drop table if exists {table_name};"
+            f"drop table if exists {table_name + '_1'};"
+            f"drop table if exists {table_name + '_2'};"
+            f"drop table if exists {table_name + '_temp1'};"
+            f"drop table if exists {table_name + '_temp2'};")
+        # node.cursor.execute(f"")
+        # node.cursor.execute(f"")
+        # node.cursor.execute(f"")
+        # node.cursor.execute(f"")
         grad_output_table_name = "grad_output_" + str(node.id)
         node.cursor.execute(f"drop table if exists {grad_output_table_name};")
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
-        if not node.with_grad and not isinstance(node, GRADIENT):
-            with torch.no_grad():
-                return fun(node, **kwargs)
-        else:
-            return fun(node, **kwargs)
+        # if not node.with_grad and not isinstance(node, GRADIENT):
+        #     with torch.no_grad():
+        #         return fun(node, **kwargs)
+        # else:
+        return fun(node, **kwargs)
 
     return decorated
 
@@ -355,6 +361,8 @@ class Node:
             return True
         else:
             return False
+
+
 # 通过继承实现的其它节点类
 
 
@@ -1623,6 +1631,7 @@ class SUM(Node):
     '''
          db4ai_sum将输入表，按列求和（输入参数==0）或按行求和（输入参数==1）,结果保存在输出表中。
     '''
+
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")

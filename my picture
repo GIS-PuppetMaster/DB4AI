@@ -16,7 +16,7 @@ type:<class 'Nodes.Random'>
 area:[0]
 vars:['_2']
 grad:False
-data_shape:(1, 4)
+data_shape:(10, 4)
 boundary:(0, 1)"]
 	3 [label="id:3
 type:<class 'Nodes.Assignment'>
@@ -36,7 +36,7 @@ type:<class 'Nodes.Zeros'>
 area:[0]
 vars:['_5']
 grad:False
-data_shape:(1, 1)"]
+data_shape:(10, 1)"]
 	6 [label="id:6
 type:<class 'Nodes.Assignment'>
 area:[0]
@@ -217,7 +217,7 @@ type:<class 'Nodes.Random'>
 area:[0, 32]
 vars:['_34']
 grad:False
-data_shape:(1, 4)
+data_shape:(10, 4)
 boundary:(0, 1)"]
 	35 [label="id:35
 type:<class 'Nodes.Assignment'>
@@ -237,7 +237,7 @@ type:<class 'Nodes.Zeros'>
 area:[0, 32]
 vars:['_37']
 grad:False
-data_shape:(1, 1)"]
+data_shape:(10, 1)"]
 	38 [label="id:38
 type:<class 'Nodes.Assignment'>
 area:[0, 32]
@@ -1254,6 +1254,778 @@ vars:['f1', '_135']
 grad:True
 slice:None
 update:False"]
+	202 [label="id:202
+type:<class 'Nodes.SHAPE'>
+area:[0, 58]
+vars:['_14', 'x']
+grad:False
+"]
+	203 [label="id:203
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['x']
+grad:False
+"]
+	204 [label="id:204
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__1sx']
+grad:False
+"]
+	205 [label="id:205
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__1sx', '_14']
+grad:False
+slice:None
+update:False"]
+	207 [label="id:207
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['__1sx']
+grad:False
+"]
+	206 [label="id:206
+type:<class 'Nodes.Slice'>
+area:[0, 58]
+vars:['_18', '__1sx']
+grad:False
+"]
+	208 [label="id:208
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__1record_num']
+grad:False
+"]
+	209 [label="id:209
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__1record_num', '_18']
+grad:False
+slice:None
+update:False"]
+	211 [label="id:211
+type:<class 'Nodes.Var'>
+area:[0, 58]
+vars:['__1sx']
+grad:False
+"]
+	210 [label="id:210
+type:<class 'Nodes.Slice'>
+area:[0, 58]
+vars:['_22', '__1sx']
+grad:False
+"]
+	212 [label="id:212
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__1feature_num']
+grad:False
+"]
+	213 [label="id:213
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__1feature_num', '_22']
+grad:False
+slice:None
+update:False"]
+	214 [label="id:214
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__1w']
+grad:True
+"]
+	215 [label="id:215
+type:<class 'Nodes.Random'>
+area:[0, 58]
+vars:['_27']
+grad:True
+data_shape:(__1feature_num,1)
+boundary:(0, 1)"]
+	216 [label="id:216
+type:<class 'Nodes.Assignment'>
+area:[0, 58]
+vars:['__1w', '_27']
+grad:True
+slice:None
+update:False"]
+	217 [label="id:217
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58]
+vars:['__1hx']
+grad:False
+"]
+	218 [label="id:218
+type:<class 'Nodes.Loop'>
+area:[0, 58, 218]
+vars:[]
+grad:True
+loop_pair:267"]
+	219 [label="id:219
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__31']
+grad:True
+"]
+	220 [label="id:220
+type:<class 'Nodes.Div'>
+area:[0, 58, 218]
+vars:['_32', '__31', '_34']
+grad:True
+"]
+	221 [label="id:221
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__33']
+grad:True
+"]
+	222 [label="id:222
+type:<class 'Nodes.Add'>
+area:[0, 58, 218]
+vars:['_34', '__33', '_35']
+grad:True
+"]
+	223 [label="id:223
+type:<class 'Nodes.POW'>
+area:[0, 58, 218]
+vars:['_35', '__36', '_37']
+grad:True
+"]
+	224 [label="id:224
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__36']
+grad:True
+"]
+	225 [label="id:225
+type:<class 'Nodes.MATMUL'>
+area:[0, 58, 218]
+vars:['_37', 'x', '__1w']
+grad:True
+"]
+	226 [label="id:226
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['x']
+grad:True
+"]
+	227 [label="id:227
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	228 [label="id:228
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 218]
+vars:['__1hx', '_32']
+grad:True
+slice:None
+update:False"]
+	229 [label="id:229
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['ridge']
+grad:True
+"]
+	230 [label="id:230
+type:<class 'Nodes.Mul'>
+area:[0, 58, 218]
+vars:['_42', 'ridge', '_43']
+grad:True
+"]
+	231 [label="id:231
+type:<class 'Nodes.MEAN'>
+area:[0, 58, 218]
+vars:['_43', '_44']
+grad:True
+"]
+	232 [label="id:232
+type:<class 'Nodes.POW'>
+area:[0, 58, 218]
+vars:['_44', '__1w', '__46']
+grad:True
+"]
+	233 [label="id:233
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	234 [label="id:234
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__46']
+grad:True
+"]
+	235 [label="id:235
+type:<class 'Nodes.Sub'>
+area:[0, 58, 218]
+vars:['_47', '_42', '_48']
+grad:True
+"]
+	236 [label="id:236
+type:<class 'Nodes.MEAN'>
+area:[0, 58, 218]
+vars:['_48', '_53']
+grad:True
+"]
+	237 [label="id:237
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['y']
+grad:True
+"]
+	238 [label="id:238
+type:<class 'Nodes.Mul'>
+area:[0, 58, 218]
+vars:['_50', 'y', '_51']
+grad:True
+"]
+	239 [label="id:239
+type:<class 'Nodes.LOG'>
+area:[0, 58, 218]
+vars:['_51', '__1hx']
+grad:True
+"]
+	240 [label="id:240
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1hx']
+grad:True
+"]
+	241 [label="id:241
+type:<class 'Nodes.Add'>
+area:[0, 58, 218]
+vars:['_53', '_50', '_57']
+grad:True
+"]
+	242 [label="id:242
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__54']
+grad:True
+"]
+	243 [label="id:243
+type:<class 'Nodes.Sub'>
+area:[0, 58, 218]
+vars:['_55', '__54', 'y']
+grad:True
+"]
+	244 [label="id:244
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['y']
+grad:True
+"]
+	245 [label="id:245
+type:<class 'Nodes.Mul'>
+area:[0, 58, 218]
+vars:['_57', '_55', '_58']
+grad:True
+"]
+	246 [label="id:246
+type:<class 'Nodes.LOG'>
+area:[0, 58, 218]
+vars:['_58', '_60']
+grad:True
+"]
+	247 [label="id:247
+type:<class 'Nodes.Val'>
+area:[0, 58, 218]
+vars:['__59']
+grad:True
+"]
+	248 [label="id:248
+type:<class 'Nodes.Sub'>
+area:[0, 58, 218]
+vars:['_60', '__59', '__1hx']
+grad:True
+"]
+	249 [label="id:249
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1hx']
+grad:True
+"]
+	250 [label="id:250
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 218]
+vars:['__1loss']
+grad:True
+"]
+	251 [label="id:251
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 218]
+vars:['__1loss', '_47']
+grad:True
+slice:None
+update:False"]
+	252 [label="id:252
+type:<class 'Nodes.CleanGrad'>
+area:[0, 58, 218]
+vars:['__1w', '__1w']
+grad:True
+"]
+	253 [label="id:253
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	254 [label="id:254
+type:<class 'Nodes.Backward'>
+area:[0, 58, 218]
+vars:['__1loss', '__1w']
+grad:True
+"]
+	255 [label="id:255
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1loss']
+grad:True
+"]
+	256 [label="id:256
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	257 [label="id:257
+type:<class 'Nodes.GRADIENT'>
+area:[0, 58, 218]
+vars:['_69', '__1w']
+grad:True
+"]
+	258 [label="id:258
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	259 [label="id:259
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 218]
+vars:['__1g']
+grad:True
+"]
+	260 [label="id:260
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 218]
+vars:['__1g', '_69']
+grad:True
+slice:None
+update:False"]
+	261 [label="id:261
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1w']
+grad:True
+"]
+	262 [label="id:262
+type:<class 'Nodes.Sub'>
+area:[0, 58, 218]
+vars:['_74', '__1w', '_76']
+grad:True
+"]
+	263 [label="id:263
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['lr']
+grad:True
+"]
+	264 [label="id:264
+type:<class 'Nodes.Mul'>
+area:[0, 58, 218]
+vars:['_76', 'lr', '__1g']
+grad:True
+"]
+	265 [label="id:265
+type:<class 'Nodes.Var'>
+area:[0, 58, 218]
+vars:['__1g']
+grad:True
+"]
+	266 [label="id:266
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 218]
+vars:['__1w', '_74']
+grad:True
+slice:None
+update:True"]
+	267 [label="id:267
+type:<class 'Nodes.LoopEnd'>
+area:[0, 58]
+vars:[]
+grad:True
+loop_pair:218"]
+	268 [label="id:268
+type:<class 'Nodes.SHAPE'>
+area:[0, 58, 267]
+vars:['_80', 'test_x']
+grad:True
+"]
+	269 [label="id:269
+type:<class 'Nodes.Var'>
+area:[0, 58, 267]
+vars:['test_x']
+grad:True
+"]
+	270 [label="id:270
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267]
+vars:['__1sx', '_80']
+grad:True
+slice:None
+update:False"]
+	272 [label="id:272
+type:<class 'Nodes.Var'>
+area:[0, 58, 267]
+vars:['__1sx']
+grad:True
+"]
+	271 [label="id:271
+type:<class 'Nodes.Slice'>
+area:[0, 58, 267]
+vars:['_83', '__1sx']
+grad:True
+"]
+	273 [label="id:273
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267]
+vars:['__1record_num', '_83']
+grad:True
+slice:None
+update:False"]
+	274 [label="id:274
+type:<class 'Nodes.Val'>
+area:[0, 58, 267]
+vars:['__86']
+grad:True
+"]
+	275 [label="id:275
+type:<class 'Nodes.Div'>
+area:[0, 58, 267]
+vars:['_87', '__86', '_89']
+grad:True
+"]
+	276 [label="id:276
+type:<class 'Nodes.Val'>
+area:[0, 58, 267]
+vars:['__88']
+grad:True
+"]
+	277 [label="id:277
+type:<class 'Nodes.Add'>
+area:[0, 58, 267]
+vars:['_89', '__88', '_90']
+grad:True
+"]
+	278 [label="id:278
+type:<class 'Nodes.POW'>
+area:[0, 58, 267]
+vars:['_90', '__91', '_92']
+grad:True
+"]
+	279 [label="id:279
+type:<class 'Nodes.Val'>
+area:[0, 58, 267]
+vars:['__91']
+grad:True
+"]
+	280 [label="id:280
+type:<class 'Nodes.MATMUL'>
+area:[0, 58, 267]
+vars:['_92', 'test_x', '__1w']
+grad:True
+"]
+	281 [label="id:281
+type:<class 'Nodes.Var'>
+area:[0, 58, 267]
+vars:['test_x']
+grad:True
+"]
+	282 [label="id:282
+type:<class 'Nodes.Var'>
+area:[0, 58, 267]
+vars:['__1w']
+grad:True
+"]
+	283 [label="id:283
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 267]
+vars:['__1pred']
+grad:True
+"]
+	284 [label="id:284
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267]
+vars:['__1pred', '_87']
+grad:True
+slice:None
+update:False"]
+	285 [label="id:285
+type:<class 'Nodes.CreateTensor'>
+area:[0, 58, 267]
+vars:['__1i']
+grad:True
+"]
+	286 [label="id:286
+type:<class 'Nodes.Val'>
+area:[0, 58, 267]
+vars:['__98']
+grad:True
+"]
+	287 [label="id:287
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267]
+vars:['__1i', '__98']
+grad:True
+slice:None
+update:False"]
+	288 [label="id:288
+type:<class 'Nodes.Loop'>
+area:[0, 58, 267, 288]
+vars:[]
+grad:True
+loop_pair:302"]
+	289 [label="id:289
+type:<class 'Nodes.If'>
+area:[0, 58, 267, 288]
+vars:[]
+grad:True
+"]
+	290 [label="id:290
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 267, 288, 290]
+vars:[]
+grad:True
+end_if_pair:297"]
+	291 [label="id:291
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 267, 288, 291]
+vars:[]
+grad:True
+end_if_pair:297"]
+	292 [label="id:292
+type:<class 'Nodes.Val'>
+area:[0, 58, 267, 288, 290]
+vars:['__104']
+grad:True
+"]
+	293 [label="id:293
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267, 288, 290]
+vars:['__1pred', '__104']
+grad:True
+slice:['__1i', slice(None, None, None)]
+update:False"]
+	294 [label="id:294
+type:<class 'Nodes.IfBranch'>
+area:[0, 58, 267, 288, 291, 294]
+vars:[]
+grad:True
+end_if_pair:297"]
+	295 [label="id:295
+type:<class 'Nodes.Val'>
+area:[0, 58, 267, 288, 291, 294]
+vars:['__107']
+grad:True
+"]
+	296 [label="id:296
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267, 288, 291, 294]
+vars:['__1pred', '__107']
+grad:True
+slice:['__1i', slice(None, None, None)]
+update:False"]
+	297 [label="id:297
+type:<class 'Nodes.IfEnd'>
+area:[0, 58, 267, 288]
+vars:[]
+grad:True
+"]
+	298 [label="id:298
+type:<class 'Nodes.Var'>
+area:[0, 58, 267, 288, 297]
+vars:['__1i']
+grad:True
+"]
+	299 [label="id:299
+type:<class 'Nodes.Add'>
+area:[0, 58, 267, 288, 297]
+vars:['_111', '__1i', '__112']
+grad:True
+"]
+	300 [label="id:300
+type:<class 'Nodes.Val'>
+area:[0, 58, 267, 288, 297]
+vars:['__112']
+grad:True
+"]
+	301 [label="id:301
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 267, 288, 297]
+vars:['__1i', '_111']
+grad:True
+slice:None
+update:False"]
+	302 [label="id:302
+type:<class 'Nodes.LoopEnd'>
+area:[0, 58]
+vars:[]
+grad:True
+loop_pair:288"]
+	303 [label="id:303
+type:<class 'Nodes.AUC'>
+area:[0, 58, 302]
+vars:['_115', 'test_y', '__1pred']
+grad:True
+"]
+	304 [label="id:304
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	305 [label="id:305
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	306 [label="id:306
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['auc', '_115']
+grad:True
+slice:None
+update:False"]
+	307 [label="id:307
+type:<class 'Nodes.ACC'>
+area:[0, 58, 302]
+vars:['_119', 'test_y', '__1pred']
+grad:True
+"]
+	308 [label="id:308
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	309 [label="id:309
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	310 [label="id:310
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['acc', '_119']
+grad:True
+slice:None
+update:False"]
+	311 [label="id:311
+type:<class 'Nodes.RECALL'>
+area:[0, 58, 302]
+vars:['_123', 'test_y', '__1pred']
+grad:True
+"]
+	312 [label="id:312
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	313 [label="id:313
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	314 [label="id:314
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['recall', '_123']
+grad:True
+slice:None
+update:False"]
+	315 [label="id:315
+type:<class 'Nodes.PRECISION'>
+area:[0, 58, 302]
+vars:['_127', 'test_y', '__1pred']
+grad:True
+"]
+	316 [label="id:316
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	317 [label="id:317
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	318 [label="id:318
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['prec', '_127']
+grad:True
+slice:None
+update:False"]
+	319 [label="id:319
+type:<class 'Nodes.MSE'>
+area:[0, 58, 302]
+vars:['_131', 'test_y', '__1pred']
+grad:True
+"]
+	320 [label="id:320
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	321 [label="id:321
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	322 [label="id:322
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['mse', '_131']
+grad:True
+slice:None
+update:False"]
+	323 [label="id:323
+type:<class 'Nodes.F1'>
+area:[0, 58, 302]
+vars:['_135', 'test_y', '__1pred']
+grad:True
+"]
+	324 [label="id:324
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['test_y']
+grad:True
+"]
+	325 [label="id:325
+type:<class 'Nodes.Var'>
+area:[0, 58, 302]
+vars:['__1pred']
+grad:True
+"]
+	326 [label="id:326
+type:<class 'Nodes.Assignment'>
+area:[0, 58, 302]
+vars:['f1', '_135']
+grad:True
+slice:None
+update:False"]
 	1 -> 3 [color=green]
 	2 -> 3 [color=green]
 	0 -> 2 [color=green]
@@ -1531,4 +2303,173 @@ update:False"]
 	58 -> 79 [color=green]
 	58 -> 83 [color=green]
 	58 -> 87 [color=green]
+	203 -> 202 [color=green]
+	204 -> 205 [color=green]
+	202 -> 205 [color=green]
+	207 -> 206 [color=green]
+	205 -> 207 [color=green]
+	208 -> 209 [color=green]
+	206 -> 209 [color=green]
+	211 -> 210 [color=green]
+	205 -> 211 [color=green]
+	212 -> 213 [color=green]
+	210 -> 213 [color=green]
+	214 -> 216 [color=green]
+	215 -> 216 [color=green]
+	213 -> 215 [color=green]
+	213 -> 214 [color=green]
+	213 -> 217 [color=green]
+	217 -> 218 [color=green]
+	209 -> 218 [color=green]
+	216 -> 218 [color=green]
+	219 -> 220 [color=green]
+	221 -> 222 [color=green]
+	223 -> 222 [color=green]
+	224 -> 223 [color=green]
+	225 -> 223 [color=green]
+	226 -> 225 [color=green]
+	227 -> 225 [color=green]
+	222 -> 220 [color=green]
+	218 -> 219 [color=green]
+	218 -> 221 [color=green]
+	218 -> 224 [color=green]
+	218 -> 226 [color=green]
+	218 -> 227 [color=green]
+	220 -> 228 [color=green]
+	229 -> 230 [color=green]
+	231 -> 230 [color=green]
+	232 -> 231 [color=green]
+	233 -> 232 [color=green]
+	234 -> 232 [color=green]
+	230 -> 235 [color=green]
+	236 -> 235 [color=green]
+	241 -> 236 [color=green]
+	237 -> 238 [color=green]
+	239 -> 238 [color=green]
+	240 -> 239 [color=green]
+	238 -> 241 [color=green]
+	242 -> 243 [color=green]
+	244 -> 243 [color=green]
+	243 -> 245 [color=green]
+	246 -> 245 [color=green]
+	248 -> 246 [color=green]
+	247 -> 248 [color=green]
+	249 -> 248 [color=green]
+	245 -> 241 [color=green]
+	218 -> 229 [color=green]
+	218 -> 233 [color=green]
+	218 -> 234 [color=green]
+	218 -> 237 [color=green]
+	228 -> 240 [color=green]
+	218 -> 242 [color=green]
+	218 -> 244 [color=green]
+	218 -> 247 [color=green]
+	228 -> 249 [color=green]
+	218 -> 250 [color=green]
+	250 -> 251 [color=green]
+	235 -> 251 [color=green]
+	253 -> 252 [color=green]
+	218 -> 253 [color=green]
+	255 -> 254 [color=green]
+	256 -> 254 [color=green]
+	251 -> 255 [color=green]
+	252 -> 256 [color=green]
+	258 -> 257 [color=green]
+	254 -> 258 [color=green]
+	218 -> 259 [color=green]
+	259 -> 260 [color=green]
+	257 -> 260 [color=green]
+	261 -> 262 [color=green]
+	263 -> 264 [color=green]
+	265 -> 264 [color=green]
+	264 -> 262 [color=green]
+	254 -> 261 [color=green]
+	218 -> 263 [color=green]
+	260 -> 265 [color=green]
+	254 -> 266 [color=green]
+	260 -> 266 [color=green]
+	262 -> 266 [color=green]
+	266 -> 267 [color=green]
+	267 -> 218 [color=green]
+	269 -> 268 [color=green]
+	267 -> 269 [color=green]
+	268 -> 270 [color=green]
+	272 -> 271 [color=green]
+	270 -> 272 [color=green]
+	271 -> 273 [color=green]
+	274 -> 275 [color=green]
+	276 -> 277 [color=green]
+	278 -> 277 [color=green]
+	279 -> 278 [color=green]
+	280 -> 278 [color=green]
+	281 -> 280 [color=green]
+	282 -> 280 [color=green]
+	277 -> 275 [color=green]
+	267 -> 274 [color=green]
+	267 -> 276 [color=green]
+	267 -> 279 [color=green]
+	267 -> 281 [color=green]
+	267 -> 282 [color=green]
+	267 -> 283 [color=green]
+	283 -> 284 [color=green]
+	275 -> 284 [color=green]
+	285 -> 287 [color=green]
+	286 -> 287 [color=green]
+	267 -> 286 [color=green]
+	267 -> 285 [color=green]
+	273 -> 288 [color=green]
+	284 -> 288 [color=green]
+	287 -> 288 [color=green]
+	288 -> 289 [color=green]
+	289 -> 290 [label="pred[i,:]>=0.5" color=yellow]
+	289 -> 291 [label="!pred[i,:]>=0.5" color=red]
+	290 -> 292 [color=green]
+	292 -> 293 [color=green]
+	291 -> 294 [color=green]
+	294 -> 295 [color=green]
+	295 -> 296 [color=green]
+	293 -> 297 [color=green]
+	296 -> 297 [color=green]
+	298 -> 299 [color=green]
+	300 -> 299 [color=green]
+	297 -> 298 [color=green]
+	297 -> 300 [color=green]
+	299 -> 301 [color=green]
+	301 -> 302 [color=green]
+	302 -> 288 [color=green]
+	304 -> 303 [color=green]
+	305 -> 303 [color=green]
+	302 -> 304 [color=green]
+	302 -> 305 [color=green]
+	303 -> 306 [color=green]
+	308 -> 307 [color=green]
+	309 -> 307 [color=green]
+	302 -> 308 [color=green]
+	302 -> 309 [color=green]
+	307 -> 310 [color=green]
+	312 -> 311 [color=green]
+	313 -> 311 [color=green]
+	302 -> 312 [color=green]
+	302 -> 313 [color=green]
+	311 -> 314 [color=green]
+	316 -> 315 [color=green]
+	317 -> 315 [color=green]
+	302 -> 316 [color=green]
+	302 -> 317 [color=green]
+	315 -> 318 [color=green]
+	320 -> 319 [color=green]
+	321 -> 319 [color=green]
+	302 -> 320 [color=green]
+	302 -> 321 [color=green]
+	319 -> 322 [color=green]
+	324 -> 323 [color=green]
+	325 -> 323 [color=green]
+	302 -> 324 [color=green]
+	302 -> 325 [color=green]
+	323 -> 326 [color=green]
+	58 -> 203 [color=green]
+	64 -> 217 [color=green]
+	58 -> 204 [color=green]
+	58 -> 208 [color=green]
+	58 -> 212 [color=green]
 }
