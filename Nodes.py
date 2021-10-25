@@ -936,10 +936,10 @@ class LOG(Node):
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()
         self.cursor.execute(f"select data from {self.vars[1]};")
-        data = self.cursor.fetch()
+        data = str_to_list(self.cursor.fetch()[0][0])
         new_row = []
-        for i in data[0]:
-            r = 1 / i
+        for i in data:
+            r = 1.0 / i
             new_row.append(r)
         self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
         self.cursor.execute(f"insert into {s_1} values({shape[0]},{shape[0]},0,array{new_row};")
@@ -984,8 +984,8 @@ class POW(Node):
         self.cursor.execute(f"select rows,cols from {self.vars[0]};")
         shape = self.cursor.fetch()[0]
         new_data = []
-        for i in data_2:
-            new_data.append(i * pow_exp / data_1[i])
+        for i in range(len(data_2)):
+            new_data.append(data_2[i] * pow_exp / data_1[i])
         self.cursor.execute(f"drop table if exists {s_1}")
         self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
         self.cursor.execute(f"insert into {s_1} values({shape[0]},{shape[1]},0,array{new_data});")
@@ -1684,7 +1684,7 @@ class MEAN(Node):
         self.axis = axis
 
     def backward(self, grad_output=1):
-        table_name = "grad_" + self.id
+        table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
@@ -1692,11 +1692,13 @@ class MEAN(Node):
             s = table_name_temp1
 
         self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape = self.cursor.fetch()
+        shape = self.cursor.fetch()[0]
         if self.axis == 0:
             val = 1 / shape[1]
         elif self.axis == 1:
             val = 1 / shape[0]
+        else:
+            val = 1 / (shape[0] * shape[1])
         data = []
         for i in range(shape[0]):
             for j in range(shape[1]):
@@ -2035,7 +2037,7 @@ class Backward(Node):
             # 继承梯度
             else:
                 for father in node.pre_nodes():
-                    if not isinstance(node, CreateTensor):
+                    if not isinstance(node, Var):
                         table_name = "grad_" + str(node.id)
                     else:
                         table_name = "grad_" + node.vars[0]
@@ -2043,13 +2045,13 @@ class Backward(Node):
                         self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
                         node_flag = self.cursor.fetch()[0][0] == 1
                         if node_flag:
-                            if not isinstance(father, CreateTensor):
+                            if not isinstance(father, Var):
                                 fa_table_name = "grad_" + str(father.id)
                             else:
                                 fa_table_name = "grad_" + father.vars[0]
                             self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
                             father_flag = self.cursor.fetch()[0][0] == 1
-                            if isinstance(father, Assignment) and father_flag:
+                            if isinstance(father, Var) and father_flag:
                                 s = "backward_temp_table"
                                 self.cursor.execute(f"select * into {s} from {fa_table_name}")
                                 self.op_broadcast("add", s, table_name, fa_table_name)
