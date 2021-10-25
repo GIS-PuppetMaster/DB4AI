@@ -1,20 +1,20 @@
-create tensor x(10,4) from random((10,4),(0,1))
-create tensor y(10,1) from zeros((10,1))
+create tensor x(1,4) from random((1,4),(0,1))
+create tensor y(1,1) from zeros((1,1))
 select Argmax(x, 1) as tmp
 create tensor i(1,) from 0
 create tensor temp(1,) from 0
-loop(10){
+loop(1){
     select tmp[i] as t
     if(t>1){
         select 1 as y[i,...]
     }
     select i+1 as i
 }
-create tensor test_x(10,4) from random((10,4),(0,1))
-create tensor test_y(10,1) from zeros((10,1))
+create tensor test_x(1,4) from random((1,4),(0,1))
+create tensor test_y(1,1) from zeros((1,1))
 select Argmax(test_x, 1) as tmp
 select 0 as i
-loop(10){
+loop(1){
     select tmp[i] as t
     if(t>1){
         select 1 as test_y[i,...]

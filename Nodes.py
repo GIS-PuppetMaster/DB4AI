@@ -47,7 +47,7 @@ def preprocessing(fun):
         #     with torch.no_grad():
         #         return fun(node, **kwargs)
         # else:
-        return fun(node, **kwargs)
+            return fun(node, **kwargs)
 
     return decorated
 
