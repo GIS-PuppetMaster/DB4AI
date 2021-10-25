@@ -12,6 +12,7 @@ import sklearn
 from sklearn import metrics as sk_metrics
 import pickle as pk
 from gdbc import GDBC
+
 all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                 'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
@@ -42,11 +43,11 @@ def preprocessing(fun):
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
-        if not node.with_grad and not isinstance(node, GRADIENT):
-            with torch.no_grad():
-                return fun(node, **kwargs)
-        else:
-            return fun(node, **kwargs)
+        # if not node.with_grad and not isinstance(node, GRADIENT):
+        #     with torch.no_grad():
+        #         return fun(node, **kwargs)
+        # else:
+        return fun(node, **kwargs)
 
     return decorated
 

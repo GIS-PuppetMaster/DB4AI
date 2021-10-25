@@ -15,9 +15,9 @@ class Tensor(torch.Tensor):
 
 class Executor:
     def __init__(self, graph):
-        with open('./config.yaml', encoding='utf-8') as f:
-            config = yaml.load_all(f, Loader=yaml.FullLoader)
-        self.config = config
+        # with open('./config.yaml', encoding='utf-8') as f:
+        #     config = yaml.load_all(f)
+        # self.config = config
         self.raw_graph = graph
         self.var_dict = dict()
         self.finished_loop_id = set()

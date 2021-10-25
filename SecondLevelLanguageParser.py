@@ -871,20 +871,20 @@ class Parser:
 
 if __name__ == '__main__':
 
-    '''with open('test.txt', 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    executor = Executor(result)
-    executor.run()'''
+    # '''with open('test.txt', 'r', encoding='utf-8') as f:
+    #     create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
+    # executor = Executor(result)
+    # executor.run()'''
+    time_sum = 0
     from time import time
-
     algorithm = 'logistic'
-    path = f'operators/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
+    # path = f'operators/{algorithm}.sql'
+    # with open(path, 'r', encoding='utf-8') as f:
+    #     create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
     path = f'test/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
@@ -892,7 +892,10 @@ if __name__ == '__main__':
     result = testPar()
     # result.Show()
     executor = Executor(result)
+    s = time()
     executor.run()
+    time_sum += (time() - s)
+    repeat = 1
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'
@@ -909,7 +912,7 @@ if __name__ == '__main__':
     #     s = time()
     #     executor.run()
     #     time_sum += (time() - s)
-    # print(f'time:{time_sum / repeat} s')
+    print(f'time:{time_sum / repeat} s')
     # acc = executor.var_dict['acc']
     # print(f'acc:{acc}')
     # auc = executor.var_dict['auc']
