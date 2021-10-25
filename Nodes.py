@@ -32,19 +32,14 @@ def preprocessing(fun):
             elif node.physic_algorithm != 'madlib' and isinstance(node.executor.var_dict[input], str):
                 # torch->sql
                 pass'''
-        table_name = "grad_" + str(node.id)
-        node.cursor.execute(
-            f"drop table if exists {table_name};"
-            f"drop table if exists {table_name + '_1'};"
-            f"drop table if exists {table_name + '_2'};"
-            f"drop table if exists {table_name + '_temp1'};"
-            f"drop table if exists {table_name + '_temp2'};")
-        # node.cursor.execute(f"")
-        # node.cursor.execute(f"")
-        # node.cursor.execute(f"")
-        # node.cursor.execute(f"")
+        '''table_name = "grad_" + str(node.id)
+        node.cursor.execute(f"drop table if exists {table_name};")
+        node.cursor.execute(f"drop table if exists {table_name + '_1'};")
+        node.cursor.execute(f"drop table if exists {table_name + '_2'};")
+        node.cursor.execute(f"drop table if exists {table_name + '_temp1'};")
+        node.cursor.execute(f"drop table if exists {table_name + '_temp2'};")
         grad_output_table_name = "grad_output_" + str(node.id)
-        node.cursor.execute(f"drop table if exists {grad_output_table_name};")
+        node.cursor.execute(f"drop table if exists {grad_output_table_name};")'''
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
@@ -361,8 +356,6 @@ class Node:
             return True
         else:
             return False
-
-
 # 通过继承实现的其它节点类
 
 
@@ -450,45 +443,19 @@ class Random(Node):
         # 记录data shape和boundary中可能出现的变量名
         self.data_shape_var = {}
         self.boundary_var = {}
+        self.dis_args = [0, 1]
         distribution_list = ['normal', 'Uniform', 'Bernoulli']
 
         if distribution == '' or distribution is None or (isinstance(distribution, list) and len(distribution) == 0):
             self.distribution = 0
+        elif self.boundary != '':
+            self.distribution = 1
+            self.dis_args = [eval(self.boundary)[0], eval(self.boundary)[1]]
         else:
             self.distribution = distribution_list.index(distribution)
-        self.dis_args = 'mu=1000,sigma=1000'
 
     @preprocessing
     def run(self, **kwargs):
-        # if self.physic_algorithm != 'madlib':
-        #     # 如果data shape中包含var
-        #     if isinstance(self.data_shape, str):
-        #         # 运行时使用变量的值填充变量名
-        #         for name in self.data_shape_var.keys():
-        #             self.data_shape_var[name] = int(self.executor.var_dict[name])
-        #         # 转换
-        #         self.data_shape = eval(self.data_shape, self.data_shape_var)
-        #     # 如果boundary中包含var
-        #     if isinstance(self.boundary, str):
-        #         # 运行时使用变量的值填充变量名
-        #         for name in self.boundary_var.keys():
-        #             self.boundary_var[name] = int(self.executor.var_dict[name])
-        #         # 转换
-        #         self.boundary = eval(self.boundary, self.boundary_var)
-        #     if self.distribution == 'normal':
-        #         # boundary[0]=lower_boundary, boundary[1]=upper_boundary
-        #         tensor = torch.randn(self.data_shape) * (self.boundary[1] - self.boundary[0]) + self.boundary[0]
-        #     elif self.distribution == 'gauss':
-        #         # boundary[0]=mu, boundary[1]=sigma
-        #         tensor = torch.randn() * self.boundary[1] + self.boundary[0]
-        #     elif self.distribution == 'int':
-        #         tensor = torch.randint(low=self.boundary[0], high=self.boundary[1], size=self.data_shape)
-        #     else:
-        #         raise Exception(f'Not supported distribution:{self.distribution}')
-        #     if self.with_grad:
-        #         tensor.requires_grad = True
-        #     self.executor.var_dict[self.vars[0]] = tensor
-        # else:
         #     # TODO:
         # 如果data shape中包含var
         self.cursor.execute(f"drop table if exists {self.vars[0]}")
@@ -503,7 +470,7 @@ class Random(Node):
             distribution_list = ['normal', 'Uniform', 'Bernoulli']
             self.distribution = distribution_list.index(self.distribution)
         self.cursor.execute(
-            f"select db4ai_random({self.data_shape[0]}, {self.data_shape[1]}, {self.distribution}, 1000, 1000, 0, '{self.vars[0]}')")
+            f"select db4ai_random({self.data_shape[0]}, {self.data_shape[1]}, {self.distribution}, {self.dis_args[0]}, {self.dis_args[1]}, 0, '{self.vars[0]}')")
         # self.conn.commit()
 
     def infer_data(self):
@@ -1308,9 +1275,7 @@ class GRADIENT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute("select val from grad_" + self.vars[0])
-        rows = self.cursor.fetch()
-        print(rows)
+        self.cursor.execute(f"select * into {self.vars[0]} from {'grad_' + self.vars[1]};")
 
 
 class SHAPE(Node):
@@ -1631,7 +1596,6 @@ class SUM(Node):
     '''
          db4ai_sum将输入表，按列求和（输入参数==0）或按行求和（输入参数==1）,结果保存在输出表中。
     '''
-
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
@@ -1710,7 +1674,7 @@ class Adam(Node):
 class MEAN(Node):
     def __init__(self, **kwargs):
         super().__init__(57, **kwargs)
-        self.axis = None
+        self.axis = 2
 
     @preprocessing
     def run(self, **kwargs):
@@ -1999,21 +1963,33 @@ class Backward(Node):
     @preprocessing
     def run(self, **kwargs):
 
-        # self.executor.var_dict[self.vars[0]].backward()
+        #
         """
         初始化
         """
+        init_nodes = []
+        for pre_node in self.pre_nodes():
+            init_nodes.append(pre_node)
+        while init_nodes:
+            node = init_nodes.pop(0)
+            if isinstance(node, Assignment) and node.vars[0] == self.vars[0]:
+                start_node = node
+                break
+            else:
+                for pre_node in node.pre_nodes():
+                    init_nodes.append(pre_node)
+
         nodes = []
         drop_table_list = []
-        for pre_node in self.pre_nodes():
+        for pre_node in start_node.pre_nodes():
             nodes.append(pre_node)
         """
         遍历所有点 
         """
         while nodes:
-            node = nodes.pop()
+            node = nodes.pop(0)
             # 计算算子梯度
-            if node.__class__.__name__ in all_operator:
+            if 'backward' in dir(node):
                 table_name = 'grad_output_' + str(node.id)
                 self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
                 node_flag = self.cursor.fetch()[0][0] == 1
@@ -2057,15 +2033,6 @@ class Backward(Node):
                             # self.conn.commit()
                     index += 1
                     nodes.append(father)
-                '''self.cursor.execute(f"drop table if exists {table_name};")
-                self.cursor.execute(f"drop table if exists {table_name + '_1'};")
-                self.cursor.execute(f"drop table if exists {table_name + '_2'};")
-                self.cursor.execute(f"drop table if exists {table_name + '_temp1'};")
-                self.cursor.execute(f"drop table if exists {table_name + '_temp2'};")
-                # self.conn.commit()
-                node.grad = None
-                table_name = "grad_" + node.id
-                '''
             # 继承梯度
             else:
                 for father in node.pre_nodes():

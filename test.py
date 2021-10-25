@@ -6,7 +6,8 @@ import psycopg2
 import time
 import numpy as np
 import torch
-# from Nodes import Slice
+import Nodes as nd
+import Nodes
 from gdbc import GDBC
 '''conn = psycopg2.connect(database="postgres", user="postgres", host="114.115.156.203", port="2333")
 cursor = conn.cursor()
@@ -40,11 +41,6 @@ c = torch.exp(-2*torch.sqrt(torch.sum(torch.pow((a-b),1),0)))
 c.backward(torch.ones_like(c))
 print(a.grad)
 print(b.grad)'''
-a = np.array([[1, 5, 5, 2],
-              [9, 6, 2, 8],
-              [3, 7, 9, 1]])
-print(a[1,...])
-a = ...
-print(type(a))
-print(a is ...)
-print(int(5 / 3))
+ss = nd.InstantiationClass(1, 'Add',
+                           with_grad=True)
+print('backward' in dir(ss))
