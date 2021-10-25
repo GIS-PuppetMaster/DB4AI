@@ -4,7 +4,7 @@ import json
 
 class GDBC(object):
     def __init__(self):
-        self.url = "http://localhost:12345/"
+        self.url = "http://114.115.156.203:12345/"
         self.connect_url = self.url + "connect"
         self.close_url = self.url + "close"
         self.execute_url = self.url + "execute"

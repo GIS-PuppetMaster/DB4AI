@@ -16,7 +16,7 @@ class Tensor(torch.Tensor):
 class Executor:
     def __init__(self, graph):
         with open('./config.yaml', encoding='utf-8') as f:
-            config = yaml.load_all(f)
+            config = yaml.load_all(f, Loader=yaml.FullLoader)
         self.config = config
         self.raw_graph = graph
         self.var_dict = dict()
@@ -58,11 +58,14 @@ class Executor:
 
         # 在start和end节点内移除
         def is_control_flow(x):
-            return isinstance(x.start, If) or isinstance(x.start, IfBranch) or isinstance(x.end, IfEnd) or isinstance(x.end, LoopEnd) or isinstance(x.start, Loop)
+            return isinstance(x.start, If) or isinstance(x.start, IfBranch) or isinstance(x.end, IfEnd) or isinstance(
+                x.end, LoopEnd) or isinstance(x.start, Loop)
 
         for node in self.graph.nodes:
-            node.in_edges = list(filter(lambda x: x.start not in start_nodes_of_edges_to_remove or is_control_flow(x), node.in_edges))
-            node.out_edges = list(filter(lambda x: x.end not in start_nodes_of_edges_to_remove or is_control_flow(x), node.out_edges))
+            node.in_edges = list(
+                filter(lambda x: x.start not in start_nodes_of_edges_to_remove or is_control_flow(x), node.in_edges))
+            node.out_edges = list(
+                filter(lambda x: x.end not in start_nodes_of_edges_to_remove or is_control_flow(x), node.out_edges))
         # 在图内移除
         self.graph.edges = list(filter(lambda x: x not in edges_to_removed or is_control_flow(x), self.graph.edges))
         # self.graph.Show()
@@ -133,7 +136,8 @@ class Executor:
     def init_branches(self, node, current_branch):
         if isinstance(node, IfBranch):
             current_branch = node.id
-        elif not (isinstance(node, If) or isinstance(node, IfEnd) or isinstance(node, Loop) or isinstance(node, LoopEnd)):
+        elif not (
+                isinstance(node, If) or isinstance(node, IfEnd) or isinstance(node, Loop) or isinstance(node, LoopEnd)):
             node.branch = current_branch
         next_nodes = node.next_nodes()
         if len(next_nodes) == 0:
