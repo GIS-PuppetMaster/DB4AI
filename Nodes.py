@@ -25,21 +25,6 @@ def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
         # todo 自动类型转换
-        '''for input in node.vars[1:]:
-            if node.physic_algorithm == 'madlib' and not isinstance(node.executor.var_dict[input], str):
-                # sql->torch
-                pass
-            elif node.physic_algorithm != 'madlib' and isinstance(node.executor.var_dict[input], str):
-                # torch->sql
-                pass'''
-        '''table_name = "grad_" + str(node.id)
-        node.cursor.execute(f"drop table if exists {table_name};")
-        node.cursor.execute(f"drop table if exists {table_name + '_1'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_2'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_temp1'};")
-        node.cursor.execute(f"drop table if exists {table_name + '_temp2'};")
-        grad_output_table_name = "grad_output_" + str(node.id)
-        node.cursor.execute(f"drop table if exists {grad_output_table_name};")'''
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
@@ -356,6 +341,8 @@ class Node:
             return True
         else:
             return False
+
+
 # 通过继承实现的其它节点类
 
 
@@ -368,20 +355,12 @@ class Root(Node):
 class CreateTensor(Node):
     def __init__(self, data_shape, var, **kwargs):
         super().__init__(1, **kwargs)
-        # if isinstance(data_shape, tuple):
-        #     self.data_shape = data_shape
-        # elif isinstance(data_shape, str):
-        #     self.data_shape = eval(data_shape)
-        # elif data_shape is None:
-        #     self.data_shape = None
-        # TODO: infer data_shape
         self.set_vars(var)
         self.grad = None
 
     @preprocessing
     def run(self, **kwargs):
         pass
-        # self.executor.var_dict[self.vars[0]] = None
 
 
 # 该类用来存储常量，常见如constant.PI、constant.E
@@ -414,24 +393,32 @@ class Val(Node):
             edge.data_shape = (1,)
 
 
+class TensorFromSql(Node):
+    # TODO: 注册算子@樊宣伯
+    def __init__(self, t_info, var, **kwargs):
+        super().__init__(3, **kwargs)
+        self.t_search_sentences = t_info
+        self.vars = var
+        self.shape = None
+
+    @preprocessing
+    def run(self, **kwargs):
+        # TODO：代码实现@路亚彬, @樊宣伯
+        pass
+
+
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
         super().__init__(3, **kwargs)
         self.t_search_sentences = t_info
         self.vars = var
         self.shape = None
-        # self.batch_size = None  # TODO: 自动选择batch_size
 
     @preprocessing
     def run(self, **kwargs):
+        # TODO：执行SQL@路亚彬
         pass
-        # self.executor.var_dict[self.vars[0]] = None  # TODO:get data
 
-    def infer_data(self):
-        for edge in self.out_edges:
-            # TODO: 使用SQL查询该表的维度
-            self.shape = None
-            edge.data_shape = self.shape
 
 
 class Random(Node):
@@ -688,53 +675,6 @@ class Assignment(Node):
             else:
                 old_data[s[0] * shape[0][0] + s[1]] = new_data
             self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
-        # self.conn.commit()
-        # self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[0]}'")
-        # rows = self.cursor.fetch()
-        # flag_left = rows[0][0] == 1
-        # right = self.executor.var_dict[self.vars[1]]
-        # left = self.executor.var_dict[self.vars[0]]
-
-        '''if right is None or isinstance(right, torch.Tensor):
-            if left is None or isinstance(left, torch.Tensor):
-                if self.slice is None and flag_right is True:
-                    if self.update:
-                        self.sql_update("var_dict", self.vars[0], right.data)
-                        # self.executor.var_dict[self.vars[0]].data = right.data
-                    else:
-                        self.sql_update("var_dict", self.vars[0], right)
-                        # self.executor.var_dict[self.vars[0]] = right
-
-                else:
-                    s = fill_slice_var(self.slice, self.executor)
-                    # if self.vars[0] not in self.executor.var_dict:
-                    #     self.executor.var_dict[self.vars[0]] = torch.empty(self.executor.var_shape[self.vars[0]])
-                    if self.update:
-                        self.executor.var_dict[self.vars[0]].data.__setitem__(s, right.data)
-                    else:
-                        self.executor.var_dict[self.vars[0]].__setitem__(s, right)
-            else:
-                if self.slice is None:
-                    # TODO: transpose to madlib matrix then assignment
-                    torch.add()
-                    pass
-                else:
-                    s = copy(self.slice)
-                    for idx in range(len(s)):
-                        if isinstance(s[idx], str):
-                            s[idx] = int(self.executor.var_dict[s[idx]])
-                    # TODO: set_item with madlib
-        # 如果右部是madlib matrix
-        else:
-            if left is None or isinstance(left, str):
-                # TODO: 赋值给madlib matrix
-                self.executor.var_dict[self.vars[0]] = self.vars[0]
-            else:
-                # TODO: madlib_to_tensor，赋值
-                pass
-        if self.with_grad and self.executor.var_dict[self.vars[0]] is not None and not self.executor.var_dict[
-            self.vars[0]].requires_grad:
-            self.executor.var_dict[self.vars[0]].requires_grad = True'''
 
 
 class Add(Node):
@@ -872,12 +812,7 @@ class Div(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if self.physic_algorithm != 'madlib':
-        #     self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]] / self.executor.var_dict[
-        #         self.vars[2]]
-        # else:
         self.cursor.execute(f"select db4ai_div('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -920,11 +855,7 @@ class LOG(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if self.physic_algorithm != 'madlib':
-        #     self.executor.var_dict[self.vars[0]] = torch.log(self.executor.var_dict[self.vars[1]])
-        # else:
         self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -956,15 +887,10 @@ class POW(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if self.physic_algorithm != 'madlib':
-        #     self.executor.var_dict[self.vars[0]] = torch.pow(self.executor.var_dict[self.vars[1]],
-        #                                                      self.executor.var_dict[self.vars[2]])
-        # else:
         self.cursor.execute(f"select data from {self.vars[2]};")
         rows = self.cursor.fetch()
         pow_exp = str_to_list(rows[0][0])
         self.cursor.execute(f"select db4ai_pow('{self.vars[1]}', {pow_exp[0]}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -1040,8 +966,6 @@ class MATMUL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.matmul(self.executor.var_dict[self.vars[1]],
-        #                                                     self.executor.var_dict[self.vars[2]])
         self.cursor.execute(f"select db4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
@@ -1116,7 +1040,6 @@ class INNER(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.inn(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
         raise Exception('暂不支持inner')
 
 
@@ -1135,8 +1058,6 @@ class TENSORDOT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.tensordot(self.executor.var_dict[self.vars[1]],
-        #                                                        self.executor.var_dict[self.vars[2]])
         self.cursor.execute(f"select db4ai_tensordot('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
@@ -1174,9 +1095,8 @@ class SVD(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.linalg.svd(self.executor.var_dict[self.vars[1]],
-                                                                full_matrices=self.full_matrices,
-                                                                compute_uv=self.compute_uv)
+        # TODO
+        raise Exception('暂不支持SVD')
 
 
 class NORM(Node):
@@ -1205,7 +1125,8 @@ class DET(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.det(self.executor.var_dict[self.vars[1]])
+        # TODO
+        raise Exception('暂不支持DET')
 
 
 class RANK(Node):
@@ -1214,7 +1135,6 @@ class RANK(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.rank(self.executor.var_dict[self.vars[1]])
         raise Exception('暂不支持rank')
 
 
@@ -1232,9 +1152,7 @@ class TRACE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.trace(self.executor.var_dict[self.vars[1]])
         self.cursor.execute(f"select db4ai_trace('{self.vars[1]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class RESHAPE(Node):
@@ -1249,10 +1167,8 @@ class RESHAPE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.reshape(self.executor.var_dict[self.vars[1]], self.new_shape)
         self.cursor.execute(
             f"select db4ai_reshape('{self.vars[1]}', {self.new_shape[0]}, {self.new_shape[1]}, '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class TRANSPOSE(Node):
@@ -1284,14 +1200,7 @@ class SHAPE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.tensor(self.executor.var_dict[self.vars[1]].shape)
-
         self.cursor.execute(f"select db4ai_shape('{self.vars[1]}', '{self.vars[0]}');")
-        '''self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]};")
-        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
-        shape = self.cursor.fetch()
-        self.cursor.execute(f"update {self.vars[1]} set rows = 1,cols = 2, data = array{[shape[0][0],shape[0][1]]};")'''
-        # self.conn.commit()
 
 
 class EXP(Node):
@@ -1300,15 +1209,12 @@ class EXP(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.exp(self.executor.var_dict[self.vars[1]])
         self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         if grad_output == 1:
             table_name = 'grad_' + str(self.id)
             self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{table_name}');")
-            # self.conn.commit()
         else:
             temp_table_name = 'grad_' + str(self.id) + '_temp1'
             self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{temp_table_name}');")
@@ -1317,12 +1223,10 @@ class EXP(Node):
             rows = self.cursor.fetch()
             if isinstance(rows[0][0], list):
                 self.cursor.execute(f"select db4ai_mul('{grad_output}','{temp_table_name}', '{table_name}');")
-                # self.conn.commit()
             else:
                 if rows[0][0] == 1:
                     self.cursor.execute(f"drop table if exists {table_name};")
                     self.cursor.execute(f"select * into {table_name} from {temp_table_name};")
-                    # self.conn.commit()
                 else:
                     pass
         return table_name
@@ -1342,8 +1246,6 @@ class Slice(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # s = fill_slice_var(self.slice_index, self.executor)
-        # self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].__getitem__(s)
         s = copy(self.slice_index)
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()
@@ -1410,9 +1312,7 @@ class Argmax(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.argmax(self.executor.var_dict[self.vars[1]], self.axis)
         self.cursor.execute(f"select db4ai_argmax('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1425,9 +1325,7 @@ class Argmin(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.argmin(self.executor.var_dict[self.vars[1]], self.axis)
         self.cursor.execute(f"select db4ai_argmin('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1464,17 +1362,6 @@ class Full(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if isinstance(self.data_shape, str):
-        # 运行时使用变量的值填充变量名
-        # for name in self.data_shape_var.keys():
-        # self.data_shape_var[name] = int(self.executor.var_dict[name])
-        # 转换
-        # self.data_shape = eval(self.data_shape, self.data_shape_var)
-        # self.executor.var_shape[self.vars[0]] = self.data_shape
-        # tensor = torch.full(self.data_shape, self.num)
-        # if self.with_grad:
-        #     tensor.requires_grad = True
-        # self.executor.var_dict[self.vars[0]] = tensor
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
@@ -1483,7 +1370,6 @@ class Full(Node):
             self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.cursor.execute(
             f"select db4ai_full({self.data_shape[0]}, {self.data_shape[1]}, {self.num}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -1509,26 +1395,13 @@ class Ones(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if isinstance(self.data_shape, str):
-        #     # 运行时使用变量的值填充变量名
-        #     for name in self.data_shape_var.keys():
-        #         self.data_shape_var[name] = int(self.executor.var_dict[name])
-        #     # 转换
-        #     self.data_shape = eval(self.data_shape, self.data_shape_var)
-        # self.executor.var_shape[self.vars[0]] = self.data_shape
-        # tensor = torch.ones(self.data_shape)
-        # if self.with_grad:
-        #     tensor.requires_grad = True
-        # self.executor.var_dict[self.vars[0]] = tensor
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
                 self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
             # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
-        # self.vars[0] = "p" + self.vars[0]
         self.cursor.execute(f"select db4ai_ones({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -1554,17 +1427,6 @@ class Zeros(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # if isinstance(self.data_shape, str):
-        #     # 运行时使用变量的值填充变量名
-        #     for name in self.data_shape_var.keys():
-        #         self.data_shape_var[name] = int(self.executor.var_dict[name])
-        #     # 转换
-        #     self.data_shape = eval(self.data_shape, self.data_shape_var)
-        # self.executor.var_shape[self.vars[0]] = self.data_shape
-        # tensor = torch.zeros(self.data_shape)
-        # if self.with_grad:
-        #     tensor.requires_grad = True
-        # self.executor.var_dict[self.vars[0]] = tensor
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
@@ -1596,6 +1458,7 @@ class SUM(Node):
     '''
          db4ai_sum将输入表，按列求和（输入参数==0）或按行求和（输入参数==1）,结果保存在输出表中。
     '''
+
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
@@ -1643,9 +1506,7 @@ class Softmax(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.softmax(self.executor.var_dict[self.vars[1]], self.dim)
         self.cursor.execute(f"select db4ai_softmax('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class Sigmod(Node):
@@ -1717,9 +1578,8 @@ class MAX(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.max(self.executor.var_dict[self.vars[1]])
         self.cursor.execute(f"select db4ai_max('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
-        # self.conn.commit()
+
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1732,9 +1592,7 @@ class MIN(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.min(self.executor.var_dict[self.vars[1]])
         self.cursor.execute(f"select db4ai_min('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1747,9 +1605,7 @@ class Abs(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.abs(self.executor.var_dict[self.vars[1]])
         self.cursor.execute(f"select db4ai_abs('{self.vars[1]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1762,8 +1618,8 @@ class SplitDataset(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        res = torch.utils.data.random_split(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]])
-        self.executor.var_dict[self.vars[0]] = torch.stack([tensor for tensor in res])
+        # TODO：代码实现@樊宣伯, @路亚彬
+        raise Exception('SplitDataset未实现')
 
 
 class Parameters(Node):
@@ -1790,11 +1646,13 @@ class SaveParameters(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        paras = self.executor.parameters[self.set_name]
-        tmp = {}
-        for para in paras:
-            tmp[para] = self.executor.var_dict[para]
-        dump_tensor(tmp, self.path)
+        # paras = self.executor.parameters[self.set_name]
+        # tmp = {}
+        # for para in paras:
+        #     tmp[para] = self.executor.var_dict[para]
+        # dump_tensor(tmp, self.path)
+        # TODO: @张恺欣， @路亚彬
+        raise Exception('SaveParameters暂未实现')
 
 
 class LoadParameters(Node):
@@ -1808,10 +1666,12 @@ class LoadParameters(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        paras = self.executor.parameters[self.set_name]
-        tensors = load_tensor(self.path)
-        for para in paras:
-            self.executor.var_dict[para] = tensors[para]
+        # paras = self.executor.parameters[self.set_name]
+        # tensors = load_tensor(self.path)
+        # for para in paras:
+        #     self.executor.var_dict[para] = tensors[para]
+        # TODO: @张恺欣， @路亚彬
+        raise Exception('SaveParameters暂未实现')
 
 
 class AUC(Node):
@@ -1869,9 +1729,8 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(
-            sk_metrics.f1_score(self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
-                                average='macro'))
+        # TODO: @路亚彬
+        raise Exception('F1 暂未实现')
 
 
 class REVERSE(Node):
@@ -1881,9 +1740,7 @@ class REVERSE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.flip(self.executor.var_dict[self.vars[1]], (0,))
         self.cursor.execute(f"select db4ai_reverse('{self.vars[1]}', 1, '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class ARGSORT(Node):
@@ -1894,7 +1751,6 @@ class ARGSORT(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_argsort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_axis(self, dim):
         self.dim = dim
@@ -1907,9 +1763,7 @@ class SORT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.sort(self.executor.var_dict[self.vars[1]])[0]
         self.cursor.execute(f"select db4ai_sort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
-        # self.conn.commit()
 
     def set_dim(self, dim):
         self.dim = dim
@@ -1921,10 +1775,7 @@ class ACC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.accuracy_score(self.executor.var_dict[
-        # self.vars[1]], self.executor.var_dict[self.vars[2]]))
         self.cursor.execute(f"select db4ai_acc('{self.vars[1]}', '{self.vars[1]}', '1', '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class RECALL(Node):
@@ -1933,10 +1784,7 @@ class RECALL(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.recall_score(self.executor.var_dict[
-        # self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
         self.cursor.execute(f"select db4ai_recall('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 class PRECISION(Node):
@@ -1945,10 +1793,7 @@ class PRECISION(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = torch.tensor(sk_metrics.precision_score(self.executor.var_dict[
-        # self.vars[1]], self.executor.var_dict[self.vars[2]], average='macro'))
         self.cursor.execute(f"select db4ai_precision('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
 
 """
@@ -2076,9 +1921,10 @@ class WLS(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.linear_model.LinearRegression(
-            self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
-            sample_weight=self.executor.var_dict[self.vars[2]]))
+        # self.executor.var_dict[self.vars[0]] = torch.tensor(sklearn.linear_model.LinearRegression(
+        #     self.executor.var_dict[self.vars[1]], self.executor.var_dict[self.vars[2]],
+        #     sample_weight=self.executor.var_dict[self.vars[2]]))
+        raise Exception('WLS暂不支持')
 
 
 class REPEAT(Node):
@@ -2087,11 +1933,8 @@ class REPEAT(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.executor.var_dict[self.vars[0]] = self.executor.var_dict[self.vars[1]].repeat(self.executor.var_dict[
-        # self.vars[2]],self.executor.var_dict[self.vars[3]],self.executor.var_dict[self.vars[4]])
         self.cursor.execute(
             f"select db4ai_repeat('{self.vars[1]}', '{self.vars[4]}', '{self.vars[3]}', {self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         table_name = "grad_" + self.id
@@ -2128,7 +1971,7 @@ class UNSQUEEZE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.executor.var_dict[self.vars[0]] = torch.unsqueeze(self.executor.var_dict[self.vars[1]], self.dim)
+        raise Exception('暂不支持UNSQUEEZE')
 
     def set_dim(self, dim):
         self.dim = int(dim)

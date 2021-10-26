@@ -96,7 +96,7 @@ class Graph:
         dot = Digraph(name="computation graph", format="svg")
         for node in self.nodes:
             node_info = 'id:' + str(node.id) + '\n' + 'type:' + str(node.__class__) + '\n' + 'area:' +str(node.branches)\
-                        + '\n' + 'vars:' + str(node.vars) + '\n' + 'grad:' + str(node.with_grad) + '\n'
+                        + '\n' + 'vars:' + str(node.vars) + '\n' + 'grad:' + str(node.with_grad) + '\n' + f'branches: {node.branches}\n'
             if isinstance(node, nd.Loop) or isinstance(node, nd.LoopEnd) or isinstance(node, nd.Break):
                 node_info = node_info + 'loop_pair:' + str(node.loop_pair.id)
             elif isinstance(node, nd.IfBranch):

@@ -8,10 +8,17 @@ import torch
 from copy import deepcopy
 from gdbc import GDBC
 
-class Tensor(torch.Tensor):
+class Tensor:
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.table = None
 
+class Table:
+    def __init__(self, name, *args, **kwargs):
+        self.name = name
+
+    def __del__(self):
+        # TODO: 删除数据库中名字为name的表@路亚彬
+        raise Exception('del Table暂未实现')
 
 class Executor:
     def __init__(self, graph):
@@ -162,7 +169,7 @@ class Executor:
 
         current_node.run(visited=visited, executor=self)
         print(f'{current_node.id}')
-        # # TODO: 对requires_grad对象的回收
+        # TODO: 遍历TENSORS，检查生成他的时候的作用域与当前是否相符，并且检查引用计数是否为0
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
         #         if current_node.in_loop == -1 or re.match(r'^_[^_]+',var_name) is None:

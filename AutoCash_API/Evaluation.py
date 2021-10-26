@@ -91,12 +91,12 @@ def evaluation(filename, evaluation_indicator, classifier, option, classp):
     time1 = time.time()
     executor.run()
     time1 = time.time() - time1
-    auc = executor.var_dict['auc']
-    acc = executor.var_dict['acc']
-    recall = executor.var_dict['recall']
-    precision = executor.var_dict['prec']
-    mse = executor.var_dict['mse']
-    f1 = executor.var_dict['f1']
+    # auc = executor.var_dict['auc']
+    # acc = executor.var_dict['acc']
+    # recall = executor.var_dict['recall']
+    # precision = executor.var_dict['prec']
+    # mse = executor.var_dict['mse']
+    # f1 = executor.var_dict['f1']
 
     # loader = Loader(classname="weka.core.converters.ArffLoader")
     # data = loader.load_file(filename)
