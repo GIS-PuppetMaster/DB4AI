@@ -12,10 +12,6 @@ class Tensor:
     def __init__(self, *args, **kwargs):
         self.table = None
 
-class Table:
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
-
     def __del__(self):
         # TODO: 删除数据库中名字为name的表@路亚彬
         raise Exception('del Table暂未实现')
