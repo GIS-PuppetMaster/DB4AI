@@ -890,7 +890,7 @@ if __name__ == '__main__':
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    # result.Show()
+    result.Show()
     executor = Executor(result)
     s = time()
     executor.run()
