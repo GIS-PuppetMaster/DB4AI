@@ -8,7 +8,8 @@ import torch
 from copy import deepcopy
 from gdbc import GDBC
 
-class Tensor(torch.Tensor):
+
+class Tensor:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

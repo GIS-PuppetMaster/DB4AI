@@ -47,6 +47,7 @@ def preprocessing(fun):
         #     with torch.no_grad():
         #         return fun(node, **kwargs)
         # else:
+        node.executor.var_dict[node.vars[0]] = node
         return fun(node, **kwargs)
 
     return decorated
@@ -2096,18 +2097,18 @@ class REPEAT(Node):
         # self.conn.commit()
 
     def backward(self, grad_output=1):
-        table_name = "grad_" + self.id
+        table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
         else:
             s = table_name_temp1
         self.cursor.execute(f"select data from {self.vars[2]}")
-        vars_2 = self.cursor.fetch()[0]
+        vars_2 = str_to_list(self.cursor.fetch()[0][0])[0]
         self.cursor.execute(f"select data from {self.vars[3]}")
-        vars_3 = self.cursor.fetch()[0]
+        vars_3 = str_to_list(self.cursor.fetch()[0][0])[0]
         self.cursor.execute(f"select data from {self.vars[4]}")
-        vars_4 = self.cursor.fetch()[0]
+        vars_4 = str_to_list(self.cursor.fetch()[0][0])[0]
         t = vars_2 * vars_3 * vars_4
         self.cursor.execute(f"select rows,cols from {self.vars[1]}")
         shape = self.cursor.fetch()
@@ -2154,7 +2155,7 @@ class Negative(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
         self.cursor.execute(f"select data from {self.vars[1]}")
-        data = self.cursor.fetch()[0]
+        data = str_to_list(self.cursor.fetch()[0][0])
         update = []
         for i in data:
             update.append(-1 * i)
@@ -2162,13 +2163,13 @@ class Negative(Node):
         # self.conn.commit()
 
     def backward(self, grad_output):
-        table_name = 'grad_' + self.id
+        table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + self.id + '_temp1'
         if grad_output == 1:
             s = table_name
         if grad_output != 1:
             s = table_name_temp1
-        self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[]")
+        self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
         self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
