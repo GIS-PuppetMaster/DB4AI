@@ -13,12 +13,41 @@ from sklearn import metrics as sk_metrics
 import pickle as pk
 from gdbc import GDBC
 
-all_operator = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
+operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
                 'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
                 'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
                 'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
                 'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
                 'UNSQUEEZE', 'CleanGrad', 'Negative'}
+
+
+class Tensor:
+    def __init__(self, name, cursor, *args, **kwargs):
+        self.table = Table(name, cursor)
+        self.next = None
+        self.grad_fn = None
+        self.cursor = cursor
+
+    def __del__(self):
+        del self.table
+    
+    def set_next(self, l: list):
+        self.next = l
+
+    def get_next(self):
+        return self.next
+
+    def set_grad_fn(self, s):
+        self.grad_fn = s
+
+
+class Table:
+    def __init__(self, name, cursor, *args, **kwargs):
+        self.name = name
+        self.cursor = cursor
+
+    def __del__(self):
+        self.cursor.execute(f"drop table if exists {self.name}")
 
 
 def preprocessing(fun):
@@ -32,6 +61,14 @@ def preprocessing(fun):
         #     with torch.no_grad():
         #         return fun(node, **kwargs)
         # else:
+        if type(node) in operators:
+            node.executor.torch_dict[node.vars[0]].set_next(node.pre_nodes())
+            # node.executor.torch_dict[node.vars[0]].set_grad_fn(type(node))
+        if type(node) is Assignment:
+            if node.vars[0] in node.executor.torch_dict:
+                del node.executor.torch_dict[node.vars[0]]
+            node.executor.torch_dict[node.vars[0]].set_next([node.executor.var_dict[node.vars[0]]])
+
         node.executor.var_dict[node.vars[0]] = node
         return fun(node, **kwargs)
 
@@ -237,7 +274,8 @@ class Node:
                         new_data.append(data1[i] * data2[i])
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
                 else:
                     self.fun_opt(op, input_table_1, input_table_2, output_table)
             # 行不相等，列相等，则有一组矩阵行数为1，否则不满足广播条件
@@ -252,13 +290,15 @@ class Node:
                         new_data.append(self.val_opt(op, data1[0], i))
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
                 else:
                     for i in data1:
                         new_data.append(self.val_opt(op, i, data2[0]))
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
             # 行不相等，列相等，则有一组矩阵行数为1，否则不满足广播条件
             elif result1[0][0] != result2[0][0] and result1[0][1] == result2[0][1]:
                 self.cursor.execute(f"select data from {input_table_1}")
@@ -275,7 +315,8 @@ class Node:
                     # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
 
                 elif result2[0][0] == 1:
                     for i in range(len(data2)):
@@ -285,7 +326,8 @@ class Node:
                     # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
                 else:
                     raise DimensionError()
             elif result1[0][0] != result2[0][0] and result1[0][1] != result2[0][1]:
@@ -300,14 +342,16 @@ class Node:
                     # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
                 elif result2[0][0] == 1 and result2[0][1] == 1:
                     for i in range(len(data1)):
                         new_data.append(self.val_opt(op, data1[i], data2[0]))
                     # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
-                    self.cursor.execute(f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
                 else:
                     raise DimensionError()
             else:
@@ -419,7 +463,6 @@ class Sql(Node):
     def run(self, **kwargs):
         # TODO：执行SQL@路亚彬
         pass
-
 
 
 class Random(Node):
@@ -1288,6 +1331,12 @@ class Var(Node):
         super().__init__(40, **kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
+        self.grad_fn = None
+
+    @preprocessing
+    def run(self):
+        if self.vars[0] not in self.executor.tensor_dict:
+            self.executor.tensor_dict[self.vars[0]] = Tensor(self.vars[0], self.cursor)
 
 
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
@@ -1583,7 +1632,6 @@ class MAX(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_max('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
 
-
     def set_axis(self, axis):
         self.axis = axis
 
@@ -1702,9 +1750,11 @@ class AUC(Node):
         self.cursor.execute(f"drop table if exists {table_name}")
         self.cursor.execute(f"create table {self.vars[1]}(rows int,cols int,trans int,data double precision[])")
         if len(torch.unique(test_y)) > 2:
-            self.cursor.execute(f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr')]})")
+            self.cursor.execute(
+                f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.roc_auc_score(test_y, pred, multi_class='ovr')]})")
         else:
-            self.cursor.execute(f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.roc_auc_score(test_y, pred)]})")
+            self.cursor.execute(
+                f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.roc_auc_score(test_y, pred)]})")
         # self.conn.commit()
 
 
@@ -1721,7 +1771,8 @@ class MSE(Node):
         table_name = "grad_" + self.id
         self.cursor.execute(f"drop table if exists {table_name}")
         self.cursor.execute(f"create table {self.vars[1]}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.mean_squared_error(data_1[0], data_2[0])]})")
+        self.cursor.execute(
+            f"insert into {self.vars[1]} values (1,1,0,array{[sk_metrics.mean_squared_error(data_1[0], data_2[0])]})")
         # self.conn.commit()
 
 
@@ -1815,22 +1866,12 @@ class Backward(Node):
         """
         初始化
         """
-        init_nodes = []
-        for pre_node in self.pre_nodes():
-            init_nodes.append(pre_node)
-        while init_nodes:
-            node = init_nodes.pop(0)
-            if isinstance(node, Assignment) and node.vars[0] == self.vars[0]:
-                start_node = node
-                break
-            else:
-                for pre_node in node.pre_nodes():
-                    init_nodes.append(pre_node)
+        start_node = self.executor.var_dict[self.vars[1]]
 
         nodes = []
         drop_table_list = []
-        for pre_node in start_node.pre_nodes():
-            nodes.append(pre_node)
+        for father in self.executor.tensor_dict[start_node.vars[0]].get_next():
+            nodes.append(father)
         """
         遍历所有点 
         """
@@ -1858,18 +1899,17 @@ class Backward(Node):
                 index = 0
                 for father in fathers:
                     flag = 0
-                    if not isinstance(father, Root) and father.with_grad is True:
+                    if father.with_grad is True:
                         if isinstance(father, Var):
                             fa_table_name = "grad_" + str(father.id)
                             flag = 1
-                        elif father.__class__.__name__ in all_operator:
+                        elif father.__class__.__name__ in operators:
                             fa_table_name = "grad_output_" + str(father.id)
                             drop_table_list.append(fa_table_name)
                             flag = 1
                         if flag == 1:
                             self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
-                            node_flag = self.cursor.fetch()[0][0] == 0
-                            if node_flag:
+                            if self.cursor.fetch()[0][0] == 0:
                                 if tup[index] == 1:
                                     self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
                                                         f"trans integer,data double precision[])")
@@ -1888,25 +1928,24 @@ class Backward(Node):
                         table_name = "grad_" + str(node.id)
                     else:
                         table_name = "grad_" + node.vars[0]
-                    if not isinstance(father, Root):
-                        self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
-                        node_flag = self.cursor.fetch()[0][0] == 1
-                        if node_flag:
-                            if not isinstance(father, Var):
-                                fa_table_name = "grad_" + str(father.id)
-                            else:
-                                fa_table_name = "grad_" + father.vars[0]
-                            self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
-                            father_flag = self.cursor.fetch()[0][0] == 1
-                            if isinstance(father, Var) and father_flag:
-                                s = "backward_temp_table"
-                                self.cursor.execute(f"select * into {s} from {fa_table_name}")
-                                self.op_broadcast("add", s, table_name, fa_table_name)
-                            else:
-                                self.cursor.execute(f"drop table if exists {fa_table_name}")
-                                self.cursor.execute(f"select * into {fa_table_name} from {table_name}")
-                        # self.conn.commit()
-                        nodes.append(father)
+                    self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
+                    node_flag = self.cursor.fetch()[0][0] == 1
+                    if node_flag:
+                        if not isinstance(father, Var):
+                            fa_table_name = "grad_" + str(father.id)
+                        else:
+                            fa_table_name = "grad_" + father.vars[0]
+                        self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
+                        father_flag = self.cursor.fetch()[0][0] == 1
+                        if isinstance(father, Var) and father_flag:
+                            s = "backward_temp_table"
+                            self.cursor.execute(f"select * into {s} from {fa_table_name}")
+                            self.op_broadcast("add", s, table_name, fa_table_name)
+                        else:
+                            self.cursor.execute(f"drop table if exists {fa_table_name}")
+                            self.cursor.execute(f"select * into {fa_table_name} from {table_name}")
+                    # self.conn.commit()
+                    nodes.append(father)
                 if not isinstance(node, CreateTensor):
                     if not isinstance(node, Assignment):
                         self.cursor.execute(f"drop table if exists {table_name}")

@@ -8,13 +8,6 @@ import torch
 from copy import deepcopy
 from gdbc import GDBC
 
-class Tensor:
-    def __init__(self, *args, **kwargs):
-        self.table = None
-
-    def __del__(self):
-        # TODO: 删除数据库中名字为name的表@路亚彬
-        raise Exception('del Table暂未实现')
 
 class Executor:
     def __init__(self, graph):
@@ -23,6 +16,7 @@ class Executor:
         # self.config = config
         self.raw_graph = graph
         self.var_dict = dict()
+        self.tensor_dict = dict()
         self.finished_loop_id = set()
         self.last_use = {}
         self.var_shape = {}
