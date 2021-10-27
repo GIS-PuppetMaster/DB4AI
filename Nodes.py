@@ -62,14 +62,16 @@ def preprocessing(fun):
         #         return fun(node, **kwargs)
         # else:
         if type(node) in operators:
+            if node.vars[0] in node.executor.torch_dict:
+                node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
             node.executor.torch_dict[node.vars[0]].set_next(node.pre_nodes())
             # node.executor.torch_dict[node.vars[0]].set_grad_fn(type(node))
         if type(node) is Assignment:
             if node.vars[0] in node.executor.torch_dict:
                 del node.executor.torch_dict[node.vars[0]]
-            node.executor.torch_dict[node.vars[0]].set_next([node.executor.var_dict[node.vars[0]]])
-
-        node.executor.var_dict[node.vars[0]] = node
+            node.executor.torch_dict[node.vars[0]].set_next([node.executor.var_dict[node.vars[1]]])
+        if len(node.vars) != 0:
+            node.executor.var_dict[node.vars[0]] = node
         return fun(node, **kwargs)
 
     return decorated
