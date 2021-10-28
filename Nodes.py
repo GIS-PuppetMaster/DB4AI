@@ -33,12 +33,18 @@ class Tensor:
     
     def set_next(self, l: list):
         self.next = l
-
+    
     def get_next(self):
         return self.next
 
-    def set_grad_fn(self, s):
-        self.grad_fn = s
+    def clear_next(self):
+        self.next = None
+    
+    def set_grad_fn(self, n):
+        self.grad_fn = n
+
+    def get_grad_fn(self):
+        return self.grad_fn
 
 
 class Table:
@@ -61,15 +67,19 @@ def preprocessing(fun):
         #     with torch.no_grad():
         #         return fun(node, **kwargs)
         # else:
-        if type(node) in operators:
-            if node.vars[0] in node.executor.torch_dict:
+        if node.__class__.__name__ in operators and node.__class__.__name__ is not 'Backward':
+            if node.vars[0] in node.executor.tensor_dict:
+                del node.executor.tensor_dict[node.vars[0]]
+            node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
+            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None,list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
+            node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
+        elif node.__class__.__name__ is 'Assignment':
+            if node.vars[0] in node.executor.tensor_dict:
+                del node.executor.tensor_dict[node.vars[0]]
+            if node.vars[1] in node.executor.tensor_dict:
                 node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-            node.executor.torch_dict[node.vars[0]].set_next(node.pre_nodes())
-            # node.executor.torch_dict[node.vars[0]].set_grad_fn(type(node))
-        if type(node) is Assignment:
-            if node.vars[0] in node.executor.torch_dict:
-                del node.executor.torch_dict[node.vars[0]]
-            node.executor.torch_dict[node.vars[0]].set_next([node.executor.var_dict[node.vars[1]]])
+                node.executor.tensor_dict[node.vars[0]].set_next(node.executor.tensor_dict[node.vars[1]].get_next())
+                node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
         if len(node.vars) != 0:
             node.executor.var_dict[node.vars[0]] = node
         return fun(node, **kwargs)
@@ -1336,7 +1346,7 @@ class Var(Node):
         self.grad_fn = None
 
     @preprocessing
-    def run(self):
+    def run(self, **kwargs):
         if self.vars[0] not in self.executor.tensor_dict:
             self.executor.tensor_dict[self.vars[0]] = Tensor(self.vars[0], self.cursor)
 
@@ -1858,8 +1868,9 @@ Backward计算叶节点梯度，存放于Node_grad表中
 
 
 class Backward(Node):
-    def __init__(self, **kwargs):
+    def __init__(self, retain_graph, **kwargs):
         super().__init__(74, **kwargs)
+        self.retain_graph = retain_graph
 
     @preprocessing
     def run(self, **kwargs):
@@ -1868,20 +1879,18 @@ class Backward(Node):
         """
         初始化
         """
-        start_node = self.executor.var_dict[self.vars[1]]
-
-        nodes = []
+        tensors = []
         drop_table_list = []
-        for father in self.executor.tensor_dict[start_node.vars[0]].get_next():
-            nodes.append(father)
+        tensors.append(self.executor.tensor_dict[self.vars[0]])
         """
         遍历所有点 
         """
-        while nodes:
-            node = nodes.pop(0)
+        while tensors:
+            tensor = tensors.pop(0)
             # 计算算子梯度
-            if 'backward' in dir(node):
-                table_name = 'grad_output_' + str(node.id)
+            if tensor.grad_fn is not None:
+                node = tensor.grad_fn
+                table_name = 'grad_input_' + str(node.id)
                 self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
                 node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:
@@ -1892,70 +1901,36 @@ class Backward(Node):
                     tup = (tup,)
                 # id由小到大排序父节点
                 fathers = []
-                for pre_node in node.pre_nodes():
-                    index = 0
-                    for father in fathers:
-                        if pre_node.id > father.id:
-                            index += 1
-                    fathers.insert(index, pre_node)
+                for pre_tensor in tensor.get_next():
+                    if pre_tensor.grad_fn is not None:
+                        index = 0
+                        for father in fathers:
+                            if pre_tensor.grad_fn.id > father.id:
+                                index += 1
+                        fathers.insert(index, pre_tensor.grad_fn)
+                    tensors.append(pre_tensor)
                 index = 0
                 for father in fathers:
-                    flag = 0
                     if father.with_grad is True:
                         if isinstance(father, Var):
                             fa_table_name = "grad_" + str(father.id)
-                            flag = 1
                         elif father.__class__.__name__ in operators:
-                            fa_table_name = "grad_output_" + str(father.id)
+                            fa_table_name = "grad_input_" + str(father.id)
                             drop_table_list.append(fa_table_name)
-                            flag = 1
-                        if flag == 1:
-                            self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
-                            if self.cursor.fetch()[0][0] == 0:
-                                if tup[index] == 1:
-                                    self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
-                                                        f"trans integer,data double precision[])")
-                                    self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
-                                else:
-                                    self.cursor.execute(f"select * into {fa_table_name} from {tup[index]}")
-                            '''else:
-                                    father.grad *= tup[index]'''
-                            # self.conn.commit()
-                    index += 1
-                    nodes.append(father)
-            # 继承梯度
-            else:
-                for father in node.pre_nodes():
-                    if not isinstance(node, Var):
-                        table_name = "grad_" + str(node.id)
-                    else:
-                        table_name = "grad_" + node.vars[0]
-                    self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
-                    node_flag = self.cursor.fetch()[0][0] == 1
-                    if node_flag:
-                        if not isinstance(father, Var):
-                            fa_table_name = "grad_" + str(father.id)
-                        else:
-                            fa_table_name = "grad_" + father.vars[0]
                         self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
-                        father_flag = self.cursor.fetch()[0][0] == 1
-                        if isinstance(father, Var) and father_flag:
-                            s = "backward_temp_table"
-                            self.cursor.execute(f"select * into {s} from {fa_table_name}")
-                            self.op_broadcast("add", s, table_name, fa_table_name)
-                        else:
-                            self.cursor.execute(f"drop table if exists {fa_table_name}")
-                            self.cursor.execute(f"select * into {fa_table_name} from {table_name}")
-                    # self.conn.commit()
-                    nodes.append(father)
-                if not isinstance(node, CreateTensor):
-                    if not isinstance(node, Assignment):
-                        self.cursor.execute(f"drop table if exists {table_name}")
-                        # self.conn.commit()
-                    else:
-                        drop_table_list.append(table_name)
+                        if self.cursor.fetch()[0][0] == 0:
+                            if tup[index] == 1:
+                                self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
+                                                    f"trans integer,data double precision[])")
+                                self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
+                            else:
+                                self.cursor.execute(f"select * into {fa_table_name} from {tup[index]}")
+                    index += 1
         for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
+        if not self.retain_graph:
+            for i in self.executor.tensor_dict.keys():
+                self.executor.tensor_dict[i].clear_next()
             # self.conn.commit()
 
 
@@ -2117,6 +2092,12 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
+    elif nodeType == 'Backward':
+        if 'retain_graph' in otherField.keys():
+            retain_graph = otherField['retain_graph']
+        else:
+            retain_graph = False
+        node = globals()[nodeType](retain_graph, id=nodeId, branches=branches, with_grad=with_grad)
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad, **otherField)
     return node

@@ -875,6 +875,7 @@ if __name__ == '__main__':
          create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    result.Show()
     executor = Executor(result)
     executor.run()
     # time_sum = 0
