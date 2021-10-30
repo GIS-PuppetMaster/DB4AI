@@ -871,22 +871,22 @@ class Parser:
 
 if __name__ == '__main__':
 
-    with open('test.txt', 'r', encoding='utf-8') as f:
-         create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    result.Show()
-    executor = Executor(result)
-    executor.run()
-    # time_sum = 0
+    # with open('test.txt', 'r', encoding='utf-8') as f:
+    #      create_test = f.readlines()
+    # testPar = Parser(create_test)
+    # result = testPar()
+    # result.Show()
+    # executor = Executor(result)
+    # executor.run()
+    time_sum = 0
     from time import time
-    # algorithm = 'logistic'
+    algorithm = 'logistic'
     # path = f'operators/{algorithm}.sql'
     # with open(path, 'r', encoding='utf-8') as f:
     #     create_test = f.readlines()
     # testPar = Parser(create_test)
     # result = testPar()
-    '''path = f'test/{algorithm}.sql'
+    path = f'test/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
@@ -896,7 +896,7 @@ if __name__ == '__main__':
     s = time()
     executor.run()
     time_sum += (time() - s)
-    repeat = 1'''
+    repeat = 1
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'
