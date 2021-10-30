@@ -85,6 +85,7 @@ class Executor:
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
         current_node.cursor = self.cursor
+        current_node.cursor.connect()
         # if isinstance(current_node, Loop):
         #     if 'loop' not in kwargs['info'].keys():
         #         kwargs['info']['loop'] = {}

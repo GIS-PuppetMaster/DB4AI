@@ -53,12 +53,14 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        self.cursor.execute(f"drop table if exists {self.name}")
+        pass
+        # self.cursor.execute(f"drop table if exists {self.name}")
 
 
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
+        node.cursor.connect()
         # todo 自动类型转换
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
@@ -82,6 +84,12 @@ def preprocessing(fun):
                 node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
         if len(node.vars) != 0:
             node.executor.var_dict[node.vars[0]] = node
+        node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
+                            f"drop table if exists {'grad_input_' + str(node.id)};"
+                            f"drop table if exists {'grad_' + str(node.id) + '_1'};"
+                            f"drop table if exists {'grad_' + str(node.id) + '_2'};"
+                            f"drop table if exists {'grad_' + str(node.id) + '_temp1'};"
+                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")
         return fun(node, **kwargs)
 
     return decorated
@@ -290,7 +298,7 @@ class Node:
                         f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
                 else:
                     self.fun_opt(op, input_table_1, input_table_2, output_table)
-            # 行不相等，列相等，则有一组矩阵行数为1，否则不满足广播条件
+            # 行相等，列不相等，则有一组矩阵行数为1，否则不满足广播条件
             elif result1[0][0] == result2[0][0]:
                 self.cursor.execute(f"select data from {input_table_1}")
                 data1 = str_to_list(self.cursor.fetch()[0][0])
@@ -752,6 +760,10 @@ class Sub(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        self.cursor.execute(f"select * from {self.vars[1]};")
+        data = self.cursor.fetch()
+        # self.cursor.execute(f"select * from {self.vars[1]};")
+        # self.cursor.execute(f"select db4ai_sub('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         self.cursor.execute(f"select db4ai_sub('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
@@ -786,8 +798,6 @@ class Mul(Node):
         table_name_2 = 'grad_' + str(self.id) + '_2'
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         table_name_temp2 = 'grad_' + str(self.id) + '_temp2'
-        self.cursor.execute(f"drop table if exists {table_name_1}")
-        self.cursor.execute(f"drop table if exists {table_name_2}")
         self.cursor.execute(f"select rows,cols from {self.vars[1]}")
         shape_1 = self.cursor.fetch()
         self.cursor.execute(f"select rows,cols from {self.vars[2]}")
@@ -804,6 +814,8 @@ class Mul(Node):
         else:
             s_1 = table_name_temp1
             s_2 = table_name_temp2
+        self.cursor.execute(f"drop table if exists {s_1}")
+        self.cursor.execute(f"drop table if exists {s_2}")
         self.cursor.execute(f"select data from {self.vars[1]}")
         data_1 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select data from {self.vars[2]}")
@@ -814,17 +826,9 @@ class Mul(Node):
             sum = 0
             for i in data_2:
                 sum += i
-            self.cursor.execute(f"insert into {s_1} values(1,1,0,array{[sum]})")
-            '''l = []
-            for i in range(shape_2[0][0]):
-                for j in range(shape_2[0][1]):
-                    l.append(data_1[0])'''
-            self.cursor.execute(f"insert into {s_2} values(1,1,0,array{[data_1[0]]})")
+            self.cursor.execute(f"insert into {s_1} values({shape_2[0][0]},{shape_2[0][1]},0,array{[sum]})")
+            self.cursor.execute(f"insert into {s_2} values(1,1,0,array{data_1})")
         elif flag == 2:
-            '''l = []
-            for i in range(shape_1[0][0]):
-                for j in range(shape_1[0][1]):
-                    l.append(data_2[0])'''
             self.cursor.execute(f"insert into {s_1} values(1,1,0,array{[data_2[0]]})")
             sum = 0
             for i in data_1:
@@ -994,7 +998,7 @@ class SQRT(Node):
             s_1 = table_name_1
         else:
             s_1 = table_name_temp1
-        self.cursor.execute(f"drop table if exists {table_name_1}")
+        self.cursor.execute(f"drop table if exists {s_1}")
         self.cursor.execute(f"select data from {self.vars[0]};")
         data_2 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select rows,cols from {self.vars[0]};")
@@ -1349,6 +1353,7 @@ class Var(Node):
     def run(self, **kwargs):
         if self.vars[0] not in self.executor.tensor_dict:
             self.executor.tensor_dict[self.vars[0]] = Tensor(self.vars[0], self.cursor)
+            self.executor.tensor_dict[self.vars[0]].set_grad_fn(self)
 
 
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
@@ -1868,9 +1873,11 @@ Backward计算叶节点梯度，存放于Node_grad表中
 
 
 class Backward(Node):
-    def __init__(self, retain_graph, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(74, **kwargs)
-        self.retain_graph = retain_graph
+        self.retain_graph = False
+        if 'retain_graph' in kwargs.keys():
+            self.retain_graph = kwargs['retain_graph']
 
     @preprocessing
     def run(self, **kwargs):
@@ -1888,10 +1895,10 @@ class Backward(Node):
         while tensors:
             tensor = tensors.pop(0)
             # 计算算子梯度
-            if tensor.grad_fn is not None:
+            if tensor.grad_fn is not None and not isinstance(tensor.grad_fn, Var):
                 node = tensor.grad_fn
                 table_name = 'grad_input_' + str(node.id)
-                self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}'")
+                self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
                 node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:
                     tup = node.backward(table_name)
@@ -1899,6 +1906,9 @@ class Backward(Node):
                     tup = node.backward()
                 if not isinstance(tup, tuple):
                     tup = (tup,)
+                for i in tup:
+                    self.cursor.execute(f"select count(*) from pg_class where relname = '{i}';")
+                    assert self.cursor.fetch()[0][0] == 1
                 # id由小到大排序父节点
                 fathers = []
                 for pre_tensor in tensor.get_next():
@@ -1909,14 +1919,21 @@ class Backward(Node):
                                 index += 1
                         fathers.insert(index, pre_tensor.grad_fn)
                     tensors.append(pre_tensor)
+                for pre_node in node.fathers:
+                    if pre_node not in fathers:
+                        index = 0
+                        for father in fathers:
+                            if pre_node.id > father.id:
+                                index += 1
+                        fathers.insert(index, pre_node)
                 index = 0
                 for father in fathers:
                     if father.with_grad is True:
-                        if isinstance(father, Var):
-                            fa_table_name = "grad_" + str(father.id)
+                        if father.__class__.__name__ is 'Var':
+                            fa_table_name = "grad_" + father.vars[0]
                         elif father.__class__.__name__ in operators:
                             fa_table_name = "grad_input_" + str(father.id)
-                            drop_table_list.append(fa_table_name)
+                        drop_table_list.append(fa_table_name)
                         self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
                         if self.cursor.fetch()[0][0] == 0:
                             if tup[index] == 1:
@@ -1926,11 +1943,11 @@ class Backward(Node):
                             else:
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[index]}")
                     index += 1
-        for i in drop_table_list:
+        '''for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
         if not self.retain_graph:
             for i in self.executor.tensor_dict.keys():
-                self.executor.tensor_dict[i].clear_next()
+                self.executor.tensor_dict[i].clear_next()'''
             # self.conn.commit()
 
 
@@ -2092,12 +2109,6 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     elif nodeType == 'LoopEnd' or nodeType == 'Break':
         loop_id = otherField['loop_id']
         node = globals()[nodeType](loop_id, id=nodeId, branches=branches, with_grad=with_grad)
-    elif nodeType == 'Backward':
-        if 'retain_graph' in otherField.keys():
-            retain_graph = otherField['retain_graph']
-        else:
-            retain_graph = False
-        node = globals()[nodeType](retain_graph, id=nodeId, branches=branches, with_grad=with_grad)
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad, **otherField)
     return node
