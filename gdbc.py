@@ -33,24 +33,24 @@ class GDBC(object):
 
     def execute(self, sql: str):
         #  执行sql
-        self.cursor.execute(sql)
-        self.conn.commit()
+        try:
+            self.cursor.execute(sql)
+            self.cursor.commit()
+            self.ans = self.cursor.fetchall()
+        except :
+            self.ans = "no result"
     """
         取数据，返回。
     """
 
     def fetch(self):
-        try:
-            self.ans = self.cursor.fetchall()
-        except:
-            pass
         return self.ans
 
 
 if __name__ == '__main__':
     gdbc = GDBC()
     gdbc.connect()
-    gdbc.execute(f"select db4ai_sub('a', 'b','_14');")
+    gdbc.execute("drop table if exists i;")
     print(gdbc.fetch())
     print(gdbc.fetch())
     gdbc.close()
