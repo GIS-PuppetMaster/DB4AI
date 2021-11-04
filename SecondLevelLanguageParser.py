@@ -74,13 +74,18 @@ class Parser:
             else:
                 raise Exception('非法语句：' + query + ' 错误在第' + str(self.line_id) + '行')
 
+        grad_record = []
         nodes = self.graph.nodes
         flag = 1
         while flag:
             flag = 0
             for node in nodes:
+                if isinstance(node, Nd.CreateTensor) and node.with_grad is True:
+                    grad_record.append(node.vars[0])
+                if isinstance(node, Nd.Var) and node.vars[0] in grad_record:
+                    node.with_grad = True
                 for father in node.pre_nodes():
-                    if father.with_grad and not node.with_grad:
+                    if father.with_grad and not node.with_grad and node.__class__.__name__ in Nd.operators:
                         node.with_grad = True
                         flag = 1
 
@@ -871,22 +876,16 @@ class Parser:
 
 if __name__ == '__main__':
 
-    with open('test.txt', 'r', encoding='utf-8') as f:
-         create_test = f.readlines()
+
+    time_sum = 0
+    from time import time
+    algorithm = 'logistic'
+    path = f'operators/{algorithm}.sql'
+    with open(path, 'r', encoding='utf-8') as f:
+        create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    result.Show()
-    executor = Executor(result)
-    executor.run()
-    # time_sum = 0
-    from time import time
-    # algorithm = 'logistic'
-    # path = f'operators/{algorithm}.sql'
-    # with open(path, 'r', encoding='utf-8') as f:
-    #     create_test = f.readlines()
-    # testPar = Parser(create_test)
-    # result = testPar()
-    '''path = f'test/{algorithm}.sql'
+    path = f'test/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
@@ -896,7 +895,7 @@ if __name__ == '__main__':
     s = time()
     executor.run()
     time_sum += (time() - s)
-    repeat = 1'''
+    repeat = 1
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'

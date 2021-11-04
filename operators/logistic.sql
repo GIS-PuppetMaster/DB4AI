@@ -6,7 +6,7 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
     create tensor w(feature_num,1) from RANDOM((feature_num,1),(0,1)) with grad
     create tensor hx(feature_num, class_num)
     LOOP(iter_times){
-        select 1/(1+POW(CONSTANT.E, MATMUL(x, w))) as hx with grad
+        select 1/(1+POW(CONSTANT.E, -1 * MATMUL(x, w))) as hx with grad
         SELECT ridge*MEAN(POW(w,2))-MEAN(y * LOG(hx) + (1 - y) * LOG(1 - hx)) AS loss with grad
         select CleanGrad(w)
         select Backward(loss, w)
@@ -18,11 +18,17 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
     select 1/(1+POW(CONSTANT.E, MATMUL(test_x, w))) as pred
     create tensor i(1,) from 0
     LOOP(record_num){
-        if(pred[i,:]>=0.5){
-            select 1 as pred[i,:]
+        # if(pred[i,:]>=0.5){
+            # select 1 as pred[i,:]
+        # }
+        # else{
+            # select 0 as pred[i,:]
+        # }
+        if(pred[i]>=0.5){
+            select 1 as pred[i]
         }
         else{
-            select 0 as pred[i,:]
+            select 0 as pred[i]
         }
         select i+1 as i
     }
