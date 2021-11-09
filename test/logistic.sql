@@ -24,7 +24,7 @@ loop(10){
 create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
 create tensor ridge(1,) from 0.01
-create tensor iter_times(1,) from 100
+create tensor iter_times(1,) from 1000
 create tensor mse(1,)
 create tensor auc(1,)
 create tensor f1(1,)

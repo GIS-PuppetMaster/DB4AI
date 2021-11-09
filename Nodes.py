@@ -9,6 +9,7 @@ import torch
 from functools import wraps
 from copy import copy, deepcopy
 import sklearn
+import unittest
 from sklearn import metrics as sk_metrics
 import pickle as pk
 from gdbc import GDBC
@@ -70,9 +71,9 @@ def preprocessing(fun):
         #         return fun(node, **kwargs)
         # else:
         if isinstance(node, Backward):
-            node.executor.tensor_end = node.id
+            node.executor.backward_end = node.id
         # 避免加入backward后变量
-        if node.executor.tensor_end != 0 and node.id > node.executor.tensor_end:
+        if node.executor.backward_end != 0 and node.id > node.executor.backward_end:
             flag = 0
         else:
             flag = 1
@@ -906,8 +907,6 @@ class Div(Node):
         self.cursor.execute(f"select rows,cols from {self.vars[2]}")
         shape_2 = self.cursor.fetch()
         self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        if self.id == 95:
-            print(self.id)
         if shape_1 == shape_2:
             self.cursor.execute(f"select db4ai_div('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         elif len(data_1) == 1:
@@ -985,13 +984,13 @@ class LOG(Node):
         self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
 
     def backward(self, grad_output=1):
-        table_name_1 = 'grad_' + str(self.id) + '_1'
+        table_name_1 = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s_1 = table_name_1
         else:
             s_1 = table_name_temp1
-        self.cursor.execute(f"drop table if exists {table_name_1}")
+        self.cursor.execute(f"drop table if exists {s_1}")
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()[0]
         self.cursor.execute(f"select data from {self.vars[1]};")
@@ -1042,7 +1041,7 @@ class POW(Node):
 
         if len(data_2) > 1:
             for i in range(len(data_0)):
-                new_data.append(data_0[i] * math.log1p(data_1[0]))
+                new_data.append(data_0[i] * math.log(data_1[0]))
         else:
             for i in range(len(data_0)):
                 new_data.append(data_0[i] * data_2[0] / data_1[i])
@@ -1435,7 +1434,7 @@ class Var(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.executor.tensor_end != 0 and self.id > self.executor.tensor_end:
+        if self.executor.backward_end != 0 and self.id > self.executor.backward_end:
             flag = 0
         else:
             flag = 1
@@ -1553,8 +1552,9 @@ class Ones(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
-            # 转换
+                self.cursor.execute(f"select data from {name};")
+                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.cursor.execute(f"select db4ai_ones({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
 
@@ -1988,6 +1988,7 @@ class Backward(Node):
                     tup = (tup,)
                 # id由小到大排序父节点
                 fathers = []
+
                 for pre_tensor in tensor.get_next():
                     if pre_tensor.grad_fn is not None:
                         index = 0
@@ -1996,17 +1997,34 @@ class Backward(Node):
                                 index += 1
                         fathers.insert(index, pre_tensor.grad_fn)
                     tensors.append(pre_tensor)
-                for pre_node in node.fathers:
-                    if self.executor.var_dict[pre_node.vars[0]] not in fathers and isinstance(pre_node, Var):
+                # 对父节点中Vars添加到fathers中
+                for pre_fa in node.fathers:
+                    if self.executor.var_dict[pre_fa.vars[0]] not in fathers and pre_fa.__class__.__name__ in ['Var', 'Val']:
                         flag = 1
                         for father in fathers:
-                            if pre_node.vars == father.vars:
+                            if pre_fa.vars == father.vars:
                                 flag = 0
                         if flag == 1:
+                            flag2 = 0
                             for father in fathers:
-                                if pre_node.id > father.id:
+                                true_father = father
+                                if father.vars[0] not in node.vars:
+                                    ff = 1
+                                    temp = [father]
+                                    while ff:
+                                        tt = temp.pop(0)
+                                        for nex in tt.next_nodes():
+                                            temp.append(nex)
+                                            if nex in node.pre_nodes():
+                                                true_father = nex
+                                                ff = 0
+                                if pre_fa.id == true_father.id:
+                                    flag2 = 1
+                                    break
+                                if pre_fa.id > true_father.id:
                                     index += 1
-                            fathers.insert(index, pre_node)
+                            if flag2 != 1:
+                                fathers.insert(index, pre_fa)
                 index = 0
                 for father in fathers:
                     if father.with_grad is True:
@@ -2015,6 +2033,9 @@ class Backward(Node):
                         elif father.__class__.__name__ in operators:
                             fa_table_name = "grad_input_" + str(father.id)
                             drop_table_list.append(fa_table_name)
+                        else:
+                            index += 1
+                            continue
                         self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
                         _index = index
                         while _index >= len(tup):
@@ -2027,15 +2048,18 @@ class Backward(Node):
                             else:
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
                         else:
-                            if father.__class__.__name__ is 'Assignment':
-                                old_fa_table_name = 'old' + fa_table_name
+                            if father.__class__.__name__ is 'Var':
+                                old_fa_table_name = 'old_' + fa_table_name
                                 self.cursor.execute(f"drop table if exists {old_fa_table_name}")
                                 self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
                                 self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
+                                drop_table_list.append(old_fa_table_name)
                             else:
                                 self.cursor.execute(f"drop table if exists {fa_table_name}")
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
                     index += 1
+        # c = Test()
+        # c.test()
         for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
         

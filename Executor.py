@@ -17,7 +17,7 @@ class Executor:
         self.raw_graph = graph
         self.var_dict = dict()
         self.tensor_dict = dict()
-        self.tensor_end = 0
+        self.backward_end = 0
         self.finished_loop_id = set()
         self.last_use = {}
         self.var_shape = {}
