@@ -471,7 +471,7 @@ class Val(Node):
 class TensorFromSql(Node):
     # TODO: 注册算子@樊宣伯
     def __init__(self, t_info, var, **kwargs):
-        super().__init__(3, **kwargs)
+        super().__init__(**kwargs)
         self.t_search_sentences = t_info
         self.vars = var
         self.shape = None
