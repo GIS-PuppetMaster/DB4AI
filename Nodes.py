@@ -15,11 +15,11 @@ import pickle as pk
 from gdbc import GDBC
 
 operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
-                'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
-                'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-                'UNSQUEEZE', 'CleanGrad', 'Negative'}
+             'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
+             'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
+             'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+             'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
+             'UNSQUEEZE', 'CleanGrad', 'Negative'}
 
 
 class Tensor:
@@ -31,16 +31,16 @@ class Tensor:
 
     def __del__(self):
         del self.table
-    
+
     def set_next(self, l: list):
         self.next = l
-    
+
     def get_next(self):
         return self.next
 
     def clear_next(self):
         self.next = None
-    
+
     def set_grad_fn(self, n):
         self.grad_fn = n
 
@@ -77,11 +77,14 @@ def preprocessing(fun):
             flag = 0
         else:
             flag = 1
-        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward', 'CleanGrad'] and flag == 1:
+        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward',
+                                                                                    'CleanGrad'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None,list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
+            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None, list(
+                map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None,
+                    node.pre_nodes())))))
             node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
         elif node.__class__.__name__ is 'Assignment' and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
@@ -89,7 +92,8 @@ def preprocessing(fun):
             if node.vars[1] in node.executor.tensor_dict:
                 node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
                 node.executor.tensor_dict[node.vars[0]].set_next(node.executor.tensor_dict[node.vars[1]].get_next())
-                node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
+                node.executor.tensor_dict[node.vars[0]].set_grad_fn(
+                    node.executor.tensor_dict[node.vars[1]].get_grad_fn())
         if len(node.vars) != 0 and flag == 1:
             node.executor.var_dict[node.vars[0]] = node
         node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
@@ -175,10 +179,9 @@ class DivZeroError(Exception):
 
 class Node:
     # 计算图中节点类的父类
-    def __init__(self, type_id, with_grad=False, physic_algorithm='tensor', **kwargs):
+    def __init__(self, with_grad=False, physic_algorithm='tensor', **kwargs):
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
-        self.type_id = type_id
         self.with_grad = with_grad
         self.out_edges = []
         self.in_edges = []
@@ -251,16 +254,16 @@ class Node:
         pass
 
     def GetType(self):
-        return self.type_id
+        return type(self)
 
     def __eq__(self, other):
         if isinstance(other, Node):
-            return (self.id == other.id) and (self.type_id == other.type_id)
+            return (self.id == other.id) and type(self) == type(other)
         else:
             return False
 
     def __hash__(self):
-        return hash(self.id + self.type_id)
+        return hash(self.id) + hash(str(type(self)))
 
     def __call__(self, executor):
         pass
@@ -420,13 +423,13 @@ class Node:
 
 class Root(Node):
     def __init__(self, **kwargs):
-        super().__init__(0, **kwargs)
+        super().__init__(**kwargs)
 
 
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(1, **kwargs)
+        super().__init__(**kwargs)
         self.set_vars(var)
         self.grad = None
 
@@ -438,7 +441,7 @@ class CreateTensor(Node):
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, var, val, **kwargs):
-        super().__init__(2, **kwargs)
+        super().__init__(**kwargs)
         self.value = val
         if isinstance(var, list):
             self.vars = var
@@ -481,7 +484,7 @@ class TensorFromSql(Node):
 
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
-        super().__init__(3, **kwargs)
+        super().__init__(**kwargs)
         self.t_search_sentences = t_info
         self.vars = var
         self.shape = None
@@ -494,7 +497,7 @@ class Sql(Node):
 
 class Random(Node):
     def __init__(self, boundary, data_shape, distribution, var, **kwargs):
-        super().__init__(4, **kwargs)
+        super().__init__(**kwargs)
         self.boundary = boundary
         self.vars = var
         self.data_shape = data_shape
@@ -558,7 +561,7 @@ class Random(Node):
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(5, **kwargs)
+        super().__init__(**kwargs)
         if condition or isinstance(condition, str):
             self.dead_cycle = condition
             self.times = -1
@@ -598,7 +601,7 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
         self.return_next = False
@@ -638,7 +641,7 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
 
@@ -650,7 +653,7 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(**kwargs)
 
     def next_nodes(self):
         for edge in self.out_edges:
@@ -674,7 +677,7 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
+        super().__init__(**kwargs)
         self.end_if_pair = None
 
     @preprocessing
@@ -700,13 +703,13 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(**kwargs)
         self.selected_branch = None
 
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(11, **kwargs)
+        super().__init__(**kwargs)
         self.vars = var_li
         self.update = False
         self._slice = None
@@ -730,7 +733,7 @@ class Assignment(Node):
         self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
         flag_right = rows[0][0] == 1
-        if self.vars[0] in ['auc','acc','recall', 'prec', 'mse','f1'] and flag_right is False:
+        if self.vars[0] in ['auc', 'acc', 'recall', 'prec', 'mse', 'f1'] and flag_right is False:
             print(self.vars[0])
             pass
         else:
@@ -765,7 +768,7 @@ class Assignment(Node):
 
 class Add(Node):
     def __init__(self, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -778,7 +781,7 @@ class Add(Node):
 
 class Sub(Node):
     def __init__(self, **kwargs):
-        super().__init__(13, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -807,7 +810,7 @@ class Sub(Node):
 
 class Mul(Node):
     def __init__(self, **kwargs):
-        super().__init__(14, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -894,7 +897,7 @@ class Mul(Node):
 
 class Div(Node):
     def __init__(self, **kwargs):
-        super().__init__(15, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -914,14 +917,15 @@ class Div(Node):
             for i in range(len(data_2)):
                 new_data.append(data_1[0] / data_2[i])
             self.cursor.execute(f"create table {self.vars[0]}(rows int,cols int,trans int,data double precision[])")
-            self.cursor.execute(f"insert into {self.vars[0]} values ({shape_2[0][0]},{shape_2[0][1]},0,array{new_data})")
+            self.cursor.execute(
+                f"insert into {self.vars[0]} values ({shape_2[0][0]},{shape_2[0][1]},0,array{new_data})")
         elif len(data_2) == 1:
             new_data = []
             for i in range(len(data_1)):
                 new_data.append(data_1[i] / data_2[0])
             self.cursor.execute(f"create table {self.vars[0]}(rows int,cols int,trans int,data double precision[])")
-            self.cursor.execute(f"insert into {self.vars[0]} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data})")
-
+            self.cursor.execute(
+                f"insert into {self.vars[0]} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data})")
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -977,7 +981,7 @@ class Div(Node):
 
 class LOG(Node):
     def __init__(self, **kwargs):
-        super().__init__(16, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1009,7 +1013,7 @@ class LOG(Node):
 
 class POW(Node):
     def __init__(self, **kwargs):
-        super().__init__(17, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1055,7 +1059,7 @@ class POW(Node):
 
 class SQRT(Node):
     def __init__(self, **kwargs):
-        super().__init__(18, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1093,7 +1097,7 @@ class SQRT(Node):
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
-        super().__init__(19, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1116,7 +1120,7 @@ class MATMUL(Node):
         self.cursor.execute(f"create table {table_name_1}(rows int,cols int,trans int,data double precision[])")
         self.cursor.execute(f"create table {table_name_2}(rows int,cols int,trans int,data double precision[])")
         if grad_output == 1:
-        # 求self.vars[1]的导数,对self.vars[2]依次行求和
+            # 求self.vars[1]的导数,对self.vars[2]依次行求和
             sum_data_1 = []
             for i in range(shape_2[0][0]):
                 total = 0
@@ -1127,7 +1131,8 @@ class MATMUL(Node):
             for i in range(shape_1[0][0]):
                 for j in range(shape_1[0][1]):
                     new_data_1.append(sum_data_1[j])
-            self.cursor.execute(f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
+            self.cursor.execute(
+                f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
             # 求self.vars[2]的导数,对self.vars[1]依次列求和
             sum_data_2 = []
             for i in range(shape_1[0][1]):
@@ -1139,7 +1144,8 @@ class MATMUL(Node):
             for i in range(shape_2[0][0]):
                 for j in range(shape_2[0][1]):
                     new_data_2.append(sum_data_2[i])
-            self.cursor.execute(f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
+            self.cursor.execute(
+                f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
         else:
             # matmul:(a,b)*(b,c)=(a,c)
             self.cursor.execute(f"select rows,cols from {grad_output}")
@@ -1153,7 +1159,8 @@ class MATMUL(Node):
                     for k in range(shape_0[0][1]):
                         sum += data_0[i * shape_0[0][1] + k] * data_2[j * shape_2[0][1] + k]
                     new_data_1.append(sum)
-            self.cursor.execute(f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
+            self.cursor.execute(
+                f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
             new_data_2 = []
             for i in range(shape_1[0][1]):
                 for j in range(shape_0[0][1]):
@@ -1161,13 +1168,14 @@ class MATMUL(Node):
                     for k in range(shape_1[0][0]):
                         sum += data_1[k * shape_1[0][1] + i] * data_0[j * shape_2[0][1] + j]
                     new_data_2.append(sum)
-            self.cursor.execute(f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
+            self.cursor.execute(
+                f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
         return table_name_1, table_name_2
 
 
 class DOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(20, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1177,7 +1185,7 @@ class DOT(Node):
 
 class INNER(Node):
     def __init__(self, **kwargs):
-        super().__init__(21, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1186,7 +1194,7 @@ class INNER(Node):
 
 class OUTER(Node):
     def __init__(self, **kwargs):
-        super().__init__(22, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1195,7 +1203,7 @@ class OUTER(Node):
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(23, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1205,17 +1213,17 @@ class TENSORDOT(Node):
 
 class KRON(Node):
     def __init__(self, **kwargs):
-        super().__init__(24, **kwargs)
+        super().__init__(**kwargs)
 
 
 class CHOLESKY(Node):
     def __init__(self, **kwargs):
-        super().__init__(25, **kwargs)
+        super().__init__(**kwargs)
 
 
 class QR(Node):
     def __init__(self, **kwargs):
-        super().__init__(26, **kwargs)
+        super().__init__(**kwargs)
         self.mode = ''
 
     def set_mode(self, mode):
@@ -1224,7 +1232,7 @@ class QR(Node):
 
 class SVD(Node):
     def __init__(self, **kwargs):
-        super().__init__(27, **kwargs)
+        super().__init__(**kwargs)
         self.full_matrices = True
         self.compute_uv = True
         self.hermitian = False
@@ -1242,7 +1250,7 @@ class SVD(Node):
 
 class NORM(Node):
     def __init__(self, **kwargs):
-        super().__init__(28, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'ord': None, 'axis': None, 'keepdims': 0}
 
     def set_param(self, ord, axis, keepdims):
@@ -1253,7 +1261,7 @@ class NORM(Node):
 
 class COND(Node):
     def __init__(self, **kwargs):
-        super().__init__(29, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'p': None}
 
     def set_param(self, p):
@@ -1262,7 +1270,7 @@ class COND(Node):
 
 class DET(Node):
     def __init__(self, **kwargs):
-        super().__init__(30, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1272,7 +1280,7 @@ class DET(Node):
 
 class RANK(Node):
     def __init__(self, **kwargs):
-        super().__init__(31, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1281,7 +1289,7 @@ class RANK(Node):
 
 class TRACE(Node):
     def __init__(self, **kwargs):
-        super().__init__(32, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'offset': 0, 'axis1': 0, 'axis2': 1, 'dtype': None, 'out': None}
 
     def set_param(self, offset, axis1, axis2, dtype, out):
@@ -1298,7 +1306,7 @@ class TRACE(Node):
 
 class RESHAPE(Node):
     def __init__(self, **kwargs):
-        super().__init__(33, **kwargs)
+        super().__init__(**kwargs)
         self.new_shape = None
         self.order = 'C'
 
@@ -1314,12 +1322,12 @@ class RESHAPE(Node):
 
 class TRANSPOSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(34, **kwargs)
+        super().__init__(**kwargs)
 
 
 class STACK(Node):
     def __init__(self, **kwargs):
-        super().__init__(35, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     def set_axis(self, axis):
@@ -1328,7 +1336,7 @@ class STACK(Node):
 
 class GRADIENT(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1338,7 +1346,7 @@ class GRADIENT(Node):
 
 class SHAPE(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1347,7 +1355,7 @@ class SHAPE(Node):
 
 class EXP(Node):
     def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1377,7 +1385,7 @@ class EXP(Node):
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(39, **kwargs)
+        super().__init__(**kwargs)
         self.slice_info = None
         self.slice_index = None
 
@@ -1427,7 +1435,7 @@ class Slice(Node):
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
-        super().__init__(40, **kwargs)
+        super().__init__(**kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
         self.grad_fn = None
@@ -1446,22 +1454,22 @@ class Var(Node):
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(41, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Deepcopy(Node):
     def __init__(self, **kwargs):
-        super().__init__(42, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Shallowcopy(Node):
     def __init__(self, **kwargs):
-        super().__init__(43, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Argmax(Node):
     def __init__(self, **kwargs):
-        super().__init__(44, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
@@ -1474,7 +1482,7 @@ class Argmax(Node):
 
 class Argmin(Node):
     def __init__(self, **kwargs):
-        super().__init__(45, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
@@ -1487,12 +1495,12 @@ class Argmin(Node):
 
 class Sign(Node):
     def __init__(self, **kwargs):
-        super().__init__(46, **kwargs)
+        super().__init__(**kwargs)
 
 
 class SaveTable(Node):
     def __init__(self, **kwargs):
-        super().__init__(47, **kwargs)
+        super().__init__(**kwargs)
         self.table_name = None
 
     def set_name(self, table_name):
@@ -1504,7 +1512,7 @@ class SaveTable(Node):
 
 class Full(Node):
     def __init__(self, data_shape, var, num, **kwargs):
-        super().__init__(48, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
@@ -1538,7 +1546,7 @@ class Full(Node):
 
 class Ones(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(48, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
@@ -1571,7 +1579,7 @@ class Ones(Node):
 
 class Zeros(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(49, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
@@ -1604,7 +1612,7 @@ class Zeros(Node):
 
 class SUM(Node):
     def __init__(self, **kwargs):
-        super().__init__(50, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     def set_axis(self, axis):
@@ -1625,7 +1633,7 @@ class SUM(Node):
 
 class Relu(Node):
     def __init__(self, **kwargs):
-        super().__init__(51, **kwargs)
+        super().__init__(**kwargs)
 
     '''参数待补充'''
 
@@ -1640,7 +1648,7 @@ class Relu(Node):
 
 class Tanh(Node):
     def __init__(self, **kwargs):
-        super().__init__(52, **kwargs)
+        super().__init__(**kwargs)
 
     '''参数待补充'''
 
@@ -1653,7 +1661,7 @@ class Tanh(Node):
 
 class Softmax(Node):
     def __init__(self, **kwargs):
-        super().__init__(53, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 1
 
     def set_dim(self, dim):
@@ -1666,12 +1674,12 @@ class Softmax(Node):
 
 class Sigmod(Node):
     def __init__(self, **kwargs):
-        super().__init__(54, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Elu(Node):
     def __init__(self, **kwargs):
-        super().__init__(55, **kwargs)
+        super().__init__(**kwargs)
         self.alpha = None
 
     def set_alpha(self, alpha):
@@ -1680,7 +1688,7 @@ class Elu(Node):
 
 class Adam(Node):
     def __init__(self, **kwargs):
-        super().__init__(56, **kwargs)
+        super().__init__(**kwargs)
         self.learning_rate = None
 
     def set_learning_rate(self, learning_rate):
@@ -1689,7 +1697,7 @@ class Adam(Node):
 
 class MEAN(Node):
     def __init__(self, **kwargs):
-        super().__init__(57, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
@@ -1730,7 +1738,7 @@ class MEAN(Node):
 
 class MAX(Node):
     def __init__(self, **kwargs):
-        super().__init__(58, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
@@ -1743,7 +1751,7 @@ class MAX(Node):
 
 class MIN(Node):
     def __init__(self, **kwargs):
-        super().__init__(59, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
@@ -1756,7 +1764,7 @@ class MIN(Node):
 
 class Abs(Node):
     def __init__(self, **kwargs):
-        super().__init__(60, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
@@ -1770,7 +1778,7 @@ class Abs(Node):
 class SplitDataset(Node):
     def __init__(self, **kwargs):
         # SplitDataset(data:variable, size:tensor)
-        super().__init__(61, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1782,7 +1790,7 @@ class Parameters(Node):
     def __init__(self, **kwargs):
         # Parameters(set_name, var1, var2, ......)
         # 用来声明参数并对参数打包
-        super().__init__(62, **kwargs)
+        super().__init__(**kwargs)
         # TODO: 解析参数集合的名字, 把vari存入self.vars[i]
         self.set_name = None
 
@@ -1795,7 +1803,7 @@ class SaveParameters(Node):
     def __init__(self, **kwargs):
         # SaveParameters(set_name, path)
         # 用来保存指定名称的参数集
-        super().__init__(63, **kwargs)
+        super().__init__(**kwargs)
         # TODO: 解析参数集合的名字和存储路径
         self.set_name = None
         self.path = None
@@ -1815,7 +1823,7 @@ class LoadParameters(Node):
     def __init__(self, **kwargs):
         # LoadParameters(set_name, path)
         # 用来保存指定名称的参数集
-        super().__init__(64, **kwargs)
+        super().__init__(**kwargs)
         # TODO: 解析参数集合的名字和存储路径
         self.set_name = None
         self.path = None
@@ -1832,7 +1840,7 @@ class LoadParameters(Node):
 
 class AUC(Node):
     def __init__(self, **kwargs):
-        super().__init__(65, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1855,7 +1863,7 @@ class AUC(Node):
 
 class MSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(66, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1871,7 +1879,7 @@ class MSE(Node):
 
 class F1(Node):
     def __init__(self, **kwargs):
-        super().__init__(67, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1881,7 +1889,7 @@ class F1(Node):
 
 class REVERSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(68, **kwargs)
+        super().__init__(**kwargs)
         # TODO: dims
 
     @preprocessing
@@ -1891,7 +1899,7 @@ class REVERSE(Node):
 
 class ARGSORT(Node):
     def __init__(self, **kwargs):
-        super().__init__(69, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 2
 
     @preprocessing
@@ -1904,7 +1912,7 @@ class ARGSORT(Node):
 
 class SORT(Node):
     def __init__(self, **kwargs):
-        super().__init__(70, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 2
 
     @preprocessing
@@ -1917,7 +1925,7 @@ class SORT(Node):
 
 class ACC(Node):
     def __init__(self, **kwargs):
-        super().__init__(71, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1927,7 +1935,7 @@ class ACC(Node):
 
 class RECALL(Node):
     def __init__(self, **kwargs):
-        super().__init__(72, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1937,7 +1945,7 @@ class RECALL(Node):
 
 class PRECISION(Node):
     def __init__(self, **kwargs):
-        super().__init__(73, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1952,7 +1960,7 @@ Backward计算叶节点梯度，存放于Node_grad表中
 
 class Backward(Node):
     def __init__(self, **kwargs):
-        super().__init__(74, **kwargs)
+        super().__init__(**kwargs)
         self.retain_graph = False
         if 'retain_graph' in kwargs.keys():
             self.retain_graph = kwargs['retain_graph']
@@ -1999,7 +2007,8 @@ class Backward(Node):
                     tensors.append(pre_tensor)
                 # 对父节点中Vars添加到fathers中
                 for pre_fa in node.fathers:
-                    if self.executor.var_dict[pre_fa.vars[0]] not in fathers and pre_fa.__class__.__name__ in ['Var', 'Val']:
+                    if self.executor.var_dict[pre_fa.vars[0]] not in fathers and pre_fa.__class__.__name__ in ['Var',
+                                                                                                               'Val']:
                         flag = 1
                         for father in fathers:
                             if pre_fa.vars == father.vars:
@@ -2062,7 +2071,7 @@ class Backward(Node):
         # c.test()
         for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
-        
+
         if not self.retain_graph:
             for i in self.executor.tensor_dict.keys():
                 self.executor.tensor_dict[i].clear_next()
@@ -2071,7 +2080,7 @@ class Backward(Node):
 
 class WLS(Node):
     def __init__(self, **kwargs):
-        super().__init__(75, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -2083,7 +2092,7 @@ class WLS(Node):
 
 class REPEAT(Node):
     def __init__(self, **kwargs):
-        super().__init__(76, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -2120,7 +2129,7 @@ class REPEAT(Node):
 
 class UNSQUEEZE(Node):
     def __init__(self, **kwargs):
-        super().__init__(77, **kwargs)
+        super().__init__(**kwargs)
         self.dim = None
 
     @preprocessing
@@ -2133,7 +2142,7 @@ class UNSQUEEZE(Node):
 
 class CleanGrad(Node):
     def __init__(self, **kwargs):
-        super().__init__(78, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -2143,7 +2152,7 @@ class CleanGrad(Node):
 
 class Negative(Node):
     def __init__(self, **kwargs):
-        super().__init__(79, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
