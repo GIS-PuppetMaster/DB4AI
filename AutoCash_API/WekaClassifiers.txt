@@ -1,4 +1,0 @@
-IBk
-Logistic
-RBF
-softmax_classification

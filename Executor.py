@@ -17,7 +17,7 @@ class Executor:
         self.raw_graph = graph
         self.var_dict = dict()
         self.tensor_dict = dict()
-        self.backward_end = 0
+        self.tensor_end = 0
         self.finished_loop_id = set()
         self.last_use = {}
         self.var_shape = {}
@@ -86,7 +86,7 @@ class Executor:
     @bfs(True)
     def init_nodes(self, current_node, **kwargs):
         current_node.cursor = self.cursor
-        current_node.cursor.connect()
+        # current_node.cursor.connect()
         # if isinstance(current_node, Loop):
         #     if 'loop' not in kwargs['info'].keys():
         #         kwargs['info']['loop'] = {}
@@ -161,7 +161,6 @@ class Executor:
 
         current_node.run(visited=visited, executor=self)
         print(f'{current_node.id}')
-        # TODO: 遍历TENSORS，检查生成他的时候的作用域与当前是否相符，并且检查引用计数是否为0
         # for var_name in current_node.release_list:
         #     if var_name in self.var_dict.keys() and self.var_dict[var_name] is not None and not self.var_dict[var_name].requires_grad:
         #         if current_node.in_loop == -1 or re.match(r'^_[^_]+',var_name) is None:

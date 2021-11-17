@@ -12,7 +12,7 @@ class GDBC(object):
 
     def connect(self):
         # 建立连接
-        self.conn = pyodbc.connect('DRIVER={GaussMPP};SERVER=127.0.0.1;DATABASE=omm;UID=omm;PWD=Gauss@123')
+        self.conn = pyodbc.connect('DRIVER={GaussMPP};SERVER=ip;DATABASE=;UID=omm;PWD=password')
         self.cursor = self.conn.cursor()
 
     """
