@@ -93,7 +93,7 @@ none_operator = ('Ones', 'Zeros')
 single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                    'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
                    'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
-                   'REVERSE', 'GRADIENT', 'UNSQUEEZE')
+                   'REVERSE', 'GRADIENT', 'UNSQUEEZE','TensorFromSql')
 multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
                      'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward', 'CleanGrad')
 all_operator = nd.operators
@@ -108,8 +108,9 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 查看UserOperators.json文件，取得自定义算子
     if os.path.exists('UserOperatorName.json'):
-        with open('UserOperatorName.json', 'r') as f:
-            load_dict = json.load(f)
+        with open('UserOperatorName.json','r') as f:
+            load_dict = json.load(f, strict=False)
+            # load_dict = json.load(f)
             user_operator = load_dict.get('name')
         user_operator = tuple(user_operator)
     else:

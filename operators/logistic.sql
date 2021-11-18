@@ -15,7 +15,7 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
     }
     select SHAPE(test_x) as sx
     select sx[0] as record_num
-    select 1/(1+POW(CONSTANT.E, MATMUL(test_x, w))) as pred
+    select 1/(1+POW(CONSTANT.E, -1 * MATMUL(test_x, w))) as pred
     create tensor i(1,) from 0
     LOOP(record_num){
         # if(pred[i,:]>=0.5){
