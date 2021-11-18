@@ -144,7 +144,6 @@ class Executor:
         else:
             for next_node in next_nodes:
                 self.init_branches(next_node, current_branch)
-
     @bfs(False)
     def execute(self, current_node, **kwargs):
         visited = kwargs['visited']

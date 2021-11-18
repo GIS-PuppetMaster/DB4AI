@@ -7,7 +7,7 @@ import json
 import os
 import pickle
 from Executor import Executor
-
+from line_profiler import LineProfiler
 global inner_var_count
 
 
@@ -886,8 +886,6 @@ class Parser:
 
 
 if __name__ == '__main__':
-
-
     time_sum = 0
     from time import time
     algorithm = 'logistic'

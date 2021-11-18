@@ -1,13 +1,7 @@
-import math
 
-import numpy
-import torch
-import unittest
-from torch.optim import optimizer
-from gdbc import GDBC
-from sklearn import metrics as sk_metrics
-from Nodes import str_to_list
-
+a=0
+for i in range(100000):
+    a += 1
 '''class Test:
 
     def test(self, cursor):

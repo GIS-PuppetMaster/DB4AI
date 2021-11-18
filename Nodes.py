@@ -61,7 +61,7 @@ class Table:
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
-        node.cursor.connect()
+        # node.cursor.connect()
         # todo 自动类型转换
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
@@ -723,6 +723,7 @@ class Assignment(Node):
             self._slice = total_slice
 
     @preprocessing
+    @profile
     def run(self, **kwargs):
         self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
@@ -772,7 +773,8 @@ class Add(Node):
     def run(self, **kwargs):
         self.op_broadcast("add", self.vars[1], self.vars[2], self.vars[0])
         # self.conn.commit()
-
+    
+    @profile
     def backward(self, grad_output=1):
         return grad_output, grad_output
 
@@ -789,6 +791,7 @@ class Sub(Node):
         # self.cursor.execute(f"select db4ai_sub('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -815,6 +818,7 @@ class Mul(Node):
         self.op_broadcast("mul", self.vars[1], self.vars[2], self.vars[0])
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
         table_name_2 = 'grad_' + str(self.id) + '_2'
@@ -924,6 +928,7 @@ class Div(Node):
             self.cursor.execute(f"insert into {self.vars[0]} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data})")
 
 
+    @profile
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
         table_name_2 = 'grad_' + str(self.id) + '_2'
@@ -984,6 +989,7 @@ class LOG(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
 
+    @profile
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -1023,6 +1029,7 @@ class POW(Node):
         else:
             self.cursor.execute(f"select db4ai_pow('{self.vars[1]}', {pow_exp[0]}, '{self.vars[0]}');")
 
+    @profile
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -1063,6 +1070,7 @@ class SQRT(Node):
         self.cursor.execute(f"select db4ai_sqrt('{self.vars[1]}', '{self.vars[0]}');")
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -1101,6 +1109,7 @@ class MATMUL(Node):
         self.cursor.execute(f"select db4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
         table_name_2 = 'grad_' + str(self.id) + '_2'
@@ -1354,6 +1363,7 @@ class EXP(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{self.vars[0]}');")
 
+    @profile
     def backward(self, grad_output=1):
         if grad_output == 1:
             table_name = 'grad_' + str(self.id)
@@ -1620,6 +1630,7 @@ class SUM(Node):
         self.cursor.execute(f"select db4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output=1):
         return grad_output
 
@@ -1629,7 +1640,7 @@ class Relu(Node):
         super().__init__(51, **kwargs)
 
     '''参数待补充'''
-
+    @profile
     def backward(self, grad_output):
         input_x, = self.saved_tensors
         if input_x < 0:
@@ -1644,7 +1655,7 @@ class Tanh(Node):
         super().__init__(52, **kwargs)
 
     '''参数待补充'''
-
+    @profile
     def backward(self, grad_output):
         input_x, = self.saved_tensors
         grad_x = grad_output * (1 - torch.pow(
@@ -1701,6 +1712,7 @@ class MEAN(Node):
     def set_axis(self, axis):
         self.axis = axis
 
+    @profile
     def backward(self, grad_output=1):
         table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -2093,6 +2105,7 @@ class REPEAT(Node):
         self.cursor.execute(
             f"select db4ai_repeat('{self.vars[1]}', '{self.vars[4]}', '{self.vars[3]}', {self.vars[0]}');")
 
+    @profile
     def backward(self, grad_output=1):
         table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -2159,6 +2172,7 @@ class Negative(Node):
         self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
         # self.conn.commit()
 
+    @profile
     def backward(self, grad_output):
         table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + self.id + '_temp1'
