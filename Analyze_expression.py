@@ -108,8 +108,9 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 查看UserOperators.json文件，取得自定义算子
     if os.path.exists('UserOperatorName.json'):
-        with open('UserOperatorName.json', 'r') as f:
-            load_dict = json.load(f)
+        with open('UserOperatorName.json','r') as f:
+            load_dict = json.load(f, strict=False)
+            # load_dict = json.load(f)
             user_operator = load_dict.get('name')
         user_operator = tuple(user_operator)
     else:

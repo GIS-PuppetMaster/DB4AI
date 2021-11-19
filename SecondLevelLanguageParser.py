@@ -702,7 +702,12 @@ class Parser:
                     as_obj = re.search('(.+?)AS|as(.+?)', v_i)
                     if as_obj:
                         as_replace[as_obj.group(2)] = as_obj.group(1)
-            exp = v_name + ' = ' + match_obj2.group(2)
+            exp_right = match_obj2.group(2)
+            table_name =""
+            TFS_obj = re.match('TensorFromSql[(](.+)[)]', exp_right)
+            if TFS_obj:
+                table_name = TFS_obj.group(1)
+            exp = v_name + ' = ' + exp_right
             if re.search('(WITH|with)[ \t]+(GRAD|grad)', query):
                 exp = exp + ' WITH GRAD'
                 with_grad = True
@@ -738,7 +743,10 @@ class Parser:
                                 else:
                                     self.graph.InsertEdge(self.graph.nodes[self.root_id], in_v[1])
                             else:
-                                raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
+                                if in_v[0] == table_name:
+                                    self.graph.InsertEdge(self.graph.nodes[0], in_v[1])
+                                else:
+                                    raise Exception('表达式使用未创建张量：' + in_v[0] + '，语句为：' + query + ' 错误在第' + str(self.line_id) + '行')
                 if use_o:
                     if not (self.isCu and self.root_id == 0):
                         for o_in_v in g[2]:
@@ -757,7 +765,10 @@ class Parser:
         if v_name != '$':
             if isinstance(e_node, set):
                 e_node = e_node.pop()
-            r_var = e_node.get_vars()[0]
+            try:
+                r_var = e_node.get_vars()[0]
+            except IndexError:
+                print(e_node)
             var_li = self.var_ass_dict.get(v_name, None)
             if var_li:
                 self.node_id += 1

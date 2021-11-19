@@ -55,7 +55,7 @@ class Table:
 
     def __del__(self):
         pass
-        self.cursor.execute(f"drop table if exists {self.name}")
+        # self.cursor.execute(f"drop table if exists {self.name}")
 
 
 def preprocessing(fun):
@@ -77,14 +77,11 @@ def preprocessing(fun):
             flag = 0
         else:
             flag = 1
-        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward',
-                                                                                    'CleanGrad'] and flag == 1:
+        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward', 'CleanGrad','TensorFromSql'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None, list(
-                map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None,
-                    node.pre_nodes())))))
+            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None,list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
             node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
         elif node.__class__.__name__ is 'Assignment' and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
@@ -92,16 +89,15 @@ def preprocessing(fun):
             if node.vars[1] in node.executor.tensor_dict:
                 node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
                 node.executor.tensor_dict[node.vars[0]].set_next(node.executor.tensor_dict[node.vars[1]].get_next())
-                node.executor.tensor_dict[node.vars[0]].set_grad_fn(
-                    node.executor.tensor_dict[node.vars[1]].get_grad_fn())
+                node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
         if len(node.vars) != 0 and flag == 1:
             node.executor.var_dict[node.vars[0]] = node
-        node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
+        '''node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
                             f"drop table if exists {'grad_input_' + str(node.id)};"
                             f"drop table if exists {'grad_' + str(node.id) + '_1'};"
                             f"drop table if exists {'grad_' + str(node.id) + '_2'};"
                             f"drop table if exists {'grad_' + str(node.id) + '_temp1'};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")
+                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")'''
         return fun(node, **kwargs)
 
     return decorated
@@ -470,17 +466,14 @@ class Val(Node):
 
 class TensorFromSql(Node):
     # TODO: 注册算子@樊宣伯
-    def __init__(self, t_info, var, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.t_search_sentences = t_info
-        self.vars = var
-        self.shape = None
 
     @preprocessing
     def run(self, **kwargs):
         # self.cursor.execute(f'select db4ai_load(\'{}\',\'{}\')')
         # TODO：代码实现@路亚彬, @樊宣伯
-        pass
+        self.cursor.execute(f"select db4ai_load('{self.vars[1]}','{self.vars[0]}')")
 
 
 class Sql(Node):
@@ -750,20 +743,24 @@ class Assignment(Node):
                 self.cursor.execute(f"select data from {self.vars[0]}")
                 old_data = str_to_list(self.cursor.fetch()[0][0])
                 s = fill_slice_var(self.slice, self.cursor)
-                if len(s) == 2:
-                    if s[0] is ... and s[1] is ...:
-                        for i in range(len(old_data)):
-                            old_data[i] = new_data
-                    elif s[0] is ...:
-                        for i in range(shape[0][0]):
-                            old_data[i * shape[0][1] + s[1]] = new_data
-                    elif s[1] is ...:
-                        for i in range(shape[0][1]):
-                            old_data[s[0] * shape[0][1] + i] = new_data
-                    else:
-                        old_data[s[0] * shape[0][0] + s[1]] = new_data
-                elif len(s) == 1:
-                    old_data[s[0]] = new_data
+                try:
+                    if len(s) == 2:
+                        if s[0] is ... and s[1] is ...:
+                            for i in range(len(old_data)):
+                                old_data[i] = new_data
+                        elif s[0] is ...:
+                            for i in range(shape[0][0]):
+                                old_data[i * shape[0][1] + s[1]] = new_data
+                        elif s[1] is ...:
+                            for i in range(shape[0][1]):
+                                old_data[s[0] * shape[0][1] + i] = new_data
+                        else:
+                            old_data[s[0] * shape[0][0] + s[1]] = new_data
+                    elif len(s) == 1:
+                        old_data[s[0]] = new_data
+                except IndexError:
+                    print(old_data)
+                    print(shape)
                 self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
@@ -1167,7 +1164,7 @@ class MATMUL(Node):
                 for j in range(shape_0[0][1]):
                     sum = 0
                     for k in range(shape_1[0][0]):
-                        sum += data_1[k * shape_1[0][1] + i] * data_0[j * shape_2[0][1] + j]
+                        sum += data_1[k * shape_1[0][1] + i] * data_0[k * shape_2[0][1] + j]
                     new_data_2.append(sum)
             self.cursor.execute(
                 f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
@@ -2040,6 +2037,8 @@ class Backward(Node):
                     if father.with_grad is True:
                         if father.__class__.__name__ is 'Var':
                             fa_table_name = "grad_" + father.vars[0]
+                            if fa_table_name == 'grad___0w':
+                                print(1)
                         elif father.__class__.__name__ in operators:
                             fa_table_name = "grad_input_" + str(father.id)
                             drop_table_list.append(fa_table_name)
@@ -2069,7 +2068,7 @@ class Backward(Node):
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
                     index += 1
         # c = Test()
-        # c.test()
+        # c.test(self.cursor)
         for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
 
@@ -2240,3 +2239,5 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad, **otherField)
     return node
+
+
