@@ -19,7 +19,7 @@ operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR',
              'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
              'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-             'UNSQUEEZE', 'CleanGrad', 'Negative'}
+             'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 
 
 class Tensor:
@@ -478,6 +478,7 @@ class TensorFromSql(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        # self.cursor.execute(f'select db4ai_load(\'{}\',\'{}\')')
         # TODO：代码实现@路亚彬, @樊宣伯
         pass
 

@@ -1,6 +1,3 @@
 create tensor a(3,3) from ones((3,3)) with grad
-create tensor b(3,3) from zeros((3,3)) with grad
-select EXP(-2*SQRT(SUM(POW(a-b,1),0))) as c
-select Backward(c)
-
+select Abs(a) as b
 

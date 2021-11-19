@@ -1,7 +1,9 @@
-select SQL('select feature_1,feature_2,feature_3 from train_data') as train_x
-select SQL('select label from train_data') as train_y
-select SQL('select feature_1,feature_2,feature_3 from test_data') as test_x
-select SQL('select label from test_data') as test_y
+select TensorFromSql('train_data') as train
+select TensorFromSql('test_data') as test
+select train[:,:-1] as train_x
+select train[:,-1] as train_y
+select test[:,:-1] as test_x
+select test[:,-1] as test_y
 create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
 create tensor ridge(1,) from 0.0001
