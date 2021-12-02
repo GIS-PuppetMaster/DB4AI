@@ -5,11 +5,8 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
     select sx[1] as feature_num
     create tensor w(feature_num,class_num) from RANDOM((feature_num,class_num),(0,1)) with grad
     create tensor b(1,class_num) from RANDOM((1,class_num),(0,1)) with grad
-    create tensor pred(feature_num, class_num)
+    create tensor pred(feature_num, class_num) with pred
     LOOP(iter_times){
-        SELECT w as w with grad
-        SELECT b as b with grad
-        select pred as pred with grad
         select Softmax(MATMUL(x,w)+b, 1) as pred with grad
         select 0-MEAN(y*LOG(pred)) as loss with grad
         select CleanGrad(w)
@@ -18,11 +15,11 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
         update w-learning_rate * g AS w
     }
     select Softmax(MATMUL(test_x,w)+b, 1) as pred
-    select AUC(test_y, pred) as auc
     if(class_num>2){
         select Argmax(test_y,1) as test_y
         select Argmax(pred,1) as pred
     }
+    select AUC(test_y, pred) as auc
     select ACC(test_y, pred) as acc
     select RECALL(test_y, pred) as recall
     select PRECISION(test_y, pred) as prec

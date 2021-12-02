@@ -890,12 +890,13 @@ if __name__ == '__main__':
 
     time_sum = 0
     from time import time
-    algorithm = 'logistic'
+    algorithm = 'Softmax'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
+    algorithm = 'softmax'
     path = f'test/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
