@@ -705,6 +705,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             for node in operator_info[2].nodes:
                 for t in range(len(node.vars)):
+                    if t==0 and node.vars[t] is None:
+                        continue
                     if not node.vars[t].startswith('_') and node.vars[t] not in formal_param:
                         node.vars[t] = '__' + str(inner_count) + node.vars[t]
                 if hasattr(node, 'data_shape'):

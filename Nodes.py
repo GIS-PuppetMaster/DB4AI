@@ -1501,6 +1501,11 @@ class SaveTable(Node):
         super().__init__(**kwargs)
         self.table_name = None
 
+    @preprocessing
+    def run(self, **kwargs):
+        # TODO: zkx
+        pass
+
     def set_name(self, table_name):
         self.table_name = table_name
 

@@ -142,6 +142,8 @@ class Graph:
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
             for v in range(len(self.nodes[i].vars)):
+                if v==0 and self.nodes[i].vars[v] is None:
+                    continue
                 if self.nodes[i].vars[v].startswith('@'):
                     self.nodes[i].vars[v] = '@' + str(eval(self.nodes[i].vars[v][1:]) + s_id)
             del self.nodes[i].branches[0]

@@ -13,6 +13,8 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         SELECT GRADIENT(w) AS g
         update w-learning_rate * g AS w
     }
+    select SaveTable(w, logistic_w)
+    select SaveTable(hx, logistic_hx)
     select SHAPE(test_x) as sx
     select sx[0] as record_num
     select 1/(1+POW(CONSTANT.E, -1 * MATMUL(test_x, w))) as pred
