@@ -61,7 +61,6 @@ class Table:
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
-        node.cursor.connect()
         # todo 自动类型转换
         for i in range(len(node.vars)):
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
@@ -92,6 +91,13 @@ def preprocessing(fun):
                 node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
         if len(node.vars) != 0 and flag == 1:
             node.executor.var_dict[node.vars[0]] = node
+
+        # 清空记录梯度的表：
+        # 表'grad_' + str(node.id)为该节点最终梯度(算子本身梯度乘以上游梯度)的单个返回值(仅有一个返回值时）
+        # 表'grad_' + str(node.id) + '_1/2'为该节点最终梯度(算子本身梯度乘以上游梯度)的多个返回值(返回值大于2，如mul、matmul)
+        # 表'grad_' + str(node.id) + '_temp1/2'为计算最终梯度的中间结果(通常是算子本身梯度，需乘以上游梯度)
+        # 表'grad_' + str(node.id)为算子输入的上游梯度
+
         '''node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
                             f"drop table if exists {'grad_input_' + str(node.id)};"
                             f"drop table if exists {'grad_' + str(node.id) + '_1'};"
@@ -282,6 +288,8 @@ class Node:
     def __repr__(self):
         return f'id:{self.id}, branches:{self.branches}, vars:{self.vars}'
 
+
+
     def op_broadcast(self, op, input_table_1, input_table_2, output_table):
         self.cursor.execute(f"drop table if exists {output_table}")
         self.cursor.execute(f"select rows,cols from {input_table_1}")
@@ -290,22 +298,9 @@ class Node:
         result2 = self.cursor.fetch()
         try:
             if result1[0][0] == result2[0][0] and result1[0][1] == result2[0][1]:
-                # 同维度矩阵特殊情况，对应元素值依次操作
-                if (result1[0][0] != 1 or result1[0][1] != 1) and op == "mul":
-                    self.cursor.execute(f"select data from {input_table_1}")
-                    data1 = str_to_list(self.cursor.fetch()[0][0])
-                    self.cursor.execute(f"select data from {input_table_2}")
-                    data2 = str_to_list(self.cursor.fetch()[0][0])
-                    new_data = []
-                    for i in range(len(data1)):
-                        new_data.append(data1[i] * data2[i])
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
-                else:
-                    self.fun_opt(op, input_table_1, input_table_2, output_table)
-            # 行相等，列不相等，则有一组矩阵行数为1，否则不满足广播条件
+                # 同维度矩阵特殊情况，无需广播,对应元素值依次操作
+                self.fun_opt(op, input_table_1, input_table_2, output_table)
+            # 行相等，列不相等，则有一组矩阵列数为1，否则不满足广播条件
             elif result1[0][0] == result2[0][0]:
                 self.cursor.execute(f"select data from {input_table_1}")
                 data1 = str_to_list(self.cursor.fetch()[0][0])
@@ -343,12 +338,11 @@ class Node:
                                         f"precision[] )")
                     self.cursor.execute(
                         f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
-
                 elif result2[0][0] == 1:
-                    for i in range(len(data2)):
-                        for j in range(len(data1)):
-                            if i == j % len(data2):
-                                new_data.append(self.val_opt(op, data1[j], data2[i]))
+                    for i in range(len(data1)):
+                        for j in range(len(data2)):
+                            if j == i % len(data2):
+                                new_data.append(self.val_opt(op, data1[i], data2[j]))
                     # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
@@ -356,16 +350,17 @@ class Node:
                         f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
                 else:
                     raise DimensionError()
+            # 矩阵形状的各个维度不一,则各个维度上必有一值为1
             elif result1[0][0] != result2[0][0] and result1[0][1] != result2[0][1]:
                 self.cursor.execute(f"select data from {input_table_1}")
                 data1 = str_to_list(self.cursor.fetch()[0][0])
                 self.cursor.execute(f"select data from {input_table_2}")
                 data2 = str_to_list(self.cursor.fetch()[0][0])
                 new_data = []
+                # TODO：只考虑了同一矩阵行列均为1的情况，建议补充1行n列和n行一列的情况
                 if result1[0][0] == 1 and result1[0][1] == 1:
                     for i in range(len(data2)):
                         new_data.append(self.val_opt(op, data1[0], data2[i]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -373,7 +368,6 @@ class Node:
                 elif result2[0][0] == 1 and result2[0][1] == 1:
                     for i in range(len(data1)):
                         new_data.append(self.val_opt(op, data1[i], data2[0]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -401,6 +395,8 @@ class Node:
         elif op == 'sub':
             self.cursor.execute(f"select db4ai_sub('{input_table_1}', '{input_table_2}', '{output_table}');")
         elif op == 'mul':
+            self.cursor.execute(f"select db4ai_mul('{input_table_1}', '{input_table_2}', '{output_table}');")
+        elif op == 'matmul':
             self.cursor.execute(f"select db4ai_matmul('{input_table_1}', '{input_table_2}', '{output_table}');")
 
     def is_equal_shape(self, input_table_1, input_table_2):
@@ -755,7 +751,7 @@ class Assignment(Node):
                             for i in range(shape[0][1]):
                                 old_data[s[0] * shape[0][1] + i] = new_data
                         else:
-                            old_data[s[0] * shape[0][0] + s[1]] = new_data
+                            old_data[s[0] * shape[0][1] + s[1]] = new_data
                     elif len(s) == 1:
                         old_data[s[0]] = new_data
                 except IndexError:
@@ -771,8 +767,8 @@ class Add(Node):
     @preprocessing
     def run(self, **kwargs):
         self.op_broadcast("add", self.vars[1], self.vars[2], self.vars[0])
-        # self.conn.commit()
 
+    # 无需重构
     def backward(self, grad_output=1):
         return grad_output, grad_output
 
@@ -783,11 +779,7 @@ class Sub(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # self.cursor.execute(f"select * from {self.vars[1]};")
-        # self.cursor.execute(f"select db4ai_sub('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         self.op_broadcast("sub", self.vars[1], self.vars[2], self.vars[0])
-        # self.cursor.execute(f"select db4ai_sub('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
-        # self.conn.commit()
 
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
@@ -801,8 +793,6 @@ class Sub(Node):
         self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
-            # self.conn.commit()
-
         return grad_output, table_name
 
 
@@ -824,14 +814,14 @@ class Mul(Node):
         shape_1 = self.cursor.fetch()
         self.cursor.execute(f"select rows,cols from {self.vars[2]}")
         shape_2 = self.cursor.fetch()
+
+        # 分类讨论
         if shape_1[0][0] == 1 and shape_1[0][1] == 1:
             flag = 1
         elif shape_2[0][0] == 1 and shape_2[0][1] == 1:
             flag = 2
-        elif shape_1[0][1] == shape_2[0][0]:
-            flag = 3
         elif shape_1 == shape_2:
-            flag = 4
+            flag = 3
         if grad_output == 1:
             s_1 = table_name_1
             s_2 = table_name_2
@@ -846,6 +836,8 @@ class Mul(Node):
         data_2 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
         self.cursor.execute(f"create table {s_2}(rows int,cols int,trans int,data double precision[])")
+
+        # 乘以单个常数值
         if flag == 1:
             sum = 0
             for i in data_2:
@@ -858,35 +850,12 @@ class Mul(Node):
             for i in data_1:
                 sum += i
             self.cursor.execute(f"insert into {s_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{[sum]})")
+
+        # 矩阵形状相同
         elif flag == 3:
-            # 求self.vars[1]的导数,对self.vars[2]依次行求和
-            sum_data_1 = []
-            for i in range(shape_2[0][0]):
-                total = 0
-                for j in range(shape_2[0][1]):
-                    total += data_2[i * shape_2[0][1] + j]
-                sum_data_1.append(total)
-            new_data_1 = []
-            for i in range(shape_1[0][0]):
-                for j in range(shape_1[0][1]):
-                    new_data_1.append(sum_data_1[j])
-            self.cursor.execute(f"insert into {s_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
-            # 求self.vars[2]的导数,对self.vars[1]依次列求和
-            sum_data_2 = []
-            for i in range(shape_1[0][1]):
-                total = 0
-                for j in range(shape_1[0][0]):
-                    total += data_1[i + j * shape_1[0][1]]
-                sum_data_2.append(total)
-            new_data_2 = []
-            for i in range(shape_2[0][0]):
-                for j in range(shape_2[0][1]):
-                    new_data_2.append(sum_data_2[i])
-            self.cursor.execute(f"insert into {s_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
-        if flag == 4:
             self.cursor.execute(f"insert into {s_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{data_2})")
             self.cursor.execute(f"insert into {s_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{data_1})")
-        # self.conn.commit()
+
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name_1)
             self.op_broadcast("mul", s_2, grad_output, table_name_2)
@@ -983,13 +952,22 @@ class LOG(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
+        # TODO: log疑似不支持多行多列
+        # self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
+        self.cursor.execute(f"drop table if exists {self.vars[0]};")
+        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
+        self.cursor.execute(f"select data from {self.vars[1]};")
+        ss = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(ss)):
+            ss[i] = math.log(ss[i], math.e)
+        self.cursor.execute(f"update {self.vars[0]} set data = array{ss};")
+
 
     def backward(self, grad_output=1):
-        table_name_1 = 'grad_' + str(self.id)
+        table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
-            s_1 = table_name_1
+            s_1 = table_name
         else:
             s_1 = table_name_temp1
         self.cursor.execute(f"drop table if exists {s_1}")
@@ -1005,8 +983,8 @@ class LOG(Node):
         self.cursor.execute(f"insert into {s_1} values ({shape[0]},{shape[1]},0,array{new_row})")
         # self.conn.commit()
         if grad_output != 1:
-            self.op_broadcast("mul", s_1, grad_output, table_name_1)
-        return table_name_1
+            self.op_broadcast("mul", s_1, grad_output, table_name)
+        return table_name
 
 
 class POW(Node):
@@ -1101,6 +1079,7 @@ class MATMUL(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
+
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -1359,6 +1338,10 @@ class EXP(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{self.vars[0]}');")
 
+
+    '''
+        此处套用self.vars[0]重构即可，无需做反向算子
+    '''
     def backward(self, grad_output=1):
         if grad_output == 1:
             table_name = 'grad_' + str(self.id)
@@ -1674,6 +1657,42 @@ class Softmax(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select db4ai_softmax('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
 
+    '''
+        softmax求导较为特殊，设输入为m*n矩阵a，则输出也为m*n矩阵b，求导时，a中每个元素a(i,j)求导结果为m*n矩阵c(a(i,j)),c中除第i行外均为全0
+        根据前向传播，grad_output也应为m*n矩阵g,则Σg(i,j)*c(a(i,j))为最终结果(乘以上游梯度后的最终梯度)
+        由于m.n较大时建表过多可能影响性能，此处不再将算子梯度与前向梯度区分开
+    '''
+    def backward(self, grad_output):
+        table_name = 'grad_' + str(self.id)
+        assert grad_output != 1
+        self.cursor.execute(f"drop table if exists {table_name}")
+        self.cursor.execute(f"select * into {table_name} from {self.vars[0]}")
+
+        self.cursor.execute(f"select rows,cols from {grad_output};")
+        grad_output_shape = self.cursor.fetch()
+        self.cursor.execute(f"select data from {grad_output};")
+        grad_output_data = str_to_list(self.cursor.fetch()[0][0])
+        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        softmax_shape = self.cursor.fetch()
+        assert softmax_shape == grad_output_shape
+        self.cursor.execute(f"select data from {self.vars[0]};")
+        softmax_data = str_to_list(self.cursor.fetch()[0][0])
+
+        new_data = []
+        for i in range(softmax_shape[0][0]):
+            for r in range(softmax_shape[0][1]):
+                new_data.append(0)
+            for j in range(softmax_shape[0][1]):
+                for k in range(softmax_shape[0][1]):
+                    index = i * softmax_shape[0][1] + k
+                    if j == k:
+                        new_data[index] += softmax_data[index] * (1 - softmax_data[index]) * grad_output_data[i * grad_output_shape[0][1] + j]
+                    else:
+                        new_data[index] += -softmax_data[i * softmax_shape[0][1] + j] * softmax_data[index] * grad_output_data[i * grad_output_shape[0][1] + j]
+
+        self.cursor.execute(f"update {table_name} set data = array{new_data};")
+        return table_name
+
 
 class Sigmod(Node):
     def __init__(self, **kwargs):
@@ -1711,6 +1730,9 @@ class MEAN(Node):
     def set_axis(self, axis):
         self.axis = axis
 
+    '''
+        求导结果为各维度长度乘积的倒数
+    '''
     def backward(self, grad_output=1):
         table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -1718,7 +1740,6 @@ class MEAN(Node):
             s = table_name
         else:
             s = table_name_temp1
-
         self.cursor.execute(f"select rows,cols from {self.vars[1]}")
         shape = self.cursor.fetch()[0]
         if self.axis == 0:
@@ -1731,7 +1752,7 @@ class MEAN(Node):
         for i in range(shape[0]):
             for j in range(shape[1]):
                 data.append(val)
-
+        self.cursor.execute(f"drop table if exists {s}")
         self.cursor.execute(f"select * into {s} from {self.vars[1]}")
         self.cursor.execute(f"update {s} set data = array{data}")
         if grad_output != 1:
@@ -2104,6 +2125,9 @@ class REPEAT(Node):
         self.cursor.execute(
             f"select db4ai_repeat('{self.vars[1]}', '{self.vars[4]}', '{self.vars[3]}', {self.vars[0]}');")
 
+    '''
+        求导结果为扩充倍数乘积
+    '''
     def backward(self, grad_output=1):
         table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -2170,6 +2194,9 @@ class Negative(Node):
         self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
         # self.conn.commit()
 
+    '''
+        求导值为-1，直接存储即可
+    '''
     def backward(self, grad_output):
         table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + self.id + '_temp1'
