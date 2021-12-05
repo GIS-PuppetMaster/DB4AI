@@ -14,6 +14,8 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
         SELECT GRADIENT(w) AS g
         update w-learning_rate * g AS w
     }
+    select SaveTable(w, softmax_w)
+    select SaveTable(b, softmax_b)
     select Softmax(MATMUL(test_x,w)+b, 1) as pred
     if(class_num>2){
         select Argmax(test_y,1) as test_y

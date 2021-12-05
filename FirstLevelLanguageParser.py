@@ -116,7 +116,7 @@ if __name__ == '__main__':
         metrics = parameters[3]
         if algorithm == 'logistic':
             sql = get_test_sql_head(data_name, label_pos)
-            sql += "create tensor class_num(1,) from 2\n" \              
+            sql += "create tensor class_num(1,) from 2\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
                    "create tensor f1(1,)\n" \
@@ -124,6 +124,16 @@ if __name__ == '__main__':
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
                    "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)"
+        elif algorithm == 'softmax':
+            sql = get_test_sql_head(data_name, label_pos)
+            sql += "create tensor class_num(1,) from 3\n" \
+                   "create tensor mse(1,)\n" \
+                   "create tensor auc(1,)\n" \
+                   "create tensor f1(1,)\n" \
+                   "create tensor acc(1,)\n" \
+                   "create tensor recall(1,)\n" \
+                   "create tensor prec(1,)\n" \
+                   "select test_softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,class_num)"
         else:
             raise Exception("unsupported algorithm")
         path = f'operators/test_{algorithm}.sql'
