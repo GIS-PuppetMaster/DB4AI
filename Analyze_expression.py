@@ -93,7 +93,7 @@ none_operator = ('Ones', 'Zeros')
 single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                    'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
                    'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
-                   'REVERSE', 'GRADIENT', 'UNSQUEEZE','TensorFromSql')
+                   'REVERSE', 'GRADIENT', 'UNSQUEEZE', 'TensorFromSql')
 multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
                      'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward', 'CleanGrad')
 all_operator = nd.operators
@@ -108,7 +108,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
 
     # 查看UserOperators.json文件，取得自定义算子
     if os.path.exists('UserOperatorName.json'):
-        with open('UserOperatorName.json','r') as f:
+        with open('UserOperatorName.json', 'r') as f:
             load_dict = json.load(f, strict=False)
             # load_dict = json.load(f)
             user_operator = load_dict.get('name')
@@ -403,6 +403,8 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 var.append(temp_i)
             if j == 'SaveTable':
                 current_graph.keynode.set_name(var[1])
+                if var[2] == "print":
+                    current_graph.keynode.print_flag = True
                 current_graph.keynode.set_vars([None, var[0]])
                 input_node = nd.InstantiationClass(x, 'Var', branches, vars=var[0], with_grad=requires_grad)
                 G.InsertNode(input_node)
@@ -705,7 +707,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
             operator_info[2].ChangeNodeInfo(len(G.nodes) - len(operator_info[1]) + x, branches, with_grad=requires_grad)
             for node in operator_info[2].nodes:
                 for t in range(len(node.vars)):
-                    if t==0 and node.vars[t] is None:
+                    if t == 0 and node.vars[t] is None:
                         continue
                     if not node.vars[t].startswith('_') and node.vars[t] not in formal_param:
                         node.vars[t] = '__' + str(inner_count) + node.vars[t]
@@ -717,7 +719,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         print(node.data_shape)
                         print(type(node.data_shape))
                     for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p]!='':
+                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p] != '':
                             data_shape[p] = '__' + str(inner_count) + data_shape[p]
                     str_data_shape = '('
                     for p in data_shape:
@@ -805,7 +807,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                             n.vars[v] = var[operator_info[1].index(inp)]
                 if hasattr(n, 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
-                    data_shape = re.findall(pattern,n.data_shape)[0].split(',')
+                    data_shape = re.findall(pattern, n.data_shape)[0].split(',')
                     for p in range(len(data_shape)):
                         for inp in operator_info[1]:
                             if data_shape[p] == inp[0]:

@@ -63,6 +63,8 @@ def preprocessing(fun):
     def decorated(node, **kwargs):
         # todo 自动类型转换
         for i in range(len(node.vars)):
+            if i==0 and node.vars[i] is None:
+                continue
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
         # if not node.with_grad and not isinstance(node, GRADIENT):
@@ -1483,11 +1485,14 @@ class SaveTable(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.table_name = None
+        self.print_flag = False
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO: zkx
-        pass
+        self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
+        if self.print_flag:
+            self.cursor.execute(f"select * from {self.table_name};")
+            print(self.cursor.fetch())
 
     def set_name(self, table_name):
         self.table_name = table_name

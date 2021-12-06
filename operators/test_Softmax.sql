@@ -13,5 +13,11 @@ operator test_softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,cl
     select PRECISION(test_y, pred) as prec
     select MSE(test_y, pred) as mse
     select F1(test_y, pred) as f1
+    select SaveTable(auc, test_Softmax_auc, print)
+    select SaveTable(acc, test_Softmax_acc, print)
+    select SaveTable(recall, test_Softmax_recall, print)
+    select SaveTable(prec, test_Softmax_prec, print)
+    select SaveTable(mse, test_Softmax_mse, print)
+    select SaveTable(f1, test_Softmax_f1, print)
 }
 # 测试通过

@@ -44,5 +44,11 @@ create tensor acc(1,)
 create tensor recall(1,)
 create tensor prec(1,)
 select softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y,class_num, ridge, lr, iter_times)
+select SaveTable(auc, Softmax_auc, print)
+select SaveTable(acc, Softmax_acc, print)
+select SaveTable(recall, Softmax_recall, print)
+select SaveTable(prec, Softmax_prec, print)
+select SaveTable(mse, Softmax_mse, print)
+select SaveTable(f1, Softmax_f1, print)
 
 

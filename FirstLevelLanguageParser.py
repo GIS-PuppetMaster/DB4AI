@@ -4,18 +4,19 @@ from time import time
 from Executor import Executor
 from SecondLevelLanguageParser import Parser
 
-
-def get_train_sql_head(data_name, label_pos):
-    sql = f"select TensorFromSql({data_name}) as data\n"
-    if label_pos == "head":
-        sql += "select data[:,1:] as x\n" \
-               "select data[:,0] as y\n"
-    elif label_pos == "tail":
-        sql += "create tensor temp_index(1,) from -1\n" \
-               "select data[:,:-1] as x\n" \
-               "select data[:,-1] as y\n"
-    else:
-        raise Exception("label_pos error")
+# 提前划分训练集和测试集以及xy
+def get_sql_head(data_name):
+    sql = f"select TensorFromSql({data_name}_x) as x\n" \
+          f"select TensorFromSql({data_name}_y) as y\n"
+    # if label_pos == "head":
+    #     sql += "select data[:,1:] as x\n" \
+    #            "select data[:,0] as y\n"
+    # elif label_pos == "tail":
+    #     sql += "create tensor temp_index(1,) from -1\n" \
+    #            "select data[:,:-1] as x\n" \
+    #            "select data[:,-1] as y\n"
+    # else:
+    #     raise Exception("label_pos error")
     sql += "select shape(x) as sx\n" \
            "select 0.8 * sx[0] as train_len\n" \
            "select x[0:train_len,:] as train_x\n" \
@@ -25,17 +26,18 @@ def get_train_sql_head(data_name, label_pos):
     return sql
 
 
-def get_test_sql_head(data_name, label_pos):
-    sql = f"select TensorFromSql({data_name}) as data\n"
-    if label_pos == "head":
-        sql += "select data[:,1:] as x\n" \
-               "select data[:,0] as y\n"
-    elif label_pos == "tail":
-        sql += "create tensor temp_index(1,) from -1\n" \
-               "select data[:,:-1] as x\n" \
-               "select data[:,-1] as y\n"
-    else:
-        raise Exception("label_pos error")
+def get_test_sql_head(data_name):
+    sql = f"select TensorFromSql({data_name}_x) as x\n" \
+          f"select TensorFromSql({data_name}_y) as y\n"
+    # if label_pos == "head":
+    #     sql += "select data[:,1:] as x\n" \
+    #            "select data[:,0] as y\n"
+    # elif label_pos == "tail":
+    #     sql += "create tensor temp_index(1,) from -1\n" \
+    #            "select data[:,:-1] as x\n" \
+    #            "select data[:,-1] as y\n"
+    # else:
+    #     raise Exception("label_pos error")
     return sql
 
 
@@ -45,8 +47,8 @@ if __name__ == '__main__':
     # select train(result_filename, classp, evaluation_indicator) from dataset
     # first_sql = input('please input ML training task\n')
     # first_sql = 'select AutoClassify(60, 10, \'acc\', \'end\', \'false\') from filename'
-    # first_sql = "select train(\'logistic\', \'res_table\', \'tail\', \'acc\') as model from real_data;"
-    first_sql = "select test(\'logistic\', \'model\', \'tail\', \'acc\') from test_data;"
+    # first_sql = "select train(\'logistic\') as model from real_data;"
+    first_sql = "select test(\'logistic\', \'model\') from test_data;"
     # parse
     filename_reg = '[a-zA-Z]+[a-zA-Z0-9_]*'
     # auto_classify_reg = f'^(select|SELECT)[ \t]+AutoClassify([(].*[)])[ \t]+((as|AS)[ \t]+({filename_reg})[ \t]+)?((from|FROM)[ \t]+({filename_reg}))'
@@ -62,11 +64,11 @@ if __name__ == '__main__':
         model_name = groups[4]  # can be None
         data_name = groups[6]
         algorithm = parameters[0]
-        result_table = parameters[1]
-        label_pos = parameters[2]
-        metrics = parameters[3]
+        # result_table = parameters[1]
+        # label_pos = parameters[2]
+        # metrics = parameters[3]
         if algorithm == 'logistic':
-            sql = get_train_sql_head(data_name, label_pos)
+            sql = get_sql_head(data_name)
             sql += "create tensor lr(1,) from 0.01\n" \
                    "create tensor class_num(1,) from 2\n" \
                    "create tensor ridge(1,) from 0.05\n" \
@@ -79,7 +81,7 @@ if __name__ == '__main__':
                    "create tensor prec(1,)\n" \
                    "select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, lr, class_num, iter_times)"
         elif algorithm == 'Softmax':
-            sql = get_train_sql_head(data_name, label_pos)
+            sql = get_sql_head(data_name)
             sql += "create tensor lr(1,) from 0.01\n" \
                    "create tensor class_num(1,) from 3\n" \
                    "create tensor ridge(1,) from 0.01\n" \
@@ -112,10 +114,10 @@ if __name__ == '__main__':
         data_name = groups[3]
         algorithm = parameters[0]
         model = parameters[1]
-        label_pos = parameters[2]
-        metrics = parameters[3]
+        # label_pos = parameters[2]
+        # metrics = parameters[3]
         if algorithm == 'logistic':
-            sql = get_test_sql_head(data_name, label_pos)
+            sql = get_test_sql_head(data_name)
             sql += "create tensor class_num(1,) from 2\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
@@ -123,9 +125,15 @@ if __name__ == '__main__':
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)"
+                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)\n"\
+                    "select SaveTable(auc, test_logistic_auc, print)\n" \
+                    "select SaveTable(acc, test_logistic_acc, print)\n" \
+                    "select SaveTable(recall, test_logistic_recall, print)\n" \
+                    "select SaveTable(prec, test_logistic_prec, print)\n" \
+                    "select SaveTable(mse, test_logistic_mse, print)\n" \
+                    "select SaveTable(f1, test_logistic_f1, print)"
         elif algorithm == 'softmax':
-            sql = get_test_sql_head(data_name, label_pos)
+            sql = get_test_sql_head(data_name)
             sql += "create tensor class_num(1,) from 3\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
@@ -133,7 +141,13 @@ if __name__ == '__main__':
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "select test_softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,class_num)"
+                   "select test_softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,class_num)\n" \
+                   "select SaveTable(auc, test_Softmax_auc, print)\n" \
+                   "select SaveTable(acc, test_Softmax_acc, print)\n" \
+                   "select SaveTable(recall, test_Softmax_recall, print)\n" \
+                   "select SaveTable(prec, test_Softmax_prec, print)\n" \
+                   "select SaveTable(mse, test_Softmax_mse, print)\n" \
+                   "select SaveTable(f1, test_Softmax_f1, print)"
         else:
             raise Exception("unsupported algorithm")
         path = f'operators/test_{algorithm}.sql'
