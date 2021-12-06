@@ -334,7 +334,6 @@ class Node:
                         for j in range(len(data2)):
                             if i == j % len(data1):
                                 new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -344,7 +343,6 @@ class Node:
                         for j in range(len(data2)):
                             if j == i % len(data2):
                                 new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -358,7 +356,6 @@ class Node:
                 self.cursor.execute(f"select data from {input_table_2}")
                 data2 = str_to_list(self.cursor.fetch()[0][0])
                 new_data = []
-                # TODO：只考虑了同一矩阵行列均为1的情况，建议补充1行n列和n行一列的情况
                 if result1[0][0] == 1 and result1[0][1] == 1:
                     for i in range(len(data2)):
                         new_data.append(self.val_opt(op, data1[0], data2[i]))
@@ -373,6 +370,23 @@ class Node:
                                         f"precision[] )")
                     self.cursor.execute(
                         f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                # 1行n列与m行1列做运算
+                elif result1[0][0] == 1 and result2[0][1] == 1:
+                    for i in range(len(data2)):
+                        for j in range(len(data1)):
+                            new_data.append(self.val_opt(op, data1[j], data2[i]))
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
+                                        f"precision[] )")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result2[0][0]}, {result1[0][1]}, 0, array{new_data})")
+                elif result1[0][1] == 1 and result2[0][0] == 1:
+                    for i in range(len(data1)):
+                        for j in range(len(data2)):
+                            new_data.append(self.val_opt(op, data1[i], data2[j]))
+                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
+                                        f"precision[] )")
+                    self.cursor.execute(
+                        f"insert into {output_table} values({result1[0][0]}, {result2[0][1]}, 0, array{new_data})")
                 else:
                     raise DimensionError()
             else:
@@ -1372,6 +1386,8 @@ class Slice(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        if self.id>100:
+            pass
         s = copy(self.slice_index)
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()
