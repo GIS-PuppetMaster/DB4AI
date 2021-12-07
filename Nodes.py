@@ -117,6 +117,7 @@ def dump_tensor(tensors: dict, path: str):
 
 
 def fill_slice_var(slice_index, cursor):
+    # TODO: 替换SQL，改为matrix实现
     s = copy(slice_index)
     for idx in range(len(s)):
         if isinstance(s[idx], str):
@@ -335,7 +336,6 @@ class Node:
                         for j in range(len(data2)):
                             if i == j % len(data1):
                                 new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -345,7 +345,6 @@ class Node:
                         for j in range(len(data2)):
                             if j == i % len(data2):
                                 new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    # TODO
                     self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
                                         f"precision[] )")
                     self.cursor.execute(
@@ -722,6 +721,7 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        # 参数：vars[0], vars[1], s[0], s[1]
         self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
         flag_right = rows[0][0] == 1
@@ -731,9 +731,11 @@ class Assignment(Node):
         else:
             assert flag_right is True
             if self.slice is None:
+                # TODO: 替换sql
                 self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
                 self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
             else:
+                # TOOD: 替换sql
                 self.cursor.execute(f"select data from {self.vars[1]}")
                 new_data = str_to_list(self.cursor.fetch()[0][0])[0]
                 self.cursor.execute(f"select rows,cols from {self.vars[0]}")
@@ -755,6 +757,7 @@ class Assignment(Node):
                         else:
                             old_data[s[0] * shape[0][1] + s[1]] = new_data
                     elif len(s) == 1:
+                        # s[1]="None"
                         old_data[s[0]] = new_data
                 except IndexError:
                     print(old_data)
