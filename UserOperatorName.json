@@ -1,1 +1,1 @@
-{"name": ["logistic", "KNN", "softmax_classification", "linear_kernel", "SVM_fast_predict", "SVM_predict", "take_step", "rbf_network", "SVM"]}
+{"name": ["logistic", "KNN", "softmax_classification", "linear_kernel", "SVM_fast_predict", "SVM_predict", "take_step", "rbf_network", "SVM", "DNN"]}

@@ -715,7 +715,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                         print(node.data_shape)
                         print(type(node.data_shape))
                     for p in range(len(data_shape)):
-                        if not data_shape[p].isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p]!='':
+                        if not data_shape[p].strip().isdigit() and not data_shape[p].startswith('_') and data_shape[p] not in formal_param and data_shape[p]!='':
                             data_shape[p] = '__' + str(inner_count) + data_shape[p]
                     str_data_shape = '('
                     for p in data_shape:
@@ -955,7 +955,7 @@ if __name__ == '__main__':
     # s = 's = EXP((-beta)*SQRT(SUM(POW(A-B,2),2)))'
     # s = 's = KNNF(acc,auc,prec,recall,mse,f1, data_input, test_y, x, y, k)'
     # s = 's = -3'
-    s = 's = a[1:3]'
+    s = 's = a[:,-1]'
     p = analyze_expression(s, 0, 0, [])
     print(p[0][2])
     print(p[1])

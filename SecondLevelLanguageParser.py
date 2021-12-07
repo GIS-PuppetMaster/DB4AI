@@ -74,6 +74,9 @@ class Parser:
             else:
                 raise Exception('非法语句：' + query + ' 错误在第' + str(self.line_id) + '行')
 
+        '''
+            更新with_grad
+        '''
         grad_record = []
         nodes = self.graph.nodes
         flag = 1
@@ -85,9 +88,10 @@ class Parser:
                 if isinstance(node, Nd.Var) and node.vars[0] in grad_record:
                     node.with_grad = True
                 for father in node.pre_nodes():
-                    if father.with_grad and not node.with_grad and node.__class__.__name__ in Nd.operators:
-                        node.with_grad = True
-                        flag = 1
+                    if father.with_grad and not node.with_grad:
+                        if node.__class__.__name__ in ('Assignment','Var') or node.__class__.__name__ in Nd.operators:
+                            node.with_grad = True
+                            flag = 1
 
         # self.graph.Show()
         return self.graph
@@ -890,13 +894,12 @@ if __name__ == '__main__':
 
     time_sum = 0
     from time import time
-    algorithm = 'Softmax'
+    algorithm = 'DNN'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    algorithm = 'softmax'
     path = f'test/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()

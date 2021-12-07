@@ -171,6 +171,10 @@ def str_to_list(data):
     return new_data
 
 
+
+
+
+
 class DimensionError(Exception):
     pass
 
@@ -288,8 +292,6 @@ class Node:
 
     def __repr__(self):
         return f'id:{self.id}, branches:{self.branches}, vars:{self.vars}'
-
-
 
     def op_broadcast(self, op, input_table_1, input_table_2, output_table):
         self.cursor.execute(f"drop table if exists {output_table}")
@@ -424,6 +426,28 @@ class Node:
         else:
             return False
 
+    def groupby(self, table_name_1,table_name_2,rows,cols):
+        self.cursor.execute(f"select rows,cols from {table_name_1}")
+        shape = self.cursor.fetch()[0]
+        self.cursor.execute(f"select data from {table_name_1}")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        if shape[0] != rows or shape[1] != cols:
+            if rows == 1 and cols != 1:
+                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 0, '{table_name_2}');")
+            elif cols == 1 and rows != 1:
+                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 1, '{table_name_2}');")
+            else:
+                # TODO:sum算子对所有元素求和
+                sum = 0
+                for i in range(len(data)):
+                    sum += data[i]
+                self.cursor.execute(f"drop table if exists {table_name_2}")
+                self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
+                                    f"precision[] )")
+                self.cursor.execute(
+                    f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
+        else:
+            self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
 
 # 通过继承实现的其它节点类
 
@@ -734,6 +758,8 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        if self.id > 100:
+            print(self.id)
         self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
         flag_right = rows[0][0] == 1
@@ -743,6 +769,8 @@ class Assignment(Node):
         else:
             assert flag_right is True
             if self.slice is None:
+                if self.vars[0].startswith('__0b'):
+                    print(self.vars[0])
                 self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
                 self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
             else:
@@ -882,6 +910,8 @@ class Div(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        if self.id == 147:
+            print(666)
         self.cursor.execute(f"select data from {self.vars[1]}")
         data_1 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select data from {self.vars[2]}")
@@ -1352,23 +1382,16 @@ class EXP(Node):
         此处套用self.vars[0]重构即可，无需做反向算子
     '''
     def backward(self, grad_output=1):
+        table_name = 'grad_' + str(self.id)
+        temp_table_name = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
-            table_name = 'grad_' + str(self.id)
-            self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{table_name}');")
+            s = table_name
         else:
-            temp_table_name = 'grad_' + str(self.id) + '_temp1'
-            self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{temp_table_name}');")
-            table_name = 'grad_' + str(self.id)
-            self.cursor.execute(f"select val from {grad_output};")
-            rows = self.cursor.fetch()
-            if isinstance(rows[0][0], list):
-                self.cursor.execute(f"select db4ai_mul('{grad_output}','{temp_table_name}', '{table_name}');")
-            else:
-                if rows[0][0] == 1:
-                    self.cursor.execute(f"drop table if exists {table_name};")
-                    self.cursor.execute(f"select * into {table_name} from {temp_table_name};")
-                else:
-                    pass
+            s = temp_table_name
+        self.cursor.execute(f"drop table if exists {s}")
+        self.cursor.execute(f"select * into {s} from {self.vars[0]}")
+        if grad_output != 1:
+            self.op_broadcast("mul", s, grad_output, table_name)
         return table_name
 
 
@@ -1387,7 +1410,7 @@ class Slice(Node):
     @preprocessing
     def run(self, **kwargs):
         if self.id>100:
-            pass
+            print(self.id)
         s = copy(self.slice_index)
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()
@@ -1417,6 +1440,8 @@ class Slice(Node):
         if len(s) == 1:
             if shape[0][0] == 1:
                 s.insert(0, [0, 0])
+            elif shape[0][1] == 1:
+                s.append([0, 0])
             else:
                 s.append([0, shape[0][1]])
         self.cursor.execute(
@@ -1434,6 +1459,8 @@ class Var(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        if self.vars[0] == "__0w_0":
+            print(self.vars[0])
         if self.executor.backward_end != 0 and self.id > self.executor.backward_end:
             flag = 0
         else:
@@ -1519,7 +1546,7 @@ class Full(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = self.cursor.execute(f"select val from {name}")
+                self.data_shape_var[name] = self.cursor.execute(f"select data from {name}")
             # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.cursor.execute(
@@ -1585,9 +1612,11 @@ class Zeros(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
-            # 转换
+                self.cursor.execute(f"select data from {name};")
+                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
         self.cursor.execute(f"select db4ai_zeros({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
         # self.conn.commit()
 
@@ -2068,32 +2097,39 @@ class Backward(Node):
                     if father.with_grad is True:
                         if father.__class__.__name__ is 'Var':
                             fa_table_name = "grad_" + father.vars[0]
-                            if fa_table_name == 'grad___0w':
-                                print(1)
                         elif father.__class__.__name__ in operators:
                             fa_table_name = "grad_input_" + str(father.id)
                             drop_table_list.append(fa_table_name)
                         else:
                             index += 1
                             continue
-                        self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
                         _index = index
                         while _index >= len(tup):
                             _index = _index - len(tup)
+                        self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}';")
+                        if fa_table_name.startswith('__0'):
+                            print(6)
                         if self.cursor.fetch()[0][0] == 0:
                             if tup[_index] == 1:
                                 self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
                                                     f"trans integer,data double precision[])")
                                 self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
                             else:
-                                self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
+                                self.cursor.execute(f"select rows,cols from {father.vars[0]}")
+                                shape = self.cursor.fetch()
+                                self.groupby(tup[_index],fa_table_name,shape[0][0],shape[0][1])
                         else:
                             if father.__class__.__name__ is 'Var':
                                 old_fa_table_name = 'old_' + fa_table_name
                                 self.cursor.execute(f"drop table if exists {old_fa_table_name}")
                                 self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
-                                self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
-                                drop_table_list.append(old_fa_table_name)
+                                self.cursor.execute(f"select rows,cols from {fa_table_name}")
+                                shape = self.cursor.fetch()
+                                # self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
+                                group_by_table = 'group_by_'+tup[_index]
+                                self.groupby(tup[_index],group_by_table,shape[0][0],shape[0][1])
+                                self.op_broadcast("add", old_fa_table_name, group_by_table, fa_table_name)
+                                drop_table_list.extend([old_fa_table_name,group_by_table])
                             else:
                                 self.cursor.execute(f"drop table if exists {fa_table_name}")
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")

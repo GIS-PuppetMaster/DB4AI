@@ -142,8 +142,10 @@ class Graph:
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
             for v in range(len(self.nodes[i].vars)):
-                if self.nodes[i].vars[v].startswith('@'):
-                    self.nodes[i].vars[v] = '@' + str(eval(self.nodes[i].vars[v][1:]) + s_id)
+                if self.nodes[i].vars[v].startswith('_') and self.nodes[i].vars[v][1:].isdigit():
+                    self.nodes[i].vars[v] = '_' + str(eval(self.nodes[i].vars[v][1:]) + s_id)
+                if self.nodes[i].vars[v].startswith('__') and self.nodes[i].vars[v][2:].isdigit():
+                    self.nodes[i].vars[v] = '__' + str(eval(self.nodes[i].vars[v][2:]) + s_id)
             del self.nodes[i].branches[0]
             for j in range(len(self.nodes[i].branches)):
                 self.nodes[i].branches[j] += s_id
