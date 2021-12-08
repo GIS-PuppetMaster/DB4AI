@@ -1327,8 +1327,10 @@ class SaveTable(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
         if self.print_flag:
-            self.cursor.execute(f"select * from {self.table_name};")
-            print(self.cursor.fetch())
+            self.cursor.execute(f"select qp4ai_select('{self.table_name}');")
+            _, _, data = parse_qp4ai_select(self.cursor.fetch())
+            # self.cursor.execute(f"select * from {self.table_name};")
+            print(f"{self.table_name}: {data[0]}")
 
     def set_name(self, table_name):
         self.table_name = table_name
