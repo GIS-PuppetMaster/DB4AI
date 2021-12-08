@@ -1,3 +1,4 @@
 create tensor a(3,3) from ones((3,3)) with grad
+select a[1,2] as c
 select Abs(a) as b
 

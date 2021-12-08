@@ -56,13 +56,13 @@ class Table:
 
     def __del__(self):
         pass
+        # TODO
         # self.cursor.execute(f"drop table if exists {self.name}")
 
 
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
-        # todo 自动类型转换
         for i in range(len(node.vars)):
             if i == 0 and node.vars[i] is None:
                 continue
@@ -107,12 +107,13 @@ def dump_tensor(tensors: dict, path: str):
 
 
 def parse_qp4ai_select(res):
+    assert res[0][0] != 'Matrix not found.'
+    res = eval('{' + ','.join(res[0][0].split(',')[1:]))
     # 返回rows,cols,data
-    return 0, 0, [0]
+    return res['rows'], res['cols'], res['data']
 
 
 def fill_slice_var(slice_index, cursor):
-    # TODO: 替换SQL，改为matrix实现
     s = copy(slice_index)
     for idx in range(len(s)):
         if isinstance(s[idx], str):
@@ -299,8 +300,10 @@ class Node:
         self.cursor.execute(f"select qp4ai_op_broadcast({op},'{input_table_1}','{input_table_2}','{output_table}');")
 
     def is_equal_shape(self, input_table_1, input_table_2):
-        *shape1, _ = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{input_table_1}');"))
-        *shape2, _ = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{input_table_2}');"))
+        self.cursor.execute(f"select qp4ai_select('{input_table_1}');")
+        *shape1, _ = parse_qp4ai_select(self.cursor.fetch())
+        self.cursor.execute(f"select qp4ai_select('{input_table_2}');")
+        *shape2, _ = parse_qp4ai_select(self.cursor.fetch())
         if shape1[0][0] == shape2[0][0] and shape1[0][1] == shape2[0][1]:
             return True
         else:
@@ -344,7 +347,7 @@ class Val(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select qp4ai_val({str(self.value)}, {self.vars[0]});")
+        self.cursor.execute(f"select qp4ai_val({self.value}, '{self.vars[0]}');")
 
     def get_val(self):
         return self.value
@@ -398,13 +401,13 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        #     # TODO:
         # 如果data shape中包含var
         # self.cursor.execute(f"drop table if exists {self.vars[0]}")
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                _, _, data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{name}');"))
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
                 self.data_shape_var[name] = data[0]
                 # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
@@ -609,7 +612,7 @@ class Assignment(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_if_tensor_exists('{self.vars[1]}');")
-        flag_right = self.cursor.fetch()
+        flag_right = bool(self.cursor.fetch()[0][0])
         # self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         # rows = self.cursor.fetch()
         # flag_right = rows[0][0] == 1
@@ -619,15 +622,17 @@ class Assignment(Node):
         else:
             assert flag_right is True
             if self.slice is None:
-                self.cursor.execute(f"select qp4ai_assignment('{self.vars[1]}','{self.vars[0]})")
+                self.cursor.execute(f"select qp4ai_assignment('{self.vars[1]}','{self.vars[0]}');")
                 # self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
                 # self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
             else:
                 # TOOD: 替换sql
-                _, _, new_data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');"))
+                self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+                _, _, new_data = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select data from {self.vars[1]}")
                 # new_data = str_to_list(self.cursor.fetch()[0][0])[0]
-                *shape, old_data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{self.vars[0]}');"))
+                self.cursor.execute(f"select qp4ai_select('{self.vars[0]}');")
+                *shape, old_data = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select rows,cols from {self.vars[0]}")
                 # shape = self.cursor.fetch()
                 # self.cursor.execute(f"select data from {self.vars[0]}")
@@ -639,13 +644,13 @@ class Assignment(Node):
                             for i in range(len(old_data)):
                                 old_data[i] = new_data
                         elif s[0] is ...:
-                            for i in range(shape[0][0]):
-                                old_data[i * shape[0][1] + s[1]] = new_data
+                            for i in range(shape[0]):
+                                old_data[i * shape[1] + s[1]] = new_data
                         elif s[1] is ...:
-                            for i in range(shape[0][1]):
-                                old_data[s[0] * shape[0][1] + i] = new_data
+                            for i in range(shape[1]):
+                                old_data[s[0] * shape[1] + i] = new_data
                         else:
-                            old_data[s[0] * shape[0][1] + s[1]] = new_data
+                            old_data[s[0] * shape[1] + s[1]] = new_data
                     elif len(s) == 1:
                         # s[1]="None"
                         old_data[s[0]] = new_data
@@ -794,11 +799,13 @@ class POW(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        _, _, pow_exp = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{self.vars[2]}');"))
+        self.cursor.execute(f"select qp4ai_select('{self.vars[2]}');")
+        _, _, pow_exp = parse_qp4ai_select(self.cursor.fetch())
         # self.cursor.execute(f"select data from {self.vars[2]};")
         # pow_exp = str_to_list(self.cursor.fetch()[0][0])
         if len(pow_exp) > 1:
-            _, _, base = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');"))
+            self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+            _, _, base = parse_qp4ai_select(self.cursor.fetch())
             # self.cursor.execute(f"select data from {self.vars[1]};")
             # base = str_to_list(self.cursor.fetch()[0][0])[0]
             self.cursor.execute(f"select qp4ai_pow_table('{self.vars[2]}', {base}, '{self.vars[0]}');")
@@ -1028,7 +1035,6 @@ class SVD(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO
         raise Exception('暂不支持SVD')
 
 
@@ -1058,7 +1064,6 @@ class DET(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO
         raise Exception('暂不支持DET')
 
 
@@ -1187,7 +1192,8 @@ class Slice(Node):
     @preprocessing
     def run(self, **kwargs):
         s = copy(self.slice_index)
-        *shape, _ = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');"))
+        self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+        *shape, _ = parse_qp4ai_select(self.cursor.fetch())
         # self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         # shape = self.cursor.fetch()
         for idx in range(len(s)):
@@ -1196,7 +1202,8 @@ class Slice(Node):
                 stop = s[idx]
                 s[idx] = [start, stop]
             elif isinstance(s[idx], str):
-                _, _, temp = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{s[idx]}');"))
+                self.cursor.execute(f"select qp4ai_select('{s[idx]}');")
+                _, _, temp = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select data from {s[idx]};")
                 # temp = str_to_list(self.cursor.fetch()[0][0])
                 s[idx] = [temp[0], temp[0]]
@@ -1206,21 +1213,23 @@ class Slice(Node):
                 if isinstance(s[idx].start, str):
                     # self.cursor.execute(f"select data from {s[idx].start};")
                     # start = str_to_list(self.cursor.fetch()[0][0])[0]
-                    _, _, start = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{s[idx].start}');"))
+                    self.cursor.execute(f"select qp4ai_select('{s[idx].start}');")
+                    _, _, start = parse_qp4ai_select(self.cursor.fetch())
                 if s[idx].start is None:
-                    start = shape[0][0]
+                    start = shape[0]
                 if isinstance(s[idx].stop, str):
                     # self.cursor.execute(f"select data from {s[idx].stop};")
                     # stop = str_to_list(self.cursor.fetch()[0][0])[0]
-                    _, _, stop = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{s[idx].stop}');"))
+                    self.cursor.execute(f"select qp4ai_select('{s[idx].stop}');")
+                    _, _, stop = parse_qp4ai_select(self.cursor.fetch())
                 if s[idx].stop is None:
-                    stop = shape[0][1]
+                    stop = shape[1]
                 s[idx] = [start, stop]
         if len(s) == 1:
-            if shape[0][0] == 1:
+            if shape[0] == 1:
                 s.insert(0, [0, 0])
             else:
-                s.append([0, shape[0][1]])
+                s.append([0, shape[1]])
         self.cursor.execute(
             f"select qp4ai_slice('{self.vars[1]}', {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, '{self.vars[0]}');")
         # self.conn.commit()
@@ -1320,7 +1329,6 @@ class Full(Node):
         else:
             self.data_shape = data_shape
         self.data_shape_var = {}
-        # TODO: infer data_shape
         self.set_vars(var)
         self.num = eval(num)
 
@@ -1329,7 +1337,8 @@ class Full(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                _, _, data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{name}');"))
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
                 self.data_shape_var[name] = data
                 # self.data_shape_var[name] = self.cursor.execute(f"select val from {name}")
             # 转换
@@ -1355,7 +1364,6 @@ class Ones(Node):
             self.data_shape = None
         else:
             self.data_shape = data_shape
-        # TODO: infer data_shape
         self.set_vars(var)
         self.data_shape_var = {}
 
@@ -1364,7 +1372,8 @@ class Ones(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                _, _, data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{name}');"))
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
                 self.data_shape_var[name] = data
                 # self.cursor.execute(f"select data from {name};")
                 # self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
@@ -1390,7 +1399,6 @@ class Zeros(Node):
             self.data_shape = None
         else:
             self.data_shape = data_shape
-        # TODO: infer data_shape
         self.set_vars(var)
         self.data_shape_var = {}
 
@@ -1399,7 +1407,8 @@ class Zeros(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                _, _, data = parse_qp4ai_select(self.cursor.execute(f"select qp4ai_select('{name}');"))
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
                 self.data_shape_var[name] = data
                 # self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
             # 转换
@@ -1489,32 +1498,33 @@ class Softmax(Node):
         # TODO: @胡飞
         table_name = 'grad_' + str(self.id)
         assert grad_output != 1
-        self.cursor.execute(f"drop table if exists {table_name}")
-        self.cursor.execute(f"select * into {table_name} from {self.vars[0]}")
-
-        self.cursor.execute(f"select rows,cols from {grad_output};")
-        grad_output_shape = self.cursor.fetch()
-        self.cursor.execute(f"select data from {grad_output};")
-        grad_output_data = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
-        softmax_shape = self.cursor.fetch()
-        assert softmax_shape == grad_output_shape
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        softmax_data = str_to_list(self.cursor.fetch()[0][0])
-
-        new_data = []
-        for i in range(softmax_shape[0][0]):
-            for r in range(softmax_shape[0][1]):
-                new_data.append(0)
-            for j in range(softmax_shape[0][1]):
-                for k in range(softmax_shape[0][1]):
-                    index = i * softmax_shape[0][1] + k
-                    if j == k:
-                        new_data[index] += softmax_data[index] * (1 - softmax_data[index]) * grad_output_data[i * grad_output_shape[0][1] + j]
-                    else:
-                        new_data[index] += -softmax_data[i * softmax_shape[0][1] + j] * softmax_data[index] * grad_output_data[i * grad_output_shape[0][1] + j]
-
-        self.cursor.execute(f"update {table_name} set data = array{new_data};")
+        self.cursor.execute(f"select qp4ai_back_softmax('{self.vars[0]}','{table_name}','{grad_output}');")
+        # self.cursor.execute(f"drop table if exists {table_name}")
+        # self.cursor.execute(f"select * into {table_name} from {self.vars[0]}")
+        #
+        # self.cursor.execute(f"select rows,cols from {grad_output};")
+        # grad_output_shape = self.cursor.fetch()
+        # self.cursor.execute(f"select data from {grad_output};")
+        # grad_output_data = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        # softmax_shape = self.cursor.fetch()
+        # assert softmax_shape == grad_output_shape
+        # self.cursor.execute(f"select data from {self.vars[0]};")
+        # softmax_data = str_to_list(self.cursor.fetch()[0][0])
+        #
+        # new_data = []
+        # for i in range(softmax_shape[0][0]):
+        #     for r in range(softmax_shape[0][1]):
+        #         new_data.append(0)
+        #     for j in range(softmax_shape[0][1]):
+        #         for k in range(softmax_shape[0][1]):
+        #             index = i * softmax_shape[0][1] + k
+        #             if j == k:
+        #                 new_data[index] += softmax_data[index] * (1 - softmax_data[index]) * grad_output_data[i * grad_output_shape[0][1] + j]
+        #             else:
+        #                 new_data[index] += -softmax_data[i * softmax_shape[0][1] + j] * softmax_data[index] * grad_output_data[i * grad_output_shape[0][1] + j]
+        #
+        # self.cursor.execute(f"update {table_name} set data = array{new_data};")
         return table_name
 
 
@@ -1632,7 +1642,6 @@ class SplitDataset(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO：代码实现@樊宣伯, @路亚彬
         raise Exception('SplitDataset未实现')
 
 
@@ -1641,7 +1650,6 @@ class Parameters(Node):
         # Parameters(set_name, var1, var2, ......)
         # 用来声明参数并对参数打包
         super().__init__(**kwargs)
-        # TODO: 解析参数集合的名字, 把vari存入self.vars[i]
         self.set_name = None
 
     @preprocessing
@@ -1654,7 +1662,6 @@ class SaveParameters(Node):
         # SaveParameters(set_name, path)
         # 用来保存指定名称的参数集
         super().__init__(**kwargs)
-        # TODO: 解析参数集合的名字和存储路径
         self.set_name = None
         self.path = None
 
@@ -1665,7 +1672,6 @@ class SaveParameters(Node):
         # for para in paras:
         #     tmp[para] = self.executor.var_dict[para]
         # dump_tensor(tmp, self.path)
-        # TODO: @张恺欣， @路亚彬
         raise Exception('SaveParameters暂未实现')
 
 
@@ -1674,7 +1680,6 @@ class LoadParameters(Node):
         # LoadParameters(set_name, path)
         # 用来保存指定名称的参数集
         super().__init__(**kwargs)
-        # TODO: 解析参数集合的名字和存储路径
         self.set_name = None
         self.path = None
 
@@ -1684,7 +1689,6 @@ class LoadParameters(Node):
         # tensors = load_tensor(self.path)
         # for para in paras:
         #     self.executor.var_dict[para] = tensors[para]
-        # TODO: @张恺欣， @路亚彬
         raise Exception('SaveParameters暂未实现')
 
 
@@ -1735,15 +1739,13 @@ class F1(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO: 修改F1
-        self.cursor.execute(f"drop table if exists {self.vars[0]};")
-        self.cursor.execute(f"select db4ai_f1('{self.vars[1]}','{self.vars[2]}','{self.vars[0]}');")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]};")
+        self.cursor.execute(f"select qp4ai_f1('{self.vars[1]}','{self.vars[2]}','{self.vars[0]}');")
 
 
 class REVERSE(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # TODO: dims
 
     @preprocessing
     def run(self, **kwargs):
@@ -1782,7 +1784,7 @@ class ACC(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        #self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]}")
         self.cursor.execute(f"select qp4ai_acc('{self.vars[1]}', '{self.vars[2]}', 1, '{self.vars[0]}')")
 
 
@@ -2016,14 +2018,14 @@ class Negative(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO: 实现算子
-        self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        update = []
-        for i in data:
-            update.append(-1 * i)
-        self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
+        self.cursor.execute(f"select qp4ai_select('{self.vars[0]}','{self.vars[1]}']);")
+        # self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
+        # self.cursor.execute(f"select data from {self.vars[1]}")
+        # data = str_to_list(self.cursor.fetch()[0][0])
+        # update = []
+        # for i in data:
+        #     update.append(-1 * i)
+        # self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
         # self.conn.commit()
 
     '''
@@ -2037,7 +2039,7 @@ class Negative(Node):
             s = table_name
         else:
             s = table_name_temp1
-        self.cursor.execute(f"select qp4ai_negative('{s}')")
+        self.cursor.execute(f"select qp4ai_back_negative('{s}')")
 
         # self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
         # self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")

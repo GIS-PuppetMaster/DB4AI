@@ -1,4 +1,10 @@
-import numpy as np
+from Executor import Executor
+from SecondLevelLanguageParser import Parser
 
-print(np.log([1,2,3,4]))
-
+path = f'test.txt'
+with open(path, 'r', encoding='utf-8') as f:
+    create_test = f.readlines()
+testPar = Parser(create_test)
+result = testPar()
+executor = Executor(result)
+executor.run()
