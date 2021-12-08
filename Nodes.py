@@ -118,7 +118,8 @@ def fill_slice_var(slice_index, cursor):
     for idx in range(len(s)):
         if isinstance(s[idx], str):
             cursor.execute(f"select qp4ai_select('{s[idx]}');")
-            _, _, s[idx] = parse_qp4ai_select(cursor.fetch())
+            _, _, data = parse_qp4ai_select(cursor.fetch())
+            s[idx] = int(data[0])
             # cursor.execute(f"select data from {s[idx]};")
             # s[idx] = str_to_list(cursor.fetch()[0][0])[0]
         elif isinstance(s[idx], slice):
@@ -128,16 +129,19 @@ def fill_slice_var(slice_index, cursor):
             if isinstance(s[idx].start, str):
                 cursor.execute(f"select qp4ai_select('{s[idx].start}');")
                 _, _, start = parse_qp4ai_select(cursor.fetch())
+                start = int(start[0])
                 # cursor.execute(f"select data from {s[idx].start};")
                 # start = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].step, str):
                 cursor.execute(f"select qp4ai_select('{s[idx].step}');")
                 _, _, step = parse_qp4ai_select(cursor.fetch())
-                # cursor.execute(f"select data from {s[idx].step};")
+                step = int(step[0])
+                # cursor.execute(f"dselect data from {s[idx].step};")
                 # step = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].stop, str):
                 cursor.execute(f"select qp4ai_select('{s[idx].stop}');")
                 _, _, stop = parse_qp4ai_select(cursor.fetch())
+                stop = int(stop[0])
                 # cursor.execute(f"select data from {s[idx].stop};")
                 # stop = str_to_list(cursor.fetch()[0][0])[0]
             s[idx] = slice(start, stop, step)
@@ -470,8 +474,11 @@ class Loop(Node):
         if self.loop_pair in end_nodes:
             end_nodes.remove(self.loop_pair)
         if isinstance(self.dead_cycle, str):
-            self.cursor.execute(f"select data from {self.dead_cycle};")
-            self.dead_cycle = str_to_list(self.cursor.fetch()[0][0])[0]
+            self.cursor.execute(f"select qp4ai_select('{self.dead_cycle}');")
+            _, _, data = parse_qp4ai_select(self.cursor.fetch())
+            self.dead_cycle = data[0]
+            # self.cursor.execute(f"select data from {self.dead_cycle};")
+            # self.dead_cycle = str_to_list(self.cursor.fetch()[0][0])[0]
         # 循环结束
         if self.dead_cycle <= self.times:
             # 找到对应的Loop_End
@@ -540,10 +547,15 @@ class If(Node):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
-                self.cursor.execute(f"select data from {var_node.vars[0]}")
-                result = str_to_list(self.cursor.fetch()[0][0])
+                self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
+                _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                # self.cursor.execute(f"select data from {var_node.vars[0]}")
+                # result = str_to_list(self.cursor.fetch()[0][0])
                 if len(result) == 1:
-                    para[var_name] = result[0]
+                    if math.modf(result[0])[0] == 0:
+                        para[var_name] = int(result[0])
+                    else:
+                        para[var_name] = result[0]
                 else:
                     if not isinstance(result, list):
                         para[var_name] = list(result)
@@ -573,8 +585,11 @@ class IfBranch(Node):
             for edge in self.out_edges:
                 para = {}
                 for var_name, var_node in edge.need_var:
-                    self.cursor.execute(f"select data from {var_node.vars[0]}")
-                    para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                    self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
+                    _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                    para[var_name] = result[0]
+                    # self.cursor.execute(f"select data from {var_node.vars[0]}")
+                    # para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
                 res = eval(edge.condition, para)
                 if edge.reverse:
                     res = not res
@@ -658,7 +673,7 @@ class Assignment(Node):
                     print(old_data)
                     print(shape)
                 d = str(old_data).replace('[', '{').replace(']', '}')
-                self.cursor.execute(f"select qp4ai_upate_data('{d}','{self.vars[0]}');")
+                self.cursor.execute(f"select qp4ai_update_data('{d}','{self.vars[0]}');")
                 # self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
@@ -806,6 +821,7 @@ class POW(Node):
         if len(pow_exp) > 1:
             self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
             _, _, base = parse_qp4ai_select(self.cursor.fetch())
+            base = base[0]
             # self.cursor.execute(f"select data from {self.vars[1]};")
             # base = str_to_list(self.cursor.fetch()[0][0])[0]
             self.cursor.execute(f"select qp4ai_pow_table('{self.vars[2]}', {base}, '{self.vars[0]}');")
@@ -1575,7 +1591,7 @@ class MEAN(Node):
             s = table_name
         else:
             s = table_name_temp1
-        self.cursor.cursor(f"select qp4ai_back_mean('{self.vars[1]}','{s}');")
+        self.cursor.execute(f"select qp4ai_back_mean('{self.vars[1]}','{s}');")
         # self.cursor.execute(f"select rows,cols from {self.vars[1]}")
         # shape = self.cursor.fetch()[0]
         # if self.axis == 0:
