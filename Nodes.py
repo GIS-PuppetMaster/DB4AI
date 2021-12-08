@@ -81,7 +81,7 @@ def preprocessing(fun):
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
             node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None, list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
             node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
-        elif node.__class__.__name__ is 'Assignment' and flag == 1:
+        elif node.__class__.__name__ == 'Assignment' and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             if node.vars[1] in node.executor.tensor_dict:

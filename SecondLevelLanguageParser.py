@@ -904,12 +904,12 @@ if __name__ == '__main__':
     testPar = Parser(create_test)
     result = testPar()
     result.Show()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    time_sum += (time() - s)
-    repeat = 1
-    print(time()-s)
+    # executor = Executor(result)
+    # s = time()
+    # executor.run()
+    # time_sum += (time() - s)
+    # repeat = 1
+    # print(time()-s)
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'
