@@ -890,13 +890,11 @@ class Parser:
 
 
 if __name__ == '__main__':
-
-
     time_sum = 0
     from time import time
-    algorithm = 'DNN'
+    # algorithm = 'DNN'
     s = time()
-    # algorithm = 'logistic'
+    algorithm = 'logistic'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
