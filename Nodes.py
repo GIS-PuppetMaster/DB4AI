@@ -98,12 +98,12 @@ def preprocessing(fun):
         # 表'grad_' + str(node.id) + '_temp1/2'为计算最终梯度的中间结果(通常是算子本身梯度，需乘以上游梯度)
         # 表'grad_' + str(node.id)为算子输入的上游梯度
 
-        '''node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
+        node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
                             f"drop table if exists {'grad_input_' + str(node.id)};"
                             f"drop table if exists {'grad_' + str(node.id) + '_1'};"
                             f"drop table if exists {'grad_' + str(node.id) + '_2'};"
                             f"drop table if exists {'grad_' + str(node.id) + '_temp1'};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")'''
+                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")
         return fun(node, **kwargs)
 
     return decorated
@@ -758,8 +758,16 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.id > 100:
-            print(self.id)
+        if self.vars[0] == '__0loss':
+            self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[0]}';")
+            rows = self.cursor.fetch()
+            if rows[0][0] == 1:
+                self.cursor.execute(f"select data from {self.vars[0]};")
+                data = str_to_list(self.cursor.fetch()[0][0])[0]
+                self.cursor.execute(f"select data from {self.vars[1]}")
+                new_data = str_to_list(self.cursor.fetch()[0][0])[0]
+                print("delta: " + str(new_data-data))
+
         self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
         rows = self.cursor.fetch()
         flag_right = rows[0][0] == 1
@@ -769,8 +777,6 @@ class Assignment(Node):
         else:
             assert flag_right is True
             if self.slice is None:
-                if self.vars[0].startswith('__0b'):
-                    print(self.vars[0])
                 self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
                 self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
             else:
@@ -910,8 +916,6 @@ class Div(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.id == 147:
-            print(666)
         self.cursor.execute(f"select data from {self.vars[1]}")
         data_1 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select data from {self.vars[2]}")
@@ -1174,8 +1178,11 @@ class MATMUL(Node):
             for i in range(shape_0[0][0]):
                 for j in range(shape_2[0][0]):
                     sum = 0
-                    for k in range(shape_0[0][1]):
-                        sum += data_0[i * shape_0[0][1] + k] * data_2[j * shape_2[0][1] + k]
+                    try:
+                        for k in range(shape_0[0][1]):
+                            sum += data_0[i * shape_0[0][1] + k] * data_2[j * shape_2[0][1] + k]
+                    except IndexError:
+                        print(sum)
                     new_data_1.append(sum)
             self.cursor.execute(f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
             new_data_2 = []
@@ -1409,8 +1416,6 @@ class Slice(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.id>100:
-            print(self.id)
         s = copy(self.slice_index)
         self.cursor.execute(f"select rows,cols from {self.vars[1]};")
         shape = self.cursor.fetch()
@@ -1430,12 +1435,14 @@ class Slice(Node):
                     self.cursor.execute(f"select data from {s[idx].start};")
                     start = str_to_list(self.cursor.fetch()[0][0])[0]
                 if s[idx].start is None:
-                    start = shape[0][0]
+                    # start = shape[0][0]
+                    start = 0
                 if isinstance(s[idx].stop, str):
                     self.cursor.execute(f"select data from {s[idx].stop};")
                     stop = str_to_list(self.cursor.fetch()[0][0])[0]
                 if s[idx].stop is None:
-                    stop = shape[0][1]
+                    # stop = shape[0][1]
+                    stop = shape[0][idx]
                 s[idx] = [start, stop]
         if len(s) == 1:
             if shape[0][0] == 1:
@@ -1459,8 +1466,6 @@ class Var(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.vars[0] == "__0w_0":
-            print(self.vars[0])
         if self.executor.backward_end != 0 and self.id > self.executor.backward_end:
             flag = 0
         else:
@@ -1656,15 +1661,35 @@ class Relu(Node):
     def __init__(self, **kwargs):
         super().__init__(51, **kwargs)
 
-    '''参数待补充'''
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
+        self.cursor.execute(f"select data from {self.vars[1]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] < 0:
+                data[i] = 0
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
 
-    def backward(self, grad_output):
-        input_x, = self.saved_tensors
-        if input_x < 0:
-            grad_x = grad_output * 0
-        else:
-            grad_x = grad_output
-        return grad_x
+    def backward(self, grad_output=1):
+        table_name = 'grad_' + str(self.id)
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        if grad_output == 1:
+            s = table_name
+        if grad_output != 1:
+            s = table_name_temp1
+        self.cursor.execute(f"drop table if exists {s}")
+        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
+        self.cursor.execute(f"select data from {self.vars[0]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] > 0:
+                data[i] = 1
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        if grad_output != 1:
+            self.op_broadcast("mul", s, grad_output,table_name)
+        return table_name
 
 
 class Tanh(Node):
@@ -2107,8 +2132,6 @@ class Backward(Node):
                         while _index >= len(tup):
                             _index = _index - len(tup)
                         self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}';")
-                        if fa_table_name.startswith('__0'):
-                            print(6)
                         if self.cursor.fetch()[0][0] == 0:
                             if tup[_index] == 1:
                                 self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
@@ -2134,15 +2157,62 @@ class Backward(Node):
                                 self.cursor.execute(f"drop table if exists {fa_table_name}")
                                 self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
                     index += 1
+        self.compare_with_torch()
         # c = Test()
         # c.test(self.cursor)
         for i in drop_table_list:
             self.cursor.execute(f"drop table if exists {i}")
-        
+        self.cursor.execute("select data from __0loss")
+        print(str_to_list(self.cursor.fetch()[0][0])[0])
+
         if not self.retain_graph:
             for i in self.executor.tensor_dict.keys():
                 self.executor.tensor_dict[i].clear_next()
             # self.conn.commit()
+
+    def change_table_to_tensor(self,table_name):
+        self.cursor.execute(f"select rows,cols from {table_name}")
+        shape = self.cursor.fetch()
+        self.cursor.execute(f"select data from {table_name}")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        tensor = []
+        for i in range(shape[0][0]):
+            l = []
+            for j in range(shape[0][1]):
+                l.append(float(data[i*shape[0][1] + j]))
+            tensor.append(l)
+        tensor = torch.tensor(tensor,requires_grad=True)
+        return tensor
+
+    def compare_with_torch(self):
+        x = self.change_table_to_tensor("x")
+        y = self.change_table_to_tensor("y")
+        w_0 = self.change_table_to_tensor("__0w_0")
+        b_0 = self.change_table_to_tensor("__0b_0")
+        w_1 = self.change_table_to_tensor("__0w_1")
+        b_1 = self.change_table_to_tensor("__0b_1")
+        w_2 = self.change_table_to_tensor("__0w_2")
+        b_2 = self.change_table_to_tensor("__0b_2")
+        w_3 = self.change_table_to_tensor("__0w_3")
+        b_3 = self.change_table_to_tensor("__0b_3")
+        output_0 = torch.relu(torch.matmul(x,w_0)+b_0)
+        output_1 = torch.relu(torch.matmul(output_0,w_1)+b_1)
+        output_2 = torch.relu(torch.matmul(output_1,w_2)+b_2)
+        output_3 = 1/(1+torch.exp(-1*(torch.matmul(output_2,w_3)+b_3)))
+        loss = -1 * torch.mean(y*torch.log(output_3)+(1-y)*torch.log(1-output_3))
+        loss.backward()
+        print(w_0.grad)
+        print(w_1.grad)
+        print(w_2.grad)
+        print(w_3.grad)
+        print(b_0.grad)
+        print(b_1.grad)
+        print(b_2.grad)
+        print(b_3.grad)
+
+
+
+
 
 
 class WLS(Node):
@@ -2226,21 +2296,22 @@ class Negative(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
         self.cursor.execute(f"select data from {self.vars[1]}")
         data = str_to_list(self.cursor.fetch()[0][0])
         update = []
         for i in data:
             update.append(-1 * i)
-        self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
+        self.cursor.execute(f"update {self.vars[0]} set data = array{update}")
         # self.conn.commit()
 
     '''
         求导值为-1，直接存储即可
     '''
-    def backward(self, grad_output):
+    def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
-        table_name_temp1 = 'grad_' + self.id + '_temp1'
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
         if grad_output != 1:

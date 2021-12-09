@@ -11,17 +11,19 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
     create tensor b_1(1,lu_1) from zeros((1,lu_1)) with grad
     create tensor w_2(lu_1,lu_2) from random((lu_1,lu_2),(0,1)) with grad
     create tensor b_2(1,lu_2) from zeros((1,lu_2)) with grad
-    create tensor w_3(lu_2,lu_3) from random((lu_2,lu_3),(0,1)) with grad
-    create tensor b_3(1,lu_3) from zeros((1,lu_3)) with grad
+    create tensor w_3(lu_2,1) from random((lu_2,1),(0,1)) with grad
+    create tensor b_3(1,1) from zeros((1,1)) with grad
     create tensor w_4(lu_3,1) from random((lu_3,1),(0,1)) with grad
     create tensor b_4(1,1) from zeros((1,1)) with grad
     LOOP(iter_times){
-        select 1/(1+EXP(-1 * (MATMUL(x,w_0)+b_0))) as output_0
-        select 1/(1+EXP(-1 * (MATMUL(output_0,w_1)+b_1))) as output_1
-        select 1/(1+EXP(-1 * (MATMUL(output_1,w_2)+b_2))) as output_2
+        if
+        select Relu(MATMUL(x,w_0)+b_0) as output_0
+        select Relu(MATMUL(output_0,w_1)+b_1) as output_1
+        select Relu(MATMUL(output_1,w_2)+b_2) as output_2
+        # select 1/(1+EXP(-1 * (MATMUL(output_1,w_2)+b_2))) as output_2
         select 1/(1+EXP(-1 * (MATMUL(output_2,w_3)+b_3))) as output_3
-        select 1/(1+EXP(-1 * (MATMUL(output_3,w_4)+b_4))) as output_4
-        select MEAN(y*LOG(output_4)+(1-y)*LOG(1-output_4)) as loss
+        # select 1/(1+EXP(-1 * (MATMUL(output_3,w_4)+b_4))) as output_4
+        select -MEAN(y*LOG(output_3)+(1-y)*LOG(1-output_3)) as loss
         select CleanGrad(w_0)
         select CleanGrad(b_0)
         select CleanGrad(w_1)
@@ -41,14 +43,15 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
         select b_2-lr*GRADIENT(b_2) as b_2
         select w_3-lr*GRADIENT(w_3) as w_3
         select b_3-lr*GRADIENT(b_3) as b_3
-        select w_4-lr*GRADIENT(w_4) as w_4
-        select b_4-lr*GRADIENT(b_4) as b_4
+        # select w_4-lr*GRADIENT(w_4) as w_4
+        # select b_4-lr*GRADIENT(b_4) as b_4
     }
-    select 1/(1+EXP(-1 * (MATMUL(test_x,w_0)+b_0))) as output_0
-    select 1/(1+EXP(-1 * (MATMUL(output_0,w_1)+b_1))) as output_1
-    select 1/(1+EXP(-1 * (MATMUL(output_1,w_2)+b_2))) as output_2
-    select 1/(1+EXP(-1 * (MATMUL(output_2,w_3)+b_3))) as output_3
-    select 1/(1+EXP(-1 * (MATMUL(output_3,w_4)+b_4))) as pred
+    select Relu(MATMUL(test_x,w_0)+b_0) as output_0
+    select Relu(MATMUL(output_0,w_1)+b_1) as output_1
+    select Relu(MATMUL(output_1,w_2)+b_2) as output_2
+    # select 1/(1+EXP(-1 * (MATMUL(output_1,w_2)+b_2))) as output_2
+    # select 1/(1+EXP(-1 * (MATMUL(output_2,w_3)+b_3))) as output_3
+    select 1/(1+EXP(-1 * (MATMUL(output_2,w_3)+b_3))) as pred
     create tensor i(1,) from 0
     select SHAPE(test_x) as sx
     select sx[0] as record_num
