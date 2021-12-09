@@ -71,7 +71,8 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        pass
+        self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
+        print(f'gc: {self.name}')
         # TODO
         # self.cursor.execute(f"drop table if exists {self.name}")
 

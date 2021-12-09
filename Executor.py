@@ -159,8 +159,7 @@ class Executor:
                         return False
                     elif father.branches[-1] == current_node.selected_branch:
                         return False
-
-        print(f'{current_node.id}')
+        # print(f'{current_node.id}')
         current_node.run(visited=visited, executor=self)
         # TODO: 遍历TENSORS，检查生成他的时候的作用域与当前是否相符，并且检查引用计数是否为0
         # for var_name in current_node.release_list:
