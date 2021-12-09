@@ -346,7 +346,7 @@ class Node:
                 for i in range(len(data)):
                     sum += data[i]
                 self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
-                self.cursor.execute(f"select qp4ai_update_data('{sum}', '{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_update_data({'{sum}'}, '{table_name_2}');")
                 # self.cursor.execute(f"drop table if exists {table_name_2}")
                 # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
                 #                     f"precision[] )")
@@ -1980,7 +1980,7 @@ class Backward(Node):
                                 *shape, _ = parse_qp4ai_select(self.cursor.fetch())
                                 # self.cursor.execute(f"select rows,cols from {father.vars[0]}")
                                 # shape = self.cursor.fetch()
-                                self.groupby(tup[_index], fa_table_name, shape[0][0], shape[0][1])
+                                self.groupby(tup[_index], fa_table_name, shape[0], shape[1])
                         else:
                             if father.__class__.__name__ is 'Var':
                                 old_fa_table_name = 'old_' + fa_table_name
@@ -1993,7 +1993,7 @@ class Backward(Node):
                                 # shape = self.cursor.fetch()
                                 # self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
                                 group_by_table = 'group_by_' + tup[_index]
-                                self.groupby(tup[_index], group_by_table, shape[0][0], shape[0][1])
+                                self.groupby(tup[_index], group_by_table, shape[0], shape[1])
                                 self.op_broadcast("add", old_fa_table_name, group_by_table, fa_table_name)
                                 drop_table_list.extend([old_fa_table_name, group_by_table])
                             else:
