@@ -33,11 +33,6 @@ def bfs(all_sons):
     return bfs_
 
 
-def get_slice(batch: np.ndarray):
-    # TODO
-    start_index = int((np.byte_bounds(batch)[0] - np.byte_bounds(batch.base)[0]) / batch.itemsize)
-
-
 def check_buffer(buffer, batch_size, bigger_than_buffer=True):
     # if all data in the buffer is bigger than batch_size, then return true
     for data in buffer:

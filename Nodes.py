@@ -73,8 +73,6 @@ class Table:
     def __del__(self):
         self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
         print(f'gc: {self.name}')
-        # TODO
-        # self.cursor.execute(f"drop table if exists {self.name}")
 
 
 def preprocessing(fun):
@@ -793,7 +791,6 @@ class LOG(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO: log疑似不支持多行多列
         self.cursor.execute(f"select qp4ai_log('{self.vars[1]}', '{self.vars[0]}');")
         # self.cursor.execute(f"drop table if exists {self.vars[0]};")
         # self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
@@ -1539,7 +1536,6 @@ class Softmax(Node):
     '''
 
     def backward(self, grad_output):
-        # TODO: @胡飞
         table_name = 'grad_' + str(self.id)
         assert grad_output != 1
         self.cursor.execute(f"select qp4ai_back_softmax('{self.vars[0]}','{table_name}','{grad_output}');")
