@@ -13,6 +13,7 @@ import numpy
 '''
 栈用来存储父节点，以支持算子作为父节点联接多个变量子节点
 '''
+variable_name_reg = '([a-zA-Z]+[a-zA-Z0-9_]*)'
 
 
 class Stack:
@@ -887,6 +888,17 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                 G.InsertEdge(current_graph.keynode, parent.keynode)
 
             current_graph = parent
+            # 处理切片中的变量
+            for part in new_slice_info:
+                part_list = part.split(':')
+                for symbol in part_list:
+                    match_obj = re.match(f'{variable_name_reg}[ \t]*', symbol)
+                    if match_obj:
+                        for obj in match_obj.groups():
+                            a = nd.InstantiationClass(x, 'Var', branches, vars=obj, with_grad=False)
+                            G.InsertNode(a)
+                            G.InsertEdge(a, current_graph.keynode)
+                            vallist.append([obj,a])
 
         # 若未识别字符为数字，则识别为常量，否则设定为变量，设置当前节点值，将当前节点与可能邻接边加入图G，操作节点转移到父节点
         else:

@@ -1,6 +1,6 @@
-#include "postgres.h" 
+#include "postgres.h"
 
-#include "fmgr.h" 
+#include "fmgr.h"
 #include "access/hash.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
@@ -189,7 +189,7 @@ inline void initTest(){
 }
 /**
  * @brief to print mtrx into database
- * 
+ *
  * @param mtrx is ptr of the matrix that you wang to see
  */
 inline void printMSG(Matrix* mtrx){
@@ -212,7 +212,7 @@ inline void printMSG(Matrix* mtrx){
     }
     int dataLen = strlen(datainfo);
     datainfo[dataLen-1] = '}';
-    
+
     sprintf(sql, "  INSERT INTO %s values(%d, %d, %d, '%s');",
         table_name,mtrx->rows,mtrx->columns,matrixMap.size(),datainfo);
     SPI_exec(sql, 0);
@@ -238,7 +238,7 @@ void printCount(){
     char sql[MAX_SQL_LEN];
     sprintf(sql, " CREATE TABLE %s(rows INT ,cols INT, mapcont INT, data float8[]);",
         table_name);
-    SPI_exec(sql, 0);  
+    SPI_exec(sql, 0);
     sprintf(sql, "  INSERT INTO %s values(%d, %d, %d, '{-1}');",
         table_name,1,1,matrixMap.size());
     SPI_exec(sql, 0);
@@ -261,7 +261,7 @@ void printCount(){
     SPI_finish();
 }
 
-PG_FUNCTION_INFO_V1(_Z16outer_printCountP20FunctionCallInfoData); 
+PG_FUNCTION_INFO_V1(_Z16outer_printCountP20FunctionCallInfoData);
 Datum
 outer_printCount(PG_FUNCTION_ARGS){
     SPI_connect();
@@ -273,7 +273,7 @@ outer_printCount(PG_FUNCTION_ARGS){
     char sql[MAX_SQL_LEN];
     sprintf(sql, " CREATE TABLE %s(rows INT ,cols INT, mapcont INT, data float8[]);",
         table_name);
-    SPI_exec(sql, 0);  
+    SPI_exec(sql, 0);
     sprintf(sql, "  INSERT INTO %s values(%d, %d, %d, '{-1}');",
         table_name,1,1,matrixMap.size());
     SPI_exec(sql, 0);
@@ -283,7 +283,7 @@ outer_printCount(PG_FUNCTION_ARGS){
 
 
 //ï¿½ï¿½?ï¿½ï¿½?mapï¿½ï¿½size
-PG_FUNCTION_INFO_V1(_Z20qp4ai_matrixMap_sizeP20FunctionCallInfoData); 
+PG_FUNCTION_INFO_V1(_Z20qp4ai_matrixMap_sizeP20FunctionCallInfoData);
 Datum
 qp4ai_matrixMap_size(PG_FUNCTION_ARGS){
     map<string, Matrix> ::iterator iter;
@@ -301,8 +301,8 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_subP20FunctionCallInfoData); // register function a
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?????ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
-Datum 
-qp4ai_sub(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_sub(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -338,8 +338,8 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_sumP20FunctionCallInfoData); // register function a
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?==0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½==1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?0ï¿½ï¿½1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -6ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?0ï¿½ï¿½1
-Datum 
-qp4ai_sum(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_sum(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -352,7 +352,7 @@ qp4ai_sum(PG_FUNCTION_ARGS){
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     if(dim != 0 && dim != 1)
-        PG_RETURN_INT32(-6); 
+        PG_RETURN_INT32(-6);
     //fetch
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -369,7 +369,7 @@ qp4ai_sum(PG_FUNCTION_ARGS){
         for(int i=0;i<rows;i++){
             for(int j=0;j<cols;j++){
                 temp_acc_arr[j]+=arr[i*cols+j]; //ï¿½ï¿½????
-            }      
+            }
         }
         res->data = temp_acc_arr;
     }
@@ -389,15 +389,15 @@ qp4ai_sum(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z10qp4ai_sqrtP20FunctionCallInfoData); // register function as V1
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½????
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
-Datum 
-qp4ai_sqrt(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_sqrt(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -430,15 +430,15 @@ qp4ai_sqrt(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -6?ï¿½ï¿½ï¿½ï¿½?0ï¿½ï¿½1
 PG_FUNCTION_INFO_V1(_Z10qp4ai_sortP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_sort(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_sort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -450,7 +450,7 @@ qp4ai_sort(PG_FUNCTION_ARGS){
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     if(dim != 0 && dim != 1)
-        PG_RETURN_INT32(-6); 
+        PG_RETURN_INT32(-6);
     //fetch
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -501,7 +501,7 @@ qp4ai_sort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z12qp4ai_argminP20FunctionCallInfoData); // register function as V1
@@ -911,14 +911,14 @@ qp4ai_slice(PG_FUNCTION_ARGS){
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     int rows = mtrx1->rows;
     int cols = mtrx1->columns;
-    int rows2 = dim1_end - dim1_start + 1;
-    int cols2 = dim2_end - dim2_start + 1;
+    int rows2 = dim1_end - dim1_start;
+    int cols2 = dim2_end - dim2_start;
     //check input_table
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     //check dim_xxxx
-    if(!(dim1_start>=0 && dim1_start<=dim1_end && dim1_end<rows &&
-        dim2_start>=0 && dim2_start<=dim2_end && dim2_end <cols)){
+    if(!(dim1_start>=0 && dim1_start<dim1_end && dim1_end<=rows &&
+        dim2_start>=0 && dim2_start<dim2_end && dim2_end <=cols)){
         PG_RETURN_INT32(-12); // ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½
     }
     my_matrix_init(res, rows2, cols2);
@@ -1010,7 +1010,7 @@ qp4ai_pow_table(PG_FUNCTION_ARGS){
     PG_RETURN_INT32(0); // ï¿½ï¿½ï¿½ï¿½?
 }
 
-PG_FUNCTION_INFO_V1(_Z9qp4ai_powP20FunctionCallInfoData); // register 
+PG_FUNCTION_INFO_V1(_Z9qp4ai_powP20FunctionCallInfoData); // register
 Datum
 qp4ai_pow(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
@@ -1060,7 +1060,7 @@ qp4ai_repeat(PG_FUNCTION_ARGS){
     //check dim
     if(dim1<=0 || dim2<=0)
         PG_RETURN_INT32(-4); // ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½
-    
+
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, mtrx1->rows * dim1, mtrx1->columns * dim2);
@@ -1104,7 +1104,7 @@ qp4ai_random(PG_FUNCTION_ARGS){
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(6));
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res,  dim1, dim2);
-    
+
     //check if _distribution is 0/1/2
     if(!(_distribution == 0 || _distribution == 1 || _distribution == 2)){
         PG_RETURN_INT32(-13); // ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½
@@ -1139,7 +1139,7 @@ qp4ai_random(PG_FUNCTION_ARGS){
             res->data[i] = data;
         }
     }else if(_distribution == 1){
-        
+
         srand(time(0));
         for(int i = 0;i<size_;i++){
 
@@ -1172,8 +1172,8 @@ PG_FUNCTION_INFO_V1(_Z13qp4ai_softmaxP20FunctionCallInfoData); // register funct
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½softmaxï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -6?ï¿½ï¿½ï¿½ï¿½?0ï¿½ï¿½1
-Datum 
-qp4ai_softmax(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_softmax(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1185,7 +1185,7 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     if(dim != 0 && dim != 1)
-        PG_RETURN_INT32(-6); 
+        PG_RETURN_INT32(-6);
     //fetch
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -1205,7 +1205,7 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
                 byDiv[i] +=  arr[j*cols+i];
             }
         }
-        for(int i=0;i<size;i++) arr[i] /= byDiv[i%cols]; 
+        for(int i=0;i<size;i++) arr[i] /= byDiv[i%cols];
         free(byDiv);
     }
     else{//ï¿½ï¿½????
@@ -1216,7 +1216,7 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
                 byDiv[i] +=  arr[i*cols+j];
             }
         }
-        for(int i=0;i<size;i++) arr[i] /= byDiv[i/cols]; 
+        for(int i=0;i<size;i++) arr[i] /= byDiv[i/cols];
         free(byDiv);
     }
     res->data = arr;
@@ -1225,15 +1225,15 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z15qp4ai_tensordotP20FunctionCallInfoData); // register function as V1
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½tensordotï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½2?ï¿½ï¿½ï¿½ï¿½
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2 ?ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -7?????1ï¿½ï¿½2 -8tensordotï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½
-Datum 
-qp4ai_tensordot(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_tensordot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1323,7 +1323,7 @@ qp4ai_tensordot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 
@@ -1332,8 +1332,8 @@ PG_FUNCTION_INFO_V1(_Z12qp4ai_matmulP20FunctionCallInfoData); // ???ï¿½ï¿½?V1??
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -9ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
-Datum 
-qp4ai_matmul(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_matmul(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1395,8 +1395,8 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_dotP20FunctionCallInfoData); // register function a
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? -3 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? -10 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?1?ï¿½ï¿½ï¿½ï¿½
-Datum 
-qp4ai_dot(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_dot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1437,15 +1437,15 @@ qp4ai_dot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -6?ï¿½ï¿½ï¿½ï¿½?0ï¿½ï¿½1
 PG_FUNCTION_INFO_V1(_Z13qp4ai_argsortP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_argsort(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_argsort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1457,7 +1457,7 @@ qp4ai_argsort(PG_FUNCTION_ARGS){
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     if(dim != 0 && dim != 1)
-        PG_RETURN_INT32(-6); 
+        PG_RETURN_INT32(-6);
     //fetch
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -1528,15 +1528,15 @@ qp4ai_argsort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z9qp4ai_accP20FunctionCallInfoData); // register function as V1
 // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½ï¿½normalize=0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½ï¿½normalize = 1ï¿½ï¿½
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2 ï¿½ï¿½?ï¿½ï¿½normalize ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? -3 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
-Datum 
-qp4ai_acc(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_acc(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1579,7 +1579,7 @@ qp4ai_acc(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 
@@ -1589,8 +1589,8 @@ PG_FUNCTION_INFO_V1(_Z13qp4ai_reverseP20FunctionCallInfoData); // register funct
 // ???ï¿½ï¿½torch.flipï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½dimï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?0ï¿½ï¿½1ï¿½ï¿½2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -6ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?0ï¿½ï¿½1ï¿½ï¿½2
-Datum 
-qp4ai_reverse(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_reverse(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1602,7 +1602,7 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
     if(matrixMap.count(input_table_name)==0)
         PG_RETURN_INT32(-1);
     if(dim != 0 && dim != 1 && dim!=2)
-        PG_RETURN_INT32(-6); 
+        PG_RETURN_INT32(-6);
     //fetch
     Matrix *mtrx1 = &matrixMap[input_table_name];
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -1620,11 +1620,11 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
         for(int i=0;i<rows/2;i++){
             for(int j=0;j<cols;j++){
                 temp_acc_arr[j]=arr[i*cols+j]; //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-            }   
+            }
             int mid = rows - i - 1;
             for(int j=0;j<cols;j++){
                 arr[i*cols+j] = arr[mid*cols + j];
-            }   
+            }
             for(int j=0;j<cols;j++){
                 arr[mid*cols+j] = temp_acc_arr[j];
             }
@@ -1639,7 +1639,7 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
                 temp =  arr[i*cols+j];
                 arr[i*cols+j] =  arr[i*cols+mid];
                 arr[i*cols+mid] = temp;
-            }   
+            }
         }
     }
     else{
@@ -1657,7 +1657,7 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 /*10ï¿½ï¿½18ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ --F1ï¿½ï¿½ï¿½ï¿½  11ï¿½ï¿½24ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½*/
@@ -1666,8 +1666,8 @@ PG_FUNCTION_INFO_V1(_Z8qp4ai_f1P20FunctionCallInfoData); // register function as
 // ?ï¿½ï¿½?ï¿½ï¿½?1
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??1(ground truth) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2(predict) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
 // ï¿½ï¿½???0ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? -2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? -3ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? -13ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?????1
-Datum 
-qp4ai_f1(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_f1(PG_FUNCTION_ARGS){
     // #ifdef DEBUG2
     // initTest();
     // #endif
@@ -1798,8 +1798,8 @@ qp4ai_ones(PG_FUNCTION_ARGS){ // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿
 
 //ï¿½ï¿½ï¿½map
 PG_FUNCTION_INFO_V1(_Z15qp4ai_erase_mapP20FunctionCallInfoData); // ???ï¿½ï¿½?V1??
-Datum 
-qp4ai_erase_map(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_erase_map(PG_FUNCTION_ARGS){
     //matrixMap.clear();
     matrixMap.erase(matrixMap.begin(),matrixMap.end());
     PG_RETURN_INT32(0);
@@ -1808,8 +1808,8 @@ qp4ai_erase_map(PG_FUNCTION_ARGS){
 
 
 PG_FUNCTION_INFO_V1(_Z19qp4ai_erase_elementP20FunctionCallInfoData); // ???ï¿½ï¿½?V1??
-Datum 
-qp4ai_erase_element(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_erase_element(PG_FUNCTION_ARGS){
     char* table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     matrixMap.erase(table_name);
     PG_RETURN_INT32(0);
@@ -1817,14 +1817,14 @@ qp4ai_erase_element(PG_FUNCTION_ARGS){
 
 //ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½map
 PG_FUNCTION_INFO_V1(_Z14qp4ai_init_mapP20FunctionCallInfoData); // ???ï¿½ï¿½?V1??
-Datum 
-qp4ai_init_map(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_init_map(PG_FUNCTION_ARGS){
     initTest();
     PG_RETURN_INT32(0);
 }
 
 
-#define matrix_not_exists(table_name) (matrixMap.count(table_name)==0) 
+#define matrix_not_exists(table_name) (matrixMap.count(table_name)==0)
 #define get_matrix_p_by_name(table_name) (&matrixMap[table_name])
 #define malloc_new_matrix_p() (Matrix*)malloc(sizeof(Matrix))
 #define store_matrix_p_as_table_name(matrix_p, name) matrixMap[name] = *matrix_p;
@@ -1833,9 +1833,9 @@ qp4ai_init_map(PG_FUNCTION_ARGS){
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???
 PG_FUNCTION_INFO_V1(_Z12qp4ai_selectP20FunctionCallInfoData);
 Datum
-qp4ai_select(PG_FUNCTION_ARGS){ 
+qp4ai_select(PG_FUNCTION_ARGS){
    char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
-    
+
     if(matrix_not_exists(input_table_name)){
         PG_RETURN_TEXT_P(cstring_to_text("Matrix not found."));
     }
@@ -1861,8 +1861,8 @@ qp4ai_select(PG_FUNCTION_ARGS){
 }
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??
 PG_FUNCTION_INFO_V1(_Z9qp4ai_addP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_add(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_add(PG_FUNCTION_ARGS){
     // get param
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -1889,8 +1889,8 @@ qp4ai_add(PG_FUNCTION_ARGS){
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??
 PG_FUNCTION_INFO_V1(_Z9qp4ai_divP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_div(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_div(PG_FUNCTION_ARGS){
     // get para
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -1925,17 +1925,17 @@ qp4ai_div(PG_FUNCTION_ARGS){
     else{
         PG_RETURN_INT32(-2);
     }
-        
+
    // main logic
-   
+
     matrixMap[output_table_name] = *res;
     PG_RETURN_INT32(0); // ï¿½ï¿½ï¿½ï¿½?
 }
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??
 PG_FUNCTION_INFO_V1(_Z9qp4ai_mulP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_mul(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_mul(PG_FUNCTION_ARGS){
     // get para
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -1962,15 +1962,15 @@ qp4ai_mul(PG_FUNCTION_ARGS){
 
 // ?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½exp
 PG_FUNCTION_INFO_V1(_Z9qp4ai_expP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_exp(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_exp(PG_FUNCTION_ARGS){
     // get para
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     if(matrix_not_exists(input_table_name)){
         PG_RETURN_INT32(-1);
     }
-        
+
     Matrix *input_matrix_p = get_matrix_p_by_name(input_table_name);
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, input_matrix_p->rows, input_matrix_p->columns);
@@ -1985,15 +1985,15 @@ qp4ai_exp(PG_FUNCTION_ARGS){
 
 // ?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½?
 PG_FUNCTION_INFO_V1(_Z9qp4ai_absP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_abs(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_abs(PG_FUNCTION_ARGS){
     // get para
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     if(matrix_not_exists(input_table_name)){
         PG_RETURN_INT32(-1);
     }
-        
+
     Matrix *input_matrix_p = get_matrix_p_by_name(input_table_name);
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, input_matrix_p->rows, input_matrix_p->columns);
@@ -2008,13 +2008,13 @@ qp4ai_abs(PG_FUNCTION_ARGS){
 
 // ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?0ï¿½ï¿½ï¿½ï¿½
 PG_FUNCTION_INFO_V1(_Z11qp4ai_zerosP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_zeros(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_zeros(PG_FUNCTION_ARGS){
     // get para
     int32 rows = PG_GETARG_INT32(0);
     int32 cols = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
-        
+
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, rows, cols);
    // main logic
@@ -2026,8 +2026,8 @@ qp4ai_zeros(PG_FUNCTION_ARGS){
 
 // ??ï¿½ï¿½ï¿½ï¿½??
 PG_FUNCTION_INFO_V1(_Z13qp4ai_reshapeP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_reshape(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_reshape(PG_FUNCTION_ARGS){
     // get para
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 rows = PG_GETARG_INT32(1);
@@ -2055,7 +2055,7 @@ qp4ai_shuffle(PG_FUNCTION_ARGS){ // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿
     // ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
-    ///////////////////////////////////////////////////////////////////////// 
+    /////////////////////////////////////////////////////////////////////////
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½???
     if(matrix_not_exists(input_table_name)){
         PG_RETURN_INT32(-1); // ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½
@@ -2091,7 +2091,7 @@ qp4ai_load(PG_FUNCTION_ARGS){ // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1)); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     SPI_connect();  //ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-    ///////////////////////////////////////////////////////////////////////// 
+    /////////////////////////////////////////////////////////////////////////
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½??ï¿½ï¿½???ï¿½ï¿½???
     // ???ï¿½ï¿½???ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
     char sql_table_rows[MAX_SQL_LEN];
@@ -2130,8 +2130,8 @@ qp4ai_load(PG_FUNCTION_ARGS){ // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿
 
 // sub ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z14qp4ai_back_subP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_back_sub(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_back_sub(PG_FUNCTION_ARGS){
     // get para
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -2146,7 +2146,7 @@ qp4ai_back_sub(PG_FUNCTION_ARGS){
 // div ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z14qp4ai_back_divP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_div(PG_FUNCTION_ARGS){ 
+qp4ai_back_div(PG_FUNCTION_ARGS){
     // get para
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2165,7 +2165,7 @@ qp4ai_back_div(PG_FUNCTION_ARGS){
     // ï¿½ï¿½??ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½?
     if(size_i1 == 1){
         // ?ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½????ï¿½ï¿½?
-        // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ 1*1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½ï¿½ï¿½? 
+        // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ 1*1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½ï¿½ï¿½?
         my_matrix_init(o1, 1, 1);
         my_matrix_init(o2, i2->rows, i2->columns);
         // o1ï¿½ï¿½o2??ï¿½ï¿½ï¿½ï¿½?
@@ -2180,7 +2180,7 @@ qp4ai_back_div(PG_FUNCTION_ARGS){
         matrixMap[output_table_name2] = *o2;
     }else if(size_i2 == 1){
         // ?ï¿½ï¿½????ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½????ï¿½ï¿½?
-        // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??1ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½1*1. 
+        // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½??1 ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??1ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??2ï¿½ï¿½1*1.
         my_matrix_init(o1, i1->rows, i1->columns);
         my_matrix_init(o2, 1, 1);
         // o1ï¿½ï¿½o2??ï¿½ï¿½ï¿½ï¿½?
@@ -2211,8 +2211,8 @@ qp4ai_back_div(PG_FUNCTION_ARGS){
 
 // negative ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z19qp4ai_back_negativeP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_back_negative(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_back_negative(PG_FUNCTION_ARGS){
     // get para
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
@@ -2226,7 +2226,7 @@ qp4ai_back_negative(PG_FUNCTION_ARGS){
 // log ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z14qp4ai_back_logP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_log(PG_FUNCTION_ARGS){ 
+qp4ai_back_log(PG_FUNCTION_ARGS){
     // get param
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2237,7 +2237,7 @@ qp4ai_back_log(PG_FUNCTION_ARGS){
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
     // ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½??
     int size_i1 = i1->rows * i1->columns;
-    // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½? 
+    // ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?? ï¿½ï¿½ï¿½ï¿½?
     my_matrix_init(o1, i1->rows, i1->columns);
     // o1ï¿½ï¿½o2??ï¿½ï¿½ï¿½ï¿½?
     for(int i=0; i<size_i1; i++){
@@ -2251,7 +2251,7 @@ qp4ai_back_log(PG_FUNCTION_ARGS){
 // mul ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z14qp4ai_back_mulP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_mul(PG_FUNCTION_ARGS){ 
+qp4ai_back_mul(PG_FUNCTION_ARGS){
     // get param
     // self.vars[1]
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -2266,8 +2266,8 @@ qp4ai_back_mul(PG_FUNCTION_ARGS){
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½init
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
     Matrix* o2 = (Matrix*)malloc(sizeof(Matrix));
-    
-  
+
+
     if (i1->rows==1 && i1->columns==1){
         my_matrix_init(o1, i1->rows, i1->columns);
         my_matrix_init(o2, 1, 1);
@@ -2307,7 +2307,7 @@ qp4ai_back_mul(PG_FUNCTION_ARGS){
 // pow ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z14qp4ai_back_powP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_pow(PG_FUNCTION_ARGS){ 
+qp4ai_back_pow(PG_FUNCTION_ARGS){
     // self.vars[0]
     char* input_table_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
      // self.vars[1]
@@ -2341,7 +2341,7 @@ qp4ai_back_pow(PG_FUNCTION_ARGS){
 // sqrt ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z15qp4ai_back_sqrtP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_sqrt(PG_FUNCTION_ARGS){ 
+qp4ai_back_sqrt(PG_FUNCTION_ARGS){
     // self.vars[0]
     char* input_table_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2362,7 +2362,7 @@ qp4ai_back_sqrt(PG_FUNCTION_ARGS){
 // matmul ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z17qp4ai_back_matmulP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_matmul(PG_FUNCTION_ARGS){ 
+qp4ai_back_matmul(PG_FUNCTION_ARGS){
     // self.vars[1]
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     // self.vars[2]
@@ -2459,7 +2459,7 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
 // mean ï¿½ï¿½????
 PG_FUNCTION_INFO_V1(_Z15qp4ai_back_meanP20FunctionCallInfoData); // register function as V1
 Datum
-qp4ai_back_mean(PG_FUNCTION_ARGS){ 
+qp4ai_back_mean(PG_FUNCTION_ARGS){
     // self.vars[1]
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2493,7 +2493,7 @@ qp4ai_back_mean(PG_FUNCTION_ARGS){
 
 PG_FUNCTION_INFO_V1(_Z18qp4ai_print_matrixP20FunctionCallInfoData);
 Datum
-qp4ai_print_matrix(PG_FUNCTION_ARGS){ 
+qp4ai_print_matrix(PG_FUNCTION_ARGS){
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* mtrx = get_matrix_p_by_name(input_table_name);
@@ -2527,7 +2527,7 @@ qp4ai_print_matrix(PG_FUNCTION_ARGS){
 
 PG_FUNCTION_INFO_V1(_Z9qp4ai_valP20FunctionCallInfoData);
 Datum
-qp4ai_val(PG_FUNCTION_ARGS){ 
+qp4ai_val(PG_FUNCTION_ARGS){
     float8 val = PG_GETARG_FLOAT8(0);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
@@ -2539,7 +2539,7 @@ qp4ai_val(PG_FUNCTION_ARGS){
 
 PG_FUNCTION_INFO_V1(_Z16qp4ai_assignmentP20FunctionCallInfoData);
 Datum
-qp4ai_assignment(PG_FUNCTION_ARGS){ 
+qp4ai_assignment(PG_FUNCTION_ARGS){
     char* mtrx_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* mtrx_name1 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* mtrx0 = get_matrix_p_by_name(mtrx_name0);
@@ -2690,7 +2690,7 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     }
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½??????,ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?ï¿½ï¿½??ï¿½ï¿½????1
     else if(row1 != row2 && col2 != col1){
-        // 
+        //
         if(row1 == 1 && col1 == 1){
             Matrix *res = (Matrix*)malloc(sizeof(Matrix));
             my_matrix_init(res, row2, col2);
@@ -2736,7 +2736,7 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     else{
         PG_RETURN_INT32(-10);//ï¿½ï¿½ï¿½ï¿½???ï¿½ï¿½ï¿½ï¿½
     }
-    
+
     //#ifdef DEBUG
     //printMSG(res);
     //printMSG(matrixMap["mtrx2"]);
@@ -2755,12 +2755,12 @@ qp4ai_update_data(PG_FUNCTION_ARGS){
         mtrx->data[i] = data[i];
     }
     matrixMap[output_table_name] = *mtrx;
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z14qp4ai_negativeP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_negative(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_negative(PG_FUNCTION_ARGS){
     // get param
     // vars[0]
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -2773,12 +2773,12 @@ qp4ai_negative(PG_FUNCTION_ARGS){
         res->data[i] = -res->data[i];
     }
     matrixMap[output_table_name] = *res;
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z18qp4ai_back_softmaxP20FunctionCallInfoData); // register function as V1
-Datum 
-qp4ai_back_softmax(PG_FUNCTION_ARGS){ 
+Datum
+qp4ai_back_softmax(PG_FUNCTION_ARGS){
     // get param
     // vars[0], softmax
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -2790,7 +2790,7 @@ qp4ai_back_softmax(PG_FUNCTION_ARGS){
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init_clone(res, mtrx);
     if (mtrx->rows!=mtrx_grad->rows || mtrx->columns!=mtrx_grad->columns){
-        PG_RETURN_INT32(-1); 
+        PG_RETURN_INT32(-1);
     }
     // new_data == res->data
     for (int i=0;i<mtrx->rows;i++){
@@ -2810,5 +2810,5 @@ qp4ai_back_softmax(PG_FUNCTION_ARGS){
         }
     }
     matrixMap[output_table_name] = *res;
-    PG_RETURN_INT32(0); 
+    PG_RETURN_INT32(0);
 }

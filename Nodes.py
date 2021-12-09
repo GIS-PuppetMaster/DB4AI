@@ -21,22 +21,22 @@ operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
-global_cursor = GDBC()
-global_cursor.connect()
+# global_cursor = GDBC()
+# global_cursor.connect()
 
 
-def get_data(name):
-    global_cursor.cursor.execute(f"select qp4ai_select('{name}');")
-    global_cursor.cursor.commit()
-    ans = global_cursor.cursor.fetchall()
-    if "Matrix not found." in ans or 'no result' in ans:
-        return ans
-    else:
-        try:
-            res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
-            return res['data']
-        except:
-            return ans
+# def get_data(name):
+#     global_cursor.cursor.execute(f"select qp4ai_select('{name}');")
+#     global_cursor.cursor.commit()
+#     ans = global_cursor.cursor.fetchall()
+#     if "Matrix not found." in ans or 'no result' in ans:
+#         return ans
+#     else:
+#         try:
+#             res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
+#             return res['data']
+#         except:
+#             return ans
 
 
 class Tensor:
@@ -314,7 +314,7 @@ class Node:
     #     self.cursor.connect()
 
     def __repr__(self):
-        return f'id:{self.id}, branches:{self.branches}, vars:{self.vars}'
+        return f'type:{self.__class__.__name__}, id:{self.id}, branches:{self.branches}, vars:{self.vars}'
 
     def op_broadcast(self, op, input_table_1, input_table_2, output_table):
         op = op_dic[op]
@@ -1237,7 +1237,7 @@ class Slice(Node):
         for idx in range(len(s)):
             if isinstance(s[idx], int):
                 start = s[idx]
-                stop = s[idx]
+                stop = s[idx]+1
                 s[idx] = [start, stop]
             elif isinstance(s[idx], str):
                 self.cursor.execute(f"select qp4ai_select('{s[idx]}');")
@@ -1253,21 +1253,25 @@ class Slice(Node):
                     # start = str_to_list(self.cursor.fetch()[0][0])[0]
                     self.cursor.execute(f"select qp4ai_select('{s[idx].start}');")
                     _, _, start = parse_qp4ai_select(self.cursor.fetch())
+                    if isinstance(start, list):
+                        start = start[0]
                 if s[idx].start is None:
-                    start = shape[0]
+                    start = 0
                 if isinstance(s[idx].stop, str):
                     # self.cursor.execute(f"select data from {s[idx].stop};")
                     # stop = str_to_list(self.cursor.fetch()[0][0])[0]
                     self.cursor.execute(f"select qp4ai_select('{s[idx].stop}');")
                     _, _, stop = parse_qp4ai_select(self.cursor.fetch())
+                    if isinstance(stop, list):
+                        stop = stop[0]
                 if s[idx].stop is None:
-                    stop = shape[1]
-                s[idx] = [start, stop]
+                    stop = shape[idx]
+                s[idx] = [int(start), int(stop)]
         if len(s) == 1:
             if shape[0] == 1:
-                s.insert(0, [0, 0])
+                s.insert(0, [0, 1])
             else:
-                s.append([0, shape[1]])
+                s.append([0, int(shape[1])])
         self.cursor.execute(
             f"select qp4ai_slice('{self.vars[1]}', {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, '{self.vars[0]}');")
         # self.conn.commit()
