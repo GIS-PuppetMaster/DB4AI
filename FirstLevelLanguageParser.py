@@ -4,16 +4,21 @@ from time import time
 from Executor import Executor
 from SecondLevelLanguageParser import Parser
 
+
 # 提前划分训练集和测试集以及xy
 def get_sql_head(data_name):
+    # sql = f"select TensorFromSql({data_name}_x) as data_x\n" \
+    #       f"select TensorFromSql({data_name}_y) as data_y\n" \
+    #       "select SHAPE(data_x) as sx\n" \
+    #       "select 0.7 * sx[0] as train_len\n" \
+    #       "select data_x[0:train_len,:] as x\n" \
+    #       "select data_x[train_len:,:] as test_x\n" \
+    #       "select data_y[0:train_len,:] as y\n" \
+    #       "select data_y[train_len:,:] as test_y\n"
     sql = f"select TensorFromSql({data_name}_x) as x\n" \
-          f"select TensorFromSql({data_name}_y) as y\n"
-    sql += "select SHAPE(x) as sx\n" \
-           "select 0.8 * sx[0] as train_len\n" \
-           "select x[0:train_len,:] as train_x\n" \
-           "select x[train_len:,:] as test_x\n" \
-           "select y[0:train_len,:] as train_y\n" \
-           "select y[train_len:,:] as test_y\n"
+          f"select TensorFromSql({data_name}_y) as y\n" \
+          f"select TensorFromSql({data_name}_test_x) as test_x\n" \
+          f"select TensorFromSql({data_name}_test_y) as test_y\n"
     return sql
 
 
@@ -53,8 +58,8 @@ if __name__ == '__main__':
             sql = get_sql_head(data_name)
             sql += "create tensor lr(1,) from 0.01\n" \
                    "create tensor class_num(1,) from 2\n" \
-                   "create tensor ridge(1,) from 0.005\n" \
-                   "create tensor iter_times(1,) from 50\n" \
+                   "create tensor ridge(1,) from 0.05\n" \
+                   "create tensor iter_times(1,) from 100\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
                    "create tensor f1(1,)\n" \
@@ -83,6 +88,7 @@ if __name__ == '__main__':
         Parser(create_test)()
         sql = sql.split("\n")
         for i in range(len(sql)):
+            print(sql[i])
             sql[i] = sql[i] + "\n"
         result = Parser(sql)()
         result.Show()
@@ -106,13 +112,13 @@ if __name__ == '__main__':
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)\n"\
-                    "select SaveTable(auc, test_logistic_auc, print)\n" \
-                    "select SaveTable(acc, test_logistic_acc, print)\n" \
-                    "select SaveTable(recall, test_logistic_recall, print)\n" \
-                    "select SaveTable(prec, test_logistic_prec, print)\n" \
-                    "select SaveTable(mse, test_logistic_mse, print)\n" \
-                    "select SaveTable(f1, test_logistic_f1, print)"
+                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)\n" \
+                   "select SaveTable(auc, test_logistic_auc, print)\n" \
+                   "select SaveTable(acc, test_logistic_acc, print)\n" \
+                   "select SaveTable(recall, test_logistic_recall, print)\n" \
+                   "select SaveTable(prec, test_logistic_prec, print)\n" \
+                   "select SaveTable(mse, test_logistic_mse, print)\n" \
+                   "select SaveTable(f1, test_logistic_f1, print)"
         elif algorithm == 'softmax':
             sql = get_test_sql_head(data_name)
             sql += "create tensor class_num(1,) from 3\n" \

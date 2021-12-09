@@ -21,22 +21,22 @@ operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
-# global_cursor = GDBC()
-# global_cursor.connect()
+global_cursor = GDBC()
+global_cursor.connect()
 
 
-# def get_data(name):
-#     global_cursor.cursor.execute(f"select qp4ai_select('{name}');")
-#     global_cursor.cursor.commit()
-#     ans = global_cursor.cursor.fetchall()
-#     if "Matrix not found." in ans or 'no result' in ans:
-#         return ans
-#     else:
-#         try:
-#             res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
-#             return res['data']
-#         except:
-#             return ans
+def get_data(name):
+    global_cursor.cursor.execute(f"select qp4ai_select('{name}');")
+    global_cursor.cursor.commit()
+    ans = global_cursor.cursor.fetchall()
+    if "Matrix not found." in ans or 'no result' in ans:
+        return ans
+    else:
+        try:
+            res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
+            return res['data']
+        except:
+            return ans
 
 
 class Tensor:
