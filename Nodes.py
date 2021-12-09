@@ -328,28 +328,34 @@ class Node:
         else:
             return False
 
-    def groupby(self, table_name_1,table_name_2,rows,cols):
-        self.cursor.execute(f"select rows,cols from {table_name_1}")
-        shape = self.cursor.fetch()[0]
-        self.cursor.execute(f"select data from {table_name_1}")
-        data = str_to_list(self.cursor.fetch()[0][0])
+    def groupby(self, table_name_1, table_name_2, rows, cols):
+        self.cursor.execute(f"select qp4ai_select('{table_name_1}');")
+        *shape, data = parse_qp4ai_select(self.cursor.fetch())
+        # self.cursor.execute(f"select rows,cols from {table_name_1}")
+        # shape = self.cursor.fetch()[0]
+        # self.cursor.execute(f"select data from {table_name_1}")
+        # data = str_to_list(self.cursor.fetch()[0][0])
         if shape[0] != rows or shape[1] != cols:
             if rows == 1 and cols != 1:
-                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 0, '{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_sum('{table_name_1}', 0, '{table_name_2}');")
             elif cols == 1 and rows != 1:
-                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 1, '{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_sum('{table_name_1}', 1, '{table_name_2}');")
             else:
                 # TODO:sum算子对所有元素求和
                 sum = 0
                 for i in range(len(data)):
                     sum += data[i]
-                self.cursor.execute(f"drop table if exists {table_name_2}")
-                self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
-                                    f"precision[] )")
-                self.cursor.execute(
-                    f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
+                self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_update_data('{sum}', '{table_name_2}');")
+                # self.cursor.execute(f"drop table if exists {table_name_2}")
+                # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
+                #                     f"precision[] )")
+                # self.cursor.execute(
+                #     f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
         else:
-            self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
+            self.cursor.execute(f"select qp4ai_assignment('{table_name_1}','{table_name_2}');")
+            # self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
+
 
 # 通过继承实现的其它节点类
 
@@ -1249,7 +1255,7 @@ class Slice(Node):
         for idx in range(len(s)):
             if isinstance(s[idx], int):
                 start = s[idx]
-                stop = s[idx]+1
+                stop = s[idx] + 1
                 s[idx] = [start, stop]
             elif isinstance(s[idx], str):
                 self.cursor.execute(f"select qp4ai_select('{s[idx]}');")
@@ -1970,23 +1976,26 @@ class Backward(Node):
                                 #                     f"trans integer,data double precision[])")
                                 # self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
                             else:
-                                # TODO: 修改
-                                self.cursor.execute(f"select rows,cols from {father.vars[0]}")
-                                shape = self.cursor.fetch()
-                                self.groupby(tup[_index],fa_table_name,shape[0][0],shape[0][1])
+                                self.cursor.execute(f"select qp4ai_select('{father.vars[0]}');")
+                                *shape, _ = parse_qp4ai_select(self.cursor.fetch())
+                                # self.cursor.execute(f"select rows,cols from {father.vars[0]}")
+                                # shape = self.cursor.fetch()
+                                self.groupby(tup[_index], fa_table_name, shape[0][0], shape[0][1])
                         else:
                             if father.__class__.__name__ is 'Var':
                                 old_fa_table_name = 'old_' + fa_table_name
-                                # TODO: 修改
-                                self.cursor.execute(f"drop table if exists {old_fa_table_name}")
-                                self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
-                                self.cursor.execute(f"select rows,cols from {fa_table_name}")
-                                shape = self.cursor.fetch()
+                                self.cursor.execute(f"select qp4ai_assignment('{fa_table_name}','{old_fa_table_name}');")
+                                # self.cursor.execute(f"drop table if exists {old_fa_table_name}")
+                                # self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
+                                self.cursor.execute(f"select qp4ai_select('{fa_table_name}');")
+                                *shape, _ = parse_qp4ai_select(self.cursor.fetch())
+                                # self.cursor.execute(f"select rows,cols from {fa_table_name}")
+                                # shape = self.cursor.fetch()
                                 # self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
-                                group_by_table = 'group_by_'+tup[_index]
-                                self.groupby(tup[_index],group_by_table,shape[0][0],shape[0][1])
+                                group_by_table = 'group_by_' + tup[_index]
+                                self.groupby(tup[_index], group_by_table, shape[0][0], shape[0][1])
                                 self.op_broadcast("add", old_fa_table_name, group_by_table, fa_table_name)
-                                drop_table_list.extend([old_fa_table_name,group_by_table])
+                                drop_table_list.extend([old_fa_table_name, group_by_table])
                             else:
                                 self.cursor.execute(f"select qp4ai_assignment('{tup[_index]}','{fa_table_name}');")
                                 # self.cursor.execute(f"drop table if exists {fa_table_name}")
