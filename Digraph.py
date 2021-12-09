@@ -142,6 +142,8 @@ class Graph:
         for i in range(len(self.nodes)):
             self.nodes[i].id += s_id
             for v in range(len(self.nodes[i].vars)):
+                if isinstance(self.nodes[i], nd.SaveTable) and self.nodes[i].vars[0] is None:
+                    continue
                 if self.nodes[i].vars[v].startswith('_') and self.nodes[i].vars[v][1:].isdigit():
                     self.nodes[i].vars[v] = '_' + str(eval(self.nodes[i].vars[v][1:]) + s_id)
                 if self.nodes[i].vars[v].startswith('__') and self.nodes[i].vars[v][2:].isdigit():

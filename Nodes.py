@@ -15,11 +15,28 @@ import pickle as pk
 from gdbc import GDBC
 
 operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
-                'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
-                'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-                'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
-                'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
-                'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
+             'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
+             'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
+             'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+             'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
+             'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
+op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
+global_cursor = GDBC()
+global_cursor.connect()
+
+
+def get_data(name):
+    global_cursor.cursor.execute(f"select qp4ai_select('{name}');")
+    global_cursor.cursor.commit()
+    ans = global_cursor.cursor.fetchall()
+    if "Matrix not found." in ans or 'no result' in ans:
+        return ans
+    else:
+        try:
+            res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
+            return res['data']
+        except:
+            return ans
 
 
 class Tensor:
@@ -31,16 +48,16 @@ class Tensor:
 
     def __del__(self):
         del self.table
-    
+
     def set_next(self, l: list):
         self.next = l
-    
+
     def get_next(self):
         return self.next
 
     def clear_next(self):
         self.next = None
-    
+
     def set_grad_fn(self, n):
         self.grad_fn = n
 
@@ -54,21 +71,18 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        pass
-        # self.cursor.execute(f"drop table if exists {self.name}")
+        self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
+        print(f'gc: {self.name}')
 
 
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
-        # todo 自动类型转换
         for i in range(len(node.vars)):
+            if i == 0 and node.vars[i] is None:
+                continue
             if re.fullmatch(re.compile(r'[A-Z]+.*', re.S), node.vars[i]):
                 node.vars[i] = "\"" + node.vars[i] + "\""
-        # if not node.with_grad and not isinstance(node, GRADIENT):
-        #     with torch.no_grad():
-        #         return fun(node, **kwargs)
-        # else:
         if isinstance(node, Backward):
             node.executor.backward_end = node.id
         # 避免加入backward后变量
@@ -76,13 +90,13 @@ def preprocessing(fun):
             flag = 0
         else:
             flag = 1
-        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward', 'CleanGrad','TensorFromSql'] and flag == 1:
+        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None,list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
+            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None, list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
             node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
-        elif node.__class__.__name__ is 'Assignment' and flag == 1:
+        elif node.__class__.__name__ == 'Assignment' and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             if node.vars[1] in node.executor.tensor_dict:
@@ -97,13 +111,6 @@ def preprocessing(fun):
         # 表'grad_' + str(node.id) + '_1/2'为该节点最终梯度(算子本身梯度乘以上游梯度)的多个返回值(返回值大于2，如mul、matmul)
         # 表'grad_' + str(node.id) + '_temp1/2'为计算最终梯度的中间结果(通常是算子本身梯度，需乘以上游梯度)
         # 表'grad_' + str(node.id)为算子输入的上游梯度
-
-        node.cursor.execute(f"drop table if exists {'grad_' + str(node.id)};"
-                            f"drop table if exists {'grad_input_' + str(node.id)};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_1'};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_2'};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_temp1'};"
-                            f"drop table if exists {'grad_' + str(node.id) + '_temp2'};")
         return fun(node, **kwargs)
 
     return decorated
@@ -114,25 +121,44 @@ def dump_tensor(tensors: dict, path: str):
         pk.dump(tensors, f)
 
 
+def parse_qp4ai_select(res):
+    assert res[0][0] != 'Matrix not found.' and res != 'no result'
+    res = eval('{' + ','.join(res[0][0].split(',')[1:]))
+    # 返回rows,cols,data
+    return res['rows'], res['cols'], res['data']
+
+
 def fill_slice_var(slice_index, cursor):
     s = copy(slice_index)
     for idx in range(len(s)):
         if isinstance(s[idx], str):
-            cursor.execute(f"select data from {s[idx]};")
-            s[idx] = str_to_list(cursor.fetch()[0][0])[0]
+            cursor.execute(f"select qp4ai_select('{s[idx]}');")
+            _, _, data = parse_qp4ai_select(cursor.fetch())
+            s[idx] = int(data[0])
+            # cursor.execute(f"select data from {s[idx]};")
+            # s[idx] = str_to_list(cursor.fetch()[0][0])[0]
         elif isinstance(s[idx], slice):
             start = s[idx].start
             step = s[idx].step
             stop = s[idx].stop
             if isinstance(s[idx].start, str):
-                cursor.execute(f"select data from {s[idx].start};")
-                start = str_to_list(cursor.fetch()[0][0])[0]
+                cursor.execute(f"select qp4ai_select('{s[idx].start}');")
+                _, _, start = parse_qp4ai_select(cursor.fetch())
+                start = int(start[0])
+                # cursor.execute(f"select data from {s[idx].start};")
+                # start = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].step, str):
-                cursor.execute(f"select data from {s[idx].step};")
-                step = str_to_list(cursor.fetch()[0][0])[0]
+                cursor.execute(f"select qp4ai_select('{s[idx].step}');")
+                _, _, step = parse_qp4ai_select(cursor.fetch())
+                step = int(step[0])
+                # cursor.execute(f"dselect data from {s[idx].step};")
+                # step = str_to_list(cursor.fetch()[0][0])[0]
             if isinstance(s[idx].stop, str):
-                cursor.execute(f"select data from {s[idx].stop};")
-                stop = str_to_list(cursor.fetch()[0][0])[0]
+                cursor.execute(f"select qp4ai_select('{s[idx].stop}');")
+                _, _, stop = parse_qp4ai_select(cursor.fetch())
+                stop = int(stop[0])
+                # cursor.execute(f"select data from {s[idx].stop};")
+                # stop = str_to_list(cursor.fetch()[0][0])[0]
             s[idx] = slice(start, stop, step)
     return tuple(s)
 
@@ -171,10 +197,6 @@ def str_to_list(data):
     return new_data
 
 
-
-
-
-
 class DimensionError(Exception):
     pass
 
@@ -185,10 +207,9 @@ class DivZeroError(Exception):
 
 class Node:
     # 计算图中节点类的父类
-    def __init__(self, type_id, with_grad=False, physic_algorithm='tensor', **kwargs):
+    def __init__(self, with_grad=False, physic_algorithm='tensor', **kwargs):
         self.physic_algorithm = physic_algorithm
         self.id = kwargs['id']
-        self.type_id = type_id
         self.with_grad = with_grad
         self.out_edges = []
         self.in_edges = []
@@ -261,16 +282,16 @@ class Node:
         pass
 
     def GetType(self):
-        return self.type_id
+        return type(self)
 
     def __eq__(self, other):
         if isinstance(other, Node):
-            return (self.id == other.id) and (self.type_id == other.type_id)
+            return (self.id == other.id) and type(self) == type(other)
         else:
             return False
 
     def __hash__(self):
-        return hash(self.id + self.type_id)
+        return hash(self.id) + hash(str(type(self)))
 
     def __call__(self, executor):
         pass
@@ -291,176 +312,63 @@ class Node:
     #     self.cursor.connect()
 
     def __repr__(self):
-        return f'id:{self.id}, branches:{self.branches}, vars:{self.vars}'
+        return f'type:{self.__class__.__name__}, id:{self.id}, branches:{self.branches}, vars:{self.vars}'
 
     def op_broadcast(self, op, input_table_1, input_table_2, output_table):
-        self.cursor.execute(f"drop table if exists {output_table}")
-        self.cursor.execute(f"select rows,cols from {input_table_1}")
-        result1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {input_table_2}")
-        result2 = self.cursor.fetch()
-        try:
-            if result1[0][0] == result2[0][0] and result1[0][1] == result2[0][1]:
-                # 同维度矩阵特殊情况，无需广播,对应元素值依次操作
-                self.fun_opt(op, input_table_1, input_table_2, output_table)
-            # 行相等，列不相等，则有一组矩阵列数为1，否则不满足广播条件
-            elif result1[0][0] == result2[0][0]:
-                self.cursor.execute(f"select data from {input_table_1}")
-                data1 = str_to_list(self.cursor.fetch()[0][0])
-                self.cursor.execute(f"select data from {input_table_2}")
-                data2 = str_to_list(self.cursor.fetch()[0][0])
-                new_data = []
-                if result1[0][1] == 1:
-                    for i in data2:
-                        new_data.append(self.val_opt(op, data1[0], i))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
-                else:
-                    for i in data1:
-                        new_data.append(self.val_opt(op, i, data2[0]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
-            # 行不相等，列相等，则有一组矩阵行数为1，否则不满足广播条件
-            elif result1[0][0] != result2[0][0] and result1[0][1] == result2[0][1]:
-                self.cursor.execute(f"select data from {input_table_1}")
-                data1 = str_to_list(self.cursor.fetch()[0][0])
-                self.cursor.execute(f"select data from {input_table_2}")
-                data2 = str_to_list(self.cursor.fetch()[0][0])
-                new_data = []
-                if result1[0][0] == 1:
-                    for i in range(len(data1)):
-                        for j in range(len(data2)):
-                            if i == j % len(data1):
-                                new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
-                elif result2[0][0] == 1:
-                    for i in range(len(data1)):
-                        for j in range(len(data2)):
-                            if j == i % len(data2):
-                                new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
-                else:
-                    raise DimensionError()
-            # 矩阵形状的各个维度不一,则各个维度上必有一值为1
-            elif result1[0][0] != result2[0][0] and result1[0][1] != result2[0][1]:
-                self.cursor.execute(f"select data from {input_table_1}")
-                data1 = str_to_list(self.cursor.fetch()[0][0])
-                self.cursor.execute(f"select data from {input_table_2}")
-                data2 = str_to_list(self.cursor.fetch()[0][0])
-                new_data = []
-                if result1[0][0] == 1 and result1[0][1] == 1:
-                    for i in range(len(data2)):
-                        new_data.append(self.val_opt(op, data1[0], data2[i]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result2[0][0]}, {result2[0][1]}, 0, array{new_data})")
-                elif result2[0][0] == 1 and result2[0][1] == 1:
-                    for i in range(len(data1)):
-                        new_data.append(self.val_opt(op, data1[i], data2[0]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result1[0][0]}, {result1[0][1]}, 0, array{new_data})")
-                # 1行n列与m行1列做运算
-                elif result1[0][0] == 1 and result2[0][1] == 1:
-                    for i in range(len(data2)):
-                        for j in range(len(data1)):
-                            new_data.append(self.val_opt(op, data1[j], data2[i]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result2[0][0]}, {result1[0][1]}, 0, array{new_data})")
-                elif result1[0][1] == 1 and result2[0][0] == 1:
-                    for i in range(len(data1)):
-                        for j in range(len(data2)):
-                            new_data.append(self.val_opt(op, data1[i], data2[j]))
-                    self.cursor.execute(f"create table {output_table}(rows int, cols int,trans int,data double "
-                                        f"precision[] )")
-                    self.cursor.execute(
-                        f"insert into {output_table} values({result1[0][0]}, {result2[0][1]}, 0, array{new_data})")
-                else:
-                    raise DimensionError()
-            else:
-                pass
-        except DimensionError:
-            print("矩阵不匹配，无法进行广播操作")
-
-    def val_opt(self, op, i, j):
-        if op == 'add':
-            return i + j
-        elif op == 'sub':
-            return i - j
-        elif op == 'mul':
-            return i * j
-        elif op == 'div':
-            return i / j
-
-    def fun_opt(self, op, input_table_1, input_table_2, output_table):
-        if op == 'add':
-            self.cursor.execute(f"select db4ai_add('{input_table_1}', '{input_table_2}', '{output_table}');")
-        elif op == 'sub':
-            self.cursor.execute(f"select db4ai_sub('{input_table_1}', '{input_table_2}', '{output_table}');")
-        elif op == 'mul':
-            self.cursor.execute(f"select db4ai_mul('{input_table_1}', '{input_table_2}', '{output_table}');")
-        elif op == 'matmul':
-            self.cursor.execute(f"select db4ai_matmul('{input_table_1}', '{input_table_2}', '{output_table}');")
+        op = op_dic[op]
+        self.cursor.execute(f"select qp4ai_op_broadcast({op},'{input_table_1}','{input_table_2}','{output_table}');")
 
     def is_equal_shape(self, input_table_1, input_table_2):
-        self.cursor.execute(f"select rows,cols from {input_table_1}")
-        shape1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {input_table_2}")
-        shape2 = self.cursor.fetch()
+        self.cursor.execute(f"select qp4ai_select('{input_table_1}');")
+        *shape1, _ = parse_qp4ai_select(self.cursor.fetch())
+        self.cursor.execute(f"select qp4ai_select('{input_table_2}');")
+        *shape2, _ = parse_qp4ai_select(self.cursor.fetch())
         if shape1[0][0] == shape2[0][0] and shape1[0][1] == shape2[0][1]:
             return True
         else:
             return False
 
-    def groupby(self, table_name_1,table_name_2,rows,cols):
-        self.cursor.execute(f"select rows,cols from {table_name_1}")
-        shape = self.cursor.fetch()[0]
-        self.cursor.execute(f"select data from {table_name_1}")
-        data = str_to_list(self.cursor.fetch()[0][0])
+    def groupby(self, table_name_1, table_name_2, rows, cols):
+        self.cursor.execute(f"select qp4ai_select('{table_name_1}');")
+        *shape, data = parse_qp4ai_select(self.cursor.fetch())
+        # self.cursor.execute(f"select rows,cols from {table_name_1}")
+        # shape = self.cursor.fetch()[0]
+        # self.cursor.execute(f"select data from {table_name_1}")
+        # data = str_to_list(self.cursor.fetch()[0][0])
         if shape[0] != rows or shape[1] != cols:
             if rows == 1 and cols != 1:
-                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 0, '{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_sum('{table_name_1}', 0, '{table_name_2}');")
             elif cols == 1 and rows != 1:
-                self.cursor.execute(f"select db4ai_sum('{table_name_1}', 1, '{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_sum('{table_name_1}', 1, '{table_name_2}');")
             else:
                 # TODO:sum算子对所有元素求和
                 sum = 0
                 for i in range(len(data)):
                     sum += data[i]
-                self.cursor.execute(f"drop table if exists {table_name_2}")
-                self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
-                                    f"precision[] )")
-                self.cursor.execute(
-                    f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
+                self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
+                self.cursor.execute(f"select qp4ai_update_data({'{sum}'}, '{table_name_2}');")
+                # self.cursor.execute(f"drop table if exists {table_name_2}")
+                # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
+                #                     f"precision[] )")
+                # self.cursor.execute(
+                #     f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
         else:
-            self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
+            self.cursor.execute(f"select qp4ai_assignment('{table_name_1}','{table_name_2}');")
+            # self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
+
 
 # 通过继承实现的其它节点类
 
 
 class Root(Node):
     def __init__(self, **kwargs):
-        super().__init__(0, **kwargs)
+        super().__init__(**kwargs)
 
 
 # 创建张量所用节点
 class CreateTensor(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(1, **kwargs)
+        super().__init__(**kwargs)
         self.set_vars(var)
         self.grad = None
 
@@ -472,7 +380,7 @@ class CreateTensor(Node):
 # 该类用来存储常量，常见如constant.PI、constant.E
 class Val(Node):
     def __init__(self, var, val, **kwargs):
-        super().__init__(2, **kwargs)
+        super().__init__(**kwargs)
         self.value = val
         if isinstance(var, list):
             self.vars = var
@@ -486,10 +394,7 @@ class Val(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
-        self.cursor.execute(f"create table {self.vars[0]}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {self.vars[0]} values (1,1,0, array{[self.value]})")
-        # self.conn.commit()
+        self.cursor.execute(f"select qp4ai_val({self.value}, '{self.vars[0]}');")
 
     def get_val(self):
         return self.value
@@ -500,19 +405,17 @@ class Val(Node):
 
 
 class TensorFromSql(Node):
-    # TODO: 注册算子@樊宣伯
     def __init__(self, **kwargs):
-        super().__init__(3, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO：代码实现@路亚彬, @樊宣伯
-        self.cursor.execute(f"select db4ai_load('{self.vars[1]}','{self.vars[0]}')")
+        self.cursor.execute(f"select qp4ai_load('{self.vars[1]}','{self.vars[0]}')")
 
 
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
-        super().__init__(3, **kwargs)
+        super().__init__(**kwargs)
         self.t_search_sentences = t_info
         self.vars = var
         self.shape = None
@@ -525,7 +428,7 @@ class Sql(Node):
 
 class Random(Node):
     def __init__(self, boundary, data_shape, distribution, var, **kwargs):
-        super().__init__(4, **kwargs)
+        super().__init__(**kwargs)
         self.boundary = boundary
         self.vars = var
         self.data_shape = data_shape
@@ -545,22 +448,21 @@ class Random(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        #     # TODO:
         # 如果data shape中包含var
-
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]}")
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.cursor.execute(f"select data from {name};")
-                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                self.data_shape_var[name] = data[0]
                 # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
         if self.distribution not in [0, 1, 2]:
             distribution_list = ['normal', 'Uniform', 'Bernoulli']
             self.distribution = distribution_list.index(self.distribution)
         self.cursor.execute(
-            f"select db4ai_random({self.data_shape[0]}, {self.data_shape[1]}, {self.distribution}, {self.dis_args[0]}, {self.dis_args[1]}, 0, '{self.vars[0]}')")
+            f"select qp4ai_random({int(self.data_shape[0])}, {int(self.data_shape[1])}, {int(self.distribution)}, {self.dis_args[0]}, {self.dis_args[1]}, 0, '{self.vars[0]}');")
         # self.conn.commit()
 
     def infer_data(self):
@@ -589,7 +491,7 @@ class Random(Node):
 # 逻辑控制所用节点
 class Loop(Node):
     def __init__(self, condition, loop_id, **kwargs):
-        super().__init__(5, **kwargs)
+        super().__init__(**kwargs)
         if condition or isinstance(condition, str):
             self.dead_cycle = condition
             self.times = -1
@@ -615,8 +517,11 @@ class Loop(Node):
         if self.loop_pair in end_nodes:
             end_nodes.remove(self.loop_pair)
         if isinstance(self.dead_cycle, str):
-            self.cursor.execute(f"select data from {self.dead_cycle};")
-            self.dead_cycle = str_to_list(self.cursor.fetch()[0][0])[0]
+            self.cursor.execute(f"select qp4ai_select('{self.dead_cycle}');")
+            _, _, data = parse_qp4ai_select(self.cursor.fetch())
+            self.dead_cycle = data[0]
+            # self.cursor.execute(f"select data from {self.dead_cycle};")
+            # self.dead_cycle = str_to_list(self.cursor.fetch()[0][0])[0]
         # 循环结束
         if self.dead_cycle <= self.times:
             # 找到对应的Loop_End
@@ -629,7 +534,7 @@ class Loop(Node):
 
 class LoopEnd(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(6, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
         self.return_next = False
@@ -637,7 +542,6 @@ class LoopEnd(Node):
     @preprocessing
     def run(self, **kwargs):
         visited = kwargs['visited']
-        executor = kwargs['executor']
         # 从visited中删除对应的LoopEnd
         visited.remove(self.loop_pair)
         self.loop_pair.finished = False
@@ -660,7 +564,6 @@ class LoopEnd(Node):
 
         # 退出循环
         if self.loop_id in self.executor.finished_loop_id:
-            # self.executor.finished_loop_id.remove(self.loop_id)
             return end_nodes
         # 继续下一次循环
         else:
@@ -669,7 +572,7 @@ class LoopEnd(Node):
 
 class Break(Node):
     def __init__(self, loop_id, **kwargs):
-        super().__init__(7, **kwargs)
+        super().__init__(**kwargs)
         self.loop_id = loop_id
         self.loop_pair = None
 
@@ -681,16 +584,21 @@ class Break(Node):
 
 class If(Node):
     def __init__(self, **kwargs):
-        super().__init__(8, **kwargs)
+        super().__init__(**kwargs)
 
     def next_nodes(self):
         for edge in self.out_edges:
             para = {}
             for var_name, var_node in edge.need_var:
-                self.cursor.execute(f"select data from {var_node.vars[0]}")
-                result = str_to_list(self.cursor.fetch()[0][0])
+                self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
+                _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                # self.cursor.execute(f"select data from {var_node.vars[0]}")
+                # result = str_to_list(self.cursor.fetch()[0][0])
                 if len(result) == 1:
-                    para[var_name] = result[0]
+                    if math.modf(result[0])[0] == 0:
+                        para[var_name] = int(result[0])
+                    else:
+                        para[var_name] = result[0]
                 else:
                     if not isinstance(result, list):
                         para[var_name] = list(result)
@@ -705,7 +613,7 @@ class If(Node):
 
 class IfBranch(Node):
     def __init__(self, **kwargs):
-        super().__init__(9, **kwargs)
+        super().__init__(**kwargs)
         self.end_if_pair = None
 
     @preprocessing
@@ -720,8 +628,11 @@ class IfBranch(Node):
             for edge in self.out_edges:
                 para = {}
                 for var_name, var_node in edge.need_var:
-                    self.cursor.execute(f"select data from {var_node.vars[0]}")
-                    para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                    self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
+                    _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                    para[var_name] = result[0]
+                    # self.cursor.execute(f"select data from {var_node.vars[0]}")
+                    # para[var_name] = str_to_list(self.cursor.fetch()[0][0])[0]
                 res = eval(edge.condition, para)
                 if edge.reverse:
                     res = not res
@@ -731,13 +642,13 @@ class IfBranch(Node):
 
 class IfEnd(Node):
     def __init__(self, **kwargs):
-        super().__init__(10, **kwargs)
+        super().__init__(**kwargs)
         self.selected_branch = None
 
 
 class Assignment(Node):
     def __init__(self, var_li, **kwargs):
-        super().__init__(11, **kwargs)
+        super().__init__(**kwargs)
         self.vars = var_li
         self.update = False
         self._slice = None
@@ -758,34 +669,35 @@ class Assignment(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        if self.vars[0] == '__0loss':
-            self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[0]}';")
-            rows = self.cursor.fetch()
-            if rows[0][0] == 1:
-                self.cursor.execute(f"select data from {self.vars[0]};")
-                data = str_to_list(self.cursor.fetch()[0][0])[0]
-                self.cursor.execute(f"select data from {self.vars[1]}")
-                new_data = str_to_list(self.cursor.fetch()[0][0])[0]
-                print("delta: " + str(new_data-data))
-
-        self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
-        rows = self.cursor.fetch()
-        flag_right = rows[0][0] == 1
-        if self.vars[0] in ['auc','acc','recall', 'prec', 'mse','f1'] and flag_right is False:
+        self.cursor.execute(f"select qp4ai_if_tensor_exists('{self.vars[1]}');")
+        flag_right = bool(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select count(*) from pg_class where relname = '{self.vars[1]}';")
+        # rows = self.cursor.fetch()
+        # flag_right = rows[0][0] == 1
+        if self.vars[0] in ['auc', 'acc', 'recall', 'prec', 'mse', 'f1'] and flag_right is False:
             print(self.vars[0])
             pass
         else:
             assert flag_right is True
             if self.slice is None:
-                self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
-                self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
+                self.cursor.execute(f"select qp4ai_assignment('{self.vars[1]}','{self.vars[0]}');")
+                # self.cursor.execute(f"DROP TABLE IF EXISTS {self.vars[0]}")
+                # self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
             else:
-                self.cursor.execute(f"select data from {self.vars[1]}")
-                new_data = str_to_list(self.cursor.fetch()[0][0])[0]
-                self.cursor.execute(f"select rows,cols from {self.vars[0]}")
-                shape = self.cursor.fetch()
-                self.cursor.execute(f"select data from {self.vars[0]}")
-                old_data = str_to_list(self.cursor.fetch()[0][0])
+                # TOOD: 替换sql
+                self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+                _, _, new_data = parse_qp4ai_select(self.cursor.fetch())
+                if isinstance(new_data, list):
+                    assert len(new_data) == 1
+                    new_data = new_data[0]
+                # self.cursor.execute(f"select data from {self.vars[1]}")
+                # new_data = str_to_list(self.cursor.fetch()[0][0])[0]
+                self.cursor.execute(f"select qp4ai_select('{self.vars[0]}');")
+                *shape, old_data = parse_qp4ai_select(self.cursor.fetch())
+                # self.cursor.execute(f"select rows,cols from {self.vars[0]}")
+                # shape = self.cursor.fetch()
+                # self.cursor.execute(f"select data from {self.vars[0]}")
+                # old_data = str_to_list(self.cursor.fetch()[0][0])
                 s = fill_slice_var(self.slice, self.cursor)
                 try:
                     if len(s) == 2:
@@ -793,24 +705,27 @@ class Assignment(Node):
                             for i in range(len(old_data)):
                                 old_data[i] = new_data
                         elif s[0] is ...:
-                            for i in range(shape[0][0]):
-                                old_data[i * shape[0][1] + s[1]] = new_data
+                            for i in range(shape[0]):
+                                old_data[i * shape[1] + s[1]] = new_data
                         elif s[1] is ...:
-                            for i in range(shape[0][1]):
-                                old_data[s[0] * shape[0][1] + i] = new_data
+                            for i in range(shape[1]):
+                                old_data[s[0] * shape[1] + i] = new_data
                         else:
-                            old_data[s[0] * shape[0][1] + s[1]] = new_data
+                            old_data[s[0] * shape[1] + s[1]] = new_data
                     elif len(s) == 1:
+                        # s[1]="None"
                         old_data[s[0]] = new_data
                 except IndexError:
                     print(old_data)
                     print(shape)
-                self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
+                d = str(old_data).replace('[', '{').replace(']', '}')
+                self.cursor.execute(f"select qp4ai_update_data('{d}','{self.vars[0]}');")
+                # self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
 class Add(Node):
     def __init__(self, **kwargs):
-        super().__init__(12, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -823,7 +738,7 @@ class Add(Node):
 
 class Sub(Node):
     def __init__(self, **kwargs):
-        super().__init__(13, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -834,11 +749,12 @@ class Sub(Node):
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
-        if grad_output != 1:
+        else:
             s = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
+        # self.cursor.execute(f"drop table if exists {s}")
+        # self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
+        self.cursor.execute(f"select qp4ai_back_sub('{s}');")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
         return grad_output, table_name
@@ -846,7 +762,7 @@ class Sub(Node):
 
 class Mul(Node):
     def __init__(self, **kwargs):
-        super().__init__(14, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -858,52 +774,13 @@ class Mul(Node):
         table_name_2 = 'grad_' + str(self.id) + '_2'
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         table_name_temp2 = 'grad_' + str(self.id) + '_temp2'
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape_1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {self.vars[2]}")
-        shape_2 = self.cursor.fetch()
-
-        # 分类讨论
-        if shape_1[0][0] == 1 and shape_1[0][1] == 1:
-            flag = 1
-        elif shape_2[0][0] == 1 and shape_2[0][1] == 1:
-            flag = 2
-        elif shape_1 == shape_2:
-            flag = 3
         if grad_output == 1:
             s_1 = table_name_1
             s_2 = table_name_2
         else:
             s_1 = table_name_temp1
             s_2 = table_name_temp2
-        self.cursor.execute(f"drop table if exists {s_1}")
-        self.cursor.execute(f"drop table if exists {s_2}")
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data_1 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[2]}")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"create table {s_2}(rows int,cols int,trans int,data double precision[])")
-
-        # 乘以单个常数值
-        if flag == 1:
-            sum = 0
-            for i in data_2:
-                sum += i
-            self.cursor.execute(f"insert into {s_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{[sum]})")
-            self.cursor.execute(f"insert into {s_2} values(1,1,0,array{data_1})")
-        elif flag == 2:
-            self.cursor.execute(f"insert into {s_1} values(1,1,0,array{[data_2[0]]})")
-            sum = 0
-            for i in data_1:
-                sum += i
-            self.cursor.execute(f"insert into {s_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{[sum]})")
-
-        # 矩阵形状相同
-        elif flag == 3:
-            self.cursor.execute(f"insert into {s_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{data_2})")
-            self.cursor.execute(f"insert into {s_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{data_1})")
-
+        self.cursor.execute(f"select qp4ai_back_mul('{self.vars[1]}','{self.vars[2]}','{s_1}', '{s_2}');")
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name_1)
             self.op_broadcast("mul", s_2, grad_output, table_name_2)
@@ -912,34 +789,11 @@ class Mul(Node):
 
 class Div(Node):
     def __init__(self, **kwargs):
-        super().__init__(15, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data_1 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[2]}")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape_1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {self.vars[2]}")
-        shape_2 = self.cursor.fetch()
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        if shape_1 == shape_2:
-            self.cursor.execute(f"select db4ai_div('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
-        elif len(data_1) == 1:
-            new_data = []
-            for i in range(len(data_2)):
-                new_data.append(data_1[0] / data_2[i])
-            self.cursor.execute(f"create table {self.vars[0]}(rows int,cols int,trans int,data double precision[])")
-            self.cursor.execute(f"insert into {self.vars[0]} values ({shape_2[0][0]},{shape_2[0][1]},0,array{new_data})")
-        elif len(data_2) == 1:
-            new_data = []
-            for i in range(len(data_1)):
-                new_data.append(data_1[i] / data_2[0])
-            self.cursor.execute(f"create table {self.vars[0]}(rows int,cols int,trans int,data double precision[])")
-            self.cursor.execute(f"insert into {self.vars[0]} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data})")
-
+        self.cursor.execute(f"select qp4ai_div('{self.vars[1]}','{self.vars[2]}','{self.vars[0]}');")
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
@@ -952,41 +806,7 @@ class Div(Node):
         else:
             s_1 = table_name_temp1
             s_2 = table_name_temp2
-        self.cursor.execute(f"drop table if exists {s_1}")
-        self.cursor.execute(f"drop table if exists {s_2}")
-        self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"create table {s_2}(rows int,cols int,trans int,data double precision[])")
-
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data_1 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[2]}")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape_1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {self.vars[2]}")
-        shape_2 = self.cursor.fetch()
-        new_data_1 = []
-        new_data_2 = []
-        if len(data_1) == 1:
-            sum = 0
-            for i in range(len(data_2)):
-                sum += 1 / data_2[i]
-                new_data_2.append(data_1[0] * -1 / pow(data_2[i], 2))
-            self.cursor.execute(f"insert into {s_1} values (1,1,0,array{[sum]})")
-            self.cursor.execute(f"insert into {s_2} values ({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
-        elif len(data_2) == 1:
-            sum = 0
-            for i in range(len(data_1)):
-                new_data_1.append(1 / data_2[0])
-                sum += data_1[i] * -1 / pow(data_2[0], 2)
-            self.cursor.execute(f"insert into {s_1} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
-            self.cursor.execute(f"insert into {s_2} values (1,1,0,array{[sum]})")
-        else:
-            for i in range(len(data_1)):
-                new_data_1.append(1 / data_2[i])
-                new_data_2.append(data_1[i] * -1 / pow(data_2[i], 2))
-            self.cursor.execute(f"insert into {s_1} values ({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
-            self.cursor.execute(f"insert into {s_2} values ({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
+        self.cursor.execute(f"select qp4ai_back_div('{self.vars[1]}','{self.vars[2]}','{s_1}','{s_2}')")
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name_1)
             self.op_broadcast("mul", s_2, grad_output, table_name_2)
@@ -995,20 +815,18 @@ class Div(Node):
 
 class LOG(Node):
     def __init__(self, **kwargs):
-        super().__init__(16, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO: log疑似不支持多行多列
-        # self.cursor.execute(f"select db4ai_log('{self.vars[1]}', '{self.vars[0]}');")
-        self.cursor.execute(f"drop table if exists {self.vars[0]};")
-        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
-        self.cursor.execute(f"select data from {self.vars[1]};")
-        ss = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(ss)):
-            ss[i] = math.log(ss[i], math.e)
-        self.cursor.execute(f"update {self.vars[0]} set data = array{ss};")
-
+        self.cursor.execute(f"select qp4ai_log('{self.vars[1]}', '{self.vars[0]}');")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]};")
+        # self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
+        # self.cursor.execute(f"select data from {self.vars[1]};")
+        # ss = str_to_list(self.cursor.fetch()[0][0])
+        # for i in range(len(ss)):
+        #     ss[i] = math.log(ss[i], math.e)
+        # self.cursor.execute(f"update {self.vars[0]} set data = array{ss};")
 
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
@@ -1017,18 +835,19 @@ class LOG(Node):
             s_1 = table_name
         else:
             s_1 = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s_1}")
-        self.cursor.execute(f"select rows,cols from {self.vars[1]};")
-        shape = self.cursor.fetch()[0]
-        self.cursor.execute(f"select data from {self.vars[1]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        new_row = []
-        for i in data:
-            r = 1.0 / i
-            new_row.append(r)
-        self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {s_1} values ({shape[0]},{shape[1]},0,array{new_row})")
-        # self.conn.commit()
+        self.cursor.execute(f"select qp4ai_back_log('{self.vars[1]}','{s_1}');")
+        # self.cursor.execute(f"drop table if exists {s_1}")
+        # self.cursor.execute(f"select rows,cols from {self.vars[1]};")
+        # shape = self.cursor.fetch()[0]
+        # self.cursor.execute(f"select data from {self.vars[1]};")
+        # data = str_to_list(self.cursor.fetch()[0][0])
+        # new_row = []
+        # for i in data:
+        #     r = 1.0 / i
+        #     new_row.append(r)
+        # self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"insert into {s_1} values ({shape[0]},{shape[1]},0,array{new_row})")
+        # # self.conn.commit()
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name)
         return table_name
@@ -1036,18 +855,25 @@ class LOG(Node):
 
 class POW(Node):
     def __init__(self, **kwargs):
-        super().__init__(17, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select data from {self.vars[2]};")
-        pow_exp = str_to_list(self.cursor.fetch()[0][0])
-        if len(pow_exp) > 1:
-            self.cursor.execute(f"select data from {self.vars[1]};")
-            base = str_to_list(self.cursor.fetch()[0][0])[0]
-            self.cursor.execute(f"select db4ai_pow_table('{self.vars[2]}', {base}, '{self.vars[0]}');")
-        else:
-            self.cursor.execute(f"select db4ai_pow('{self.vars[1]}', {pow_exp[0]}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_pow_table('{self.vars[2]}', '{self.vars[1]}', '{self.vars[0]}');")
+
+        # self.cursor.execute(f"select qp4ai_select('{self.vars[2]}');")
+        # _, _, pow_exp = parse_qp4ai_select(self.cursor.fetch())
+        # # self.cursor.execute(f"select data from {self.vars[2]};")
+        # # pow_exp = str_to_list(self.cursor.fetch()[0][0])
+        # if len(pow_exp) > 1:
+        #     self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+        #     _, _, base = parse_qp4ai_select(self.cursor.fetch())
+        #     base = base[0]
+        #     # self.cursor.execute(f"select data from {self.vars[1]};")
+        #     # base = str_to_list(self.cursor.fetch()[0][0])[0]
+        #     self.cursor.execute(f"select qp4ai_pow_table('{self.vars[2]}', {base}, '{self.vars[0]}');")
+        # else:
+        #     self.cursor.execute(f"select qp4ai_pow('{self.vars[1]}', {pow_exp[0]}, '{self.vars[0]}');")
 
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
@@ -1056,25 +882,26 @@ class POW(Node):
             s_1 = table_name
         else:
             s_1 = table_name_temp1
-        self.cursor.execute(f"select data from {self.vars[1]};")
-        data_1 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[2]};")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data_0 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
-        shape = self.cursor.fetch()[0]
-        new_data = []
-
-        if len(data_2) > 1:
-            for i in range(len(data_0)):
-                new_data.append(data_0[i] * math.log(data_1[0]))
-        else:
-            for i in range(len(data_0)):
-                new_data.append(data_0[i] * data_2[0] / data_1[i])
-        self.cursor.execute(f"drop table if exists {s_1}")
-        self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {s_1} values({shape[0]},{shape[1]},0,array{new_data});")
+        self.cursor.execute(f"select qp4ai_back_pow('{self.vars[0]}', '{self.vars[1]}','{self.vars[2]}','{s_1}');")
+        # self.cursor.execute(f"select data from {self.vars[1]};")
+        # data_1 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select data from {self.vars[2]};")
+        # data_2 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select data from {self.vars[0]};")
+        # data_0 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        # shape = self.cursor.fetch()[0]
+        # new_data = []
+        #
+        # if len(data_2) > 1:
+        #     for i in range(len(data_0)):
+        #         new_data.append(data_0[i] * math.log(data_1[0]))
+        # else:
+        #     for i in range(len(data_0)):
+        #         new_data.append(data_0[i] * data_2[0] / data_1[i])
+        # self.cursor.execute(f"drop table if exists {s_1}")
+        # self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"insert into {s_1} values({shape[0]},{shape[1]},0,array{new_data});")
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name)
         return table_name
@@ -1082,11 +909,11 @@ class POW(Node):
 
 class SQRT(Node):
     def __init__(self, **kwargs):
-        super().__init__(18, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_sqrt('{self.vars[1]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_sqrt('{self.vars[1]}', '{self.vars[0]}');")
         # self.conn.commit()
 
     def backward(self, grad_output=1):
@@ -1096,22 +923,23 @@ class SQRT(Node):
             s_1 = table_name_1
         else:
             s_1 = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s_1}")
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
-        shape = self.cursor.fetch()
-        new_data = []
-        try:
-            for i in range(shape[0][0] * shape[0][1]):
-                if data_2[i] != 0:
-                    new_data.append(1 / (2 * data_2[i]))
-                else:
-                    raise DivZeroError()
-        except DivZeroError:
-            print("除数不可为0")
-        self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {s_1} values ({shape[0][0]},{shape[0][1]},0,array{new_data});")
+        self.cursor.execute(f"select qp4ai_back_sqrt('{self.vars[0]}', '{s_1}');")
+        # self.cursor.execute(f"drop table if exists {s_1}")
+        # self.cursor.execute(f"select data from {self.vars[0]};")
+        # data_2 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        # shape = self.cursor.fetch()
+        # new_data = []
+        # try:
+        #     for i in range(shape[0][0] * shape[0][1]):
+        #         if data_2[i] != 0:
+        #             new_data.append(1 / (2 * data_2[i]))
+        #         else:
+        #             raise DivZeroError()
+        # except DivZeroError:
+        #     print("除数不可为0")
+        # self.cursor.execute(f"create table {s_1}(rows int,cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"insert into {s_1} values ({shape[0][0]},{shape[0][1]},0,array{new_data});")
         # self.conn.commit()
         if grad_output != 1:
             self.op_broadcast("mul", s_1, grad_output, table_name_1)
@@ -1120,95 +948,98 @@ class SQRT(Node):
 
 class MATMUL(Node):
     def __init__(self, **kwargs):
-        super().__init__(19, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
-
 
     def backward(self, grad_output=1):
         table_name_1 = 'grad_' + str(self.id) + '_1'
         table_name_2 = 'grad_' + str(self.id) + '_2'
-        self.cursor.execute(f"drop table if exists {table_name_1}")
-        self.cursor.execute(f"drop table if exists {table_name_2}")
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape_1 = self.cursor.fetch()
-        self.cursor.execute(f"select rows,cols from {self.vars[2]}")
-        shape_2 = self.cursor.fetch()
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data_1 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select data from {self.vars[2]}")
-        data_2 = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"create table {table_name_1}(rows int,cols int,trans int,data double precision[])")
-        self.cursor.execute(f"create table {table_name_2}(rows int,cols int,trans int,data double precision[])")
         if grad_output == 1:
-        # 求self.vars[1]的导数,对self.vars[2]依次行求和
-            sum_data_1 = []
-            for i in range(shape_2[0][0]):
-                total = 0
-                for j in range(shape_2[0][1]):
-                    total += data_2[i * shape_2[0][1] + j]
-                sum_data_1.append(total)
-            new_data_1 = []
-            for i in range(shape_1[0][0]):
-                for j in range(shape_1[0][1]):
-                    new_data_1.append(sum_data_1[j])
-            self.cursor.execute(f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
-            # 求self.vars[2]的导数,对self.vars[1]依次列求和
-            sum_data_2 = []
-            for i in range(shape_1[0][1]):
-                total = 0
-                for j in range(shape_1[0][0]):
-                    total += data_1[i + j * shape_1[0][1]]
-                sum_data_2.append(total)
-            new_data_2 = []
-            for i in range(shape_2[0][0]):
-                for j in range(shape_2[0][1]):
-                    new_data_2.append(sum_data_2[i])
-            self.cursor.execute(f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
-        else:
-            # matmul:(a,b)*(b,c)=(a,c)
-            self.cursor.execute(f"select rows,cols from {grad_output}")
-            shape_0 = self.cursor.fetch()
-            self.cursor.execute(f"select data from {grad_output}")
-            data_0 = str_to_list(self.cursor.fetch()[0][0])
-            new_data_1 = []
-            for i in range(shape_0[0][0]):
-                for j in range(shape_2[0][0]):
-                    sum = 0
-                    try:
-                        for k in range(shape_0[0][1]):
-                            sum += data_0[i * shape_0[0][1] + k] * data_2[j * shape_2[0][1] + k]
-                    except IndexError:
-                        print(sum)
-                    new_data_1.append(sum)
-            self.cursor.execute(f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
-            new_data_2 = []
-            for i in range(shape_1[0][1]):
-                for j in range(shape_0[0][1]):
-                    sum = 0
-                    for k in range(shape_1[0][0]):
-                        sum += data_1[k * shape_1[0][1] + i] * data_0[k * shape_2[0][1] + j]
-                    new_data_2.append(sum)
-            self.cursor.execute(f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
+            grad_output = "null"
+        self.cursor.execute(f"select qp4ai_back_matmul('{self.vars[1]}','{self.vars[2]}','{table_name_1}','{table_name_2}','{grad_output}');")
+        # self.cursor.execute(f"drop table if exists {table_name_1}")
+        # self.cursor.execute(f"drop table if exists {table_name_2}")
+        # self.cursor.execute(f"select rows,cols from {self.vars[1]}")
+        # shape_1 = self.cursor.fetch()
+        # self.cursor.execute(f"select rows,cols from {self.vars[2]}")
+        # shape_2 = self.cursor.fetch()
+        # self.cursor.execute(f"select data from {self.vars[1]}")
+        # data_1 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select data from {self.vars[2]}")
+        # data_2 = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"create table {table_name_1}(rows int,cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"create table {table_name_2}(rows int,cols int,trans int,data double precision[])")
+        # if grad_output == 1:
+        #     # 求self.vars[1]的导数,对self.vars[2]依次行求和
+        #     sum_data_1 = []
+        #     for i in range(shape_2[0][0]):
+        #         total = 0
+        #         for j in range(shape_2[0][1]):
+        #             total += data_2[i * shape_2[0][1] + j]
+        #         sum_data_1.append(total)
+        #     new_data_1 = []
+        #     for i in range(shape_1[0][0]):
+        #         for j in range(shape_1[0][1]):
+        #             new_data_1.append(sum_data_1[j])
+        #     self.cursor.execute(
+        #         f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
+        #     # 求self.vars[2]的导数,对self.vars[1]依次列求和
+        #     sum_data_2 = []
+        #     for i in range(shape_1[0][1]):
+        #         total = 0
+        #         for j in range(shape_1[0][0]):
+        #             total += data_1[i + j * shape_1[0][1]]
+        #         sum_data_2.append(total)
+        #     new_data_2 = []
+        #     for i in range(shape_2[0][0]):
+        #         for j in range(shape_2[0][1]):
+        #             new_data_2.append(sum_data_2[i])
+        #     self.cursor.execute(
+        #         f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
+        # else:
+        #     # matmul:(a,b)*(b,c)=(a,c)
+        #     self.cursor.execute(f"select rows,cols from {grad_output}")
+        #     shape_0 = self.cursor.fetch()
+        #     self.cursor.execute(f"select data from {grad_output}")
+        #     data_0 = str_to_list(self.cursor.fetch()[0][0])
+        #     new_data_1 = []
+        #     for i in range(shape_0[0][0]):
+        #         for j in range(shape_2[0][0]):
+        #             sum = 0
+        #             for k in range(shape_0[0][1]):
+        #                 sum += data_0[i * shape_0[0][1] + k] * data_2[j * shape_2[0][1] + k]
+        #             new_data_1.append(sum)
+        #     self.cursor.execute(
+        #         f"insert into {table_name_1} values({shape_1[0][0]},{shape_1[0][1]},0,array{new_data_1})")
+        #     new_data_2 = []
+        #     for i in range(shape_1[0][1]):
+        #         for j in range(shape_0[0][1]):
+        #             sum = 0
+        #             for k in range(shape_1[0][0]):
+        #                 sum += data_1[k * shape_1[0][1] + i] * data_0[k * shape_2[0][1] + j]
+        #             new_data_2.append(sum)
+        #     self.cursor.execute(
+        #         f"insert into {table_name_2} values({shape_2[0][0]},{shape_2[0][1]},0,array{new_data_2})")
         return table_name_1, table_name_2
 
 
 class DOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(20, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_dot('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_dot('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
 
 class INNER(Node):
     def __init__(self, **kwargs):
-        super().__init__(21, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1217,7 +1048,7 @@ class INNER(Node):
 
 class OUTER(Node):
     def __init__(self, **kwargs):
-        super().__init__(22, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1226,27 +1057,27 @@ class OUTER(Node):
 
 class TENSORDOT(Node):
     def __init__(self, **kwargs):
-        super().__init__(23, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_tensordot('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_tensordot('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
         # self.conn.commit()
 
 
 class KRON(Node):
     def __init__(self, **kwargs):
-        super().__init__(24, **kwargs)
+        super().__init__(**kwargs)
 
 
 class CHOLESKY(Node):
     def __init__(self, **kwargs):
-        super().__init__(25, **kwargs)
+        super().__init__(**kwargs)
 
 
 class QR(Node):
     def __init__(self, **kwargs):
-        super().__init__(26, **kwargs)
+        super().__init__(**kwargs)
         self.mode = ''
 
     def set_mode(self, mode):
@@ -1255,7 +1086,7 @@ class QR(Node):
 
 class SVD(Node):
     def __init__(self, **kwargs):
-        super().__init__(27, **kwargs)
+        super().__init__(**kwargs)
         self.full_matrices = True
         self.compute_uv = True
         self.hermitian = False
@@ -1267,13 +1098,12 @@ class SVD(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO
         raise Exception('暂不支持SVD')
 
 
 class NORM(Node):
     def __init__(self, **kwargs):
-        super().__init__(28, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'ord': None, 'axis': None, 'keepdims': 0}
 
     def set_param(self, ord, axis, keepdims):
@@ -1284,7 +1114,7 @@ class NORM(Node):
 
 class COND(Node):
     def __init__(self, **kwargs):
-        super().__init__(29, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'p': None}
 
     def set_param(self, p):
@@ -1293,17 +1123,16 @@ class COND(Node):
 
 class DET(Node):
     def __init__(self, **kwargs):
-        super().__init__(30, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO
         raise Exception('暂不支持DET')
 
 
 class RANK(Node):
     def __init__(self, **kwargs):
-        super().__init__(31, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -1312,7 +1141,7 @@ class RANK(Node):
 
 class TRACE(Node):
     def __init__(self, **kwargs):
-        super().__init__(32, **kwargs)
+        super().__init__(**kwargs)
         self.parameter_dict = {'offset': 0, 'axis1': 0, 'axis2': 1, 'dtype': None, 'out': None}
 
     def set_param(self, offset, axis1, axis2, dtype, out):
@@ -1324,12 +1153,12 @@ class TRACE(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_trace('{self.vars[1]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_trace('{self.vars[1]}', '{self.vars[0]}');")
 
 
 class RESHAPE(Node):
     def __init__(self, **kwargs):
-        super().__init__(33, **kwargs)
+        super().__init__(**kwargs)
         self.new_shape = None
         self.order = 'C'
 
@@ -1340,17 +1169,17 @@ class RESHAPE(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(
-            f"select db4ai_reshape('{self.vars[1]}', {self.new_shape[0]}, {self.new_shape[1]}, '{self.vars[0]}');")
+            f"select qp4ai_reshape('{self.vars[1]}', {self.new_shape[0]}, {self.new_shape[1]}, '{self.vars[0]}');")
 
 
 class TRANSPOSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(34, **kwargs)
+        super().__init__(**kwargs)
 
 
 class STACK(Node):
     def __init__(self, **kwargs):
-        super().__init__(35, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     def set_axis(self, axis):
@@ -1359,36 +1188,38 @@ class STACK(Node):
 
 class GRADIENT(Node):
     def __init__(self, **kwargs):
-        super().__init__(36, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]};")
-        self.cursor.execute(f"select * into {self.vars[0]} from {'grad_' + self.vars[1]};")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]};")
+        # self.cursor.execute(f"select * into {self.vars[0]} from {'grad_' + self.vars[1]};")
+        self.cursor.execute(f"select qp4ai_assignment('{'grad_' + self.vars[1]}','{self.vars[0]}');")
 
 
 class SHAPE(Node):
     def __init__(self, **kwargs):
-        super().__init__(37, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_shape('{self.vars[1]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_shape('{self.vars[1]}', '{self.vars[0]}');")
 
 
 class EXP(Node):
     def __init__(self, **kwargs):
-        super().__init__(38, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_exp('{self.vars[1]}', '{self.vars[0]}');")
-
+        self.cursor.execute(f"select qp4ai_exp('{self.vars[1]}', '{self.vars[0]}');")
 
     '''
         此处套用self.vars[0]重构即可，无需做反向算子
     '''
+
     def backward(self, grad_output=1):
+        # TODO: back_exp
         table_name = 'grad_' + str(self.id)
         temp_table_name = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
@@ -1405,7 +1236,7 @@ class EXP(Node):
 # 该类为列表切片、索引，self.name为列表名，self.slice_info为切片信息
 class Slice(Node):
     def __init__(self, **kwargs):
-        super().__init__(39, **kwargs)
+        super().__init__(**kwargs)
         self.slice_info = None
         self.slice_index = None
 
@@ -1417,49 +1248,57 @@ class Slice(Node):
     @preprocessing
     def run(self, **kwargs):
         s = copy(self.slice_index)
-        self.cursor.execute(f"select rows,cols from {self.vars[1]};")
-        shape = self.cursor.fetch()
+        self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
+        *shape, _ = parse_qp4ai_select(self.cursor.fetch())
+        # self.cursor.execute(f"select rows,cols from {self.vars[1]};")
+        # shape = self.cursor.fetch()
         for idx in range(len(s)):
             if isinstance(s[idx], int):
                 start = s[idx]
-                stop = s[idx]
+                stop = s[idx] + 1
                 s[idx] = [start, stop]
             elif isinstance(s[idx], str):
-                self.cursor.execute(f"select data from {s[idx]};")
-                temp = str_to_list(self.cursor.fetch()[0][0])
+                self.cursor.execute(f"select qp4ai_select('{s[idx]}');")
+                _, _, temp = parse_qp4ai_select(self.cursor.fetch())
+                # self.cursor.execute(f"select data from {s[idx]};")
+                # temp = str_to_list(self.cursor.fetch()[0][0])
                 s[idx] = [temp[0], temp[0]]
             elif isinstance(s[idx], slice):
                 start = s[idx].start
                 stop = s[idx].stop
                 if isinstance(s[idx].start, str):
-                    self.cursor.execute(f"select data from {s[idx].start};")
-                    start = str_to_list(self.cursor.fetch()[0][0])[0]
+                    # self.cursor.execute(f"select data from {s[idx].start};")
+                    # start = str_to_list(self.cursor.fetch()[0][0])[0]
+                    self.cursor.execute(f"select qp4ai_select('{s[idx].start}');")
+                    _, _, start = parse_qp4ai_select(self.cursor.fetch())
+                    if isinstance(start, list):
+                        start = start[0]
                 if s[idx].start is None:
-                    # start = shape[0][0]
                     start = 0
                 if isinstance(s[idx].stop, str):
-                    self.cursor.execute(f"select data from {s[idx].stop};")
-                    stop = str_to_list(self.cursor.fetch()[0][0])[0]
+                    # self.cursor.execute(f"select data from {s[idx].stop};")
+                    # stop = str_to_list(self.cursor.fetch()[0][0])[0]
+                    self.cursor.execute(f"select qp4ai_select('{s[idx].stop}');")
+                    _, _, stop = parse_qp4ai_select(self.cursor.fetch())
+                    if isinstance(stop, list):
+                        stop = stop[0]
                 if s[idx].stop is None:
-                    # stop = shape[0][1]
-                    stop = shape[0][idx]
-                s[idx] = [start, stop]
+                    stop = shape[idx]
+                s[idx] = [int(start), int(stop)]
         if len(s) == 1:
-            if shape[0][0] == 1:
-                s.insert(0, [0, 0])
-            elif shape[0][1] == 1:
-                s.append([0, 0])
+            if shape[0] == 1:
+                s.insert(0, [0, 1])
             else:
-                s.append([0, shape[0][1]])
+                s.append([0, int(shape[1])])
         self.cursor.execute(
-            f"select db4ai_slice('{self.vars[1]}', {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, '{self.vars[0]}');")
+            f"select qp4ai_slice('{self.vars[1]}', {s[0][0]}, {s[0][1]}, {s[1][0]}, {s[1][1]}, '{self.vars[0]}');")
         # self.conn.commit()
 
 
 # 该类用来存储参数变量，如x，y
 class Var(Node):
     def __init__(self, **kwargs):
-        super().__init__(40, **kwargs)
+        super().__init__(**kwargs)
         if 'vars' in kwargs.keys():
             self.set_vars(kwargs['vars'])
         self.grad_fn = None
@@ -1478,27 +1317,27 @@ class Var(Node):
 # 该类实例含义为当前位置值未知，占空，之后被其他类实例取代
 class Blank(Node):
     def __init__(self, **kwargs):
-        super().__init__(41, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Deepcopy(Node):
     def __init__(self, **kwargs):
-        super().__init__(42, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Shallowcopy(Node):
     def __init__(self, **kwargs):
-        super().__init__(43, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Argmax(Node):
     def __init__(self, **kwargs):
-        super().__init__(44, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_argmax('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_argmax('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1506,12 +1345,12 @@ class Argmax(Node):
 
 class Argmin(Node):
     def __init__(self, **kwargs):
-        super().__init__(45, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_argmin('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_argmin('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1519,13 +1358,23 @@ class Argmin(Node):
 
 class Sign(Node):
     def __init__(self, **kwargs):
-        super().__init__(46, **kwargs)
+        super().__init__(**kwargs)
 
 
 class SaveTable(Node):
     def __init__(self, **kwargs):
-        super().__init__(47, **kwargs)
+        super().__init__(**kwargs)
         self.table_name = None
+        self.print_flag = False
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
+        if self.print_flag:
+            self.cursor.execute(f"select qp4ai_select('{self.table_name}');")
+            _, _, data = parse_qp4ai_select(self.cursor.fetch())
+            # self.cursor.execute(f"select * from {self.table_name};")
+            print(f"{self.table_name}: {data[0]}")
 
     def set_name(self, table_name):
         self.table_name = table_name
@@ -1536,13 +1385,12 @@ class SaveTable(Node):
 
 class Full(Node):
     def __init__(self, data_shape, var, num, **kwargs):
-        super().__init__(48, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
             self.data_shape = data_shape
         self.data_shape_var = {}
-        # TODO: infer data_shape
         self.set_vars(var)
         self.num = eval(num)
 
@@ -1551,11 +1399,14 @@ class Full(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.data_shape_var[name] = self.cursor.execute(f"select data from {name}")
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                self.data_shape_var[name] = data
+                # self.data_shape_var[name] = self.cursor.execute(f"select val from {name}")
             # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
         self.cursor.execute(
-            f"select db4ai_full({self.data_shape[0]}, {self.data_shape[1]}, {self.num}, '{self.vars[0]}');")
+            f"select qp4ai_full({self.data_shape[0]}, {self.data_shape[1]}, {self.num}, '{self.vars[0]}');")
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -1570,12 +1421,11 @@ class Full(Node):
 
 class Ones(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(48, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
             self.data_shape = data_shape
-        # TODO: infer data_shape
         self.set_vars(var)
         self.data_shape_var = {}
 
@@ -1584,11 +1434,14 @@ class Ones(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.cursor.execute(f"select data from {name};")
-                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                self.data_shape_var[name] = data
+                # self.cursor.execute(f"select data from {name};")
+                # self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
                 # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
-        self.cursor.execute(f"select db4ai_ones({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_ones({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
 
     def infer_data(self):
         for edge in self.out_edges:
@@ -1603,12 +1456,11 @@ class Ones(Node):
 
 class Zeros(Node):
     def __init__(self, data_shape, var, **kwargs):
-        super().__init__(49, **kwargs)
+        super().__init__(**kwargs)
         if data_shape is None:
             self.data_shape = None
         else:
             self.data_shape = data_shape
-        # TODO: infer data_shape
         self.set_vars(var)
         self.data_shape_var = {}
 
@@ -1617,12 +1469,13 @@ class Zeros(Node):
         if isinstance(self.data_shape, str):
             # 运行时使用变量的值填充变量名
             for name in self.data_shape_var.keys():
-                self.cursor.execute(f"select data from {name};")
-                self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
-                # 转换
+                self.cursor.execute(f"select qp4ai_select('{name}');")
+                _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                self.data_shape_var[name] = data
+                # self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
+            # 转换
             self.data_shape = eval(self.data_shape, self.data_shape_var)
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        self.cursor.execute(f"select db4ai_zeros({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_zeros({self.data_shape[0]}, {self.data_shape[1]}, '{self.vars[0]}');")
         # self.conn.commit()
 
     def infer_data(self):
@@ -1638,19 +1491,19 @@ class Zeros(Node):
 
 class SUM(Node):
     def __init__(self, **kwargs):
-        super().__init__(50, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     def set_axis(self, axis):
         self.axis = axis
 
     '''
-         db4ai_sum将输入表，按列求和（输入参数==0）或按行求和（输入参数==1）,结果保存在输出表中。
+         qp4ai_sum将输入表，按列求和（输入参数==0）或按行求和（输入参数==1）,结果保存在输出表中。
     '''
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_sum('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
         # self.conn.commit()
 
     def backward(self, grad_output=1):
@@ -1659,42 +1512,22 @@ class SUM(Node):
 
 class Relu(Node):
     def __init__(self, **kwargs):
-        super().__init__(51, **kwargs)
+        super().__init__(**kwargs)
 
-    @preprocessing
-    def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
-        self.cursor.execute(f"select data from {self.vars[1]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(data)):
-            if data[i] < 0:
-                data[i] = 0
-        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+    '''参数待补充'''
 
-    def backward(self, grad_output=1):
-        table_name = 'grad_' + str(self.id)
-        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
-        if grad_output == 1:
-            s = table_name
-        if grad_output != 1:
-            s = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(data)):
-            if data[i] > 0:
-                data[i] = 1
-        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
-        if grad_output != 1:
-            self.op_broadcast("mul", s, grad_output,table_name)
-        return table_name
+    def backward(self, grad_output):
+        input_x, = self.saved_tensors
+        if input_x < 0:
+            grad_x = grad_output * 0
+        else:
+            grad_x = grad_output
+        return grad_x
 
 
 class Tanh(Node):
     def __init__(self, **kwargs):
-        super().__init__(52, **kwargs)
+        super().__init__(**kwargs)
 
     '''参数待补充'''
 
@@ -1707,7 +1540,7 @@ class Tanh(Node):
 
 class Softmax(Node):
     def __init__(self, **kwargs):
-        super().__init__(53, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 1
 
     def set_dim(self, dim):
@@ -1715,53 +1548,55 @@ class Softmax(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_softmax('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_softmax('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
 
     '''
         softmax求导较为特殊，设输入为m*n矩阵a，则输出也为m*n矩阵b，求导时，a中每个元素a(i,j)求导结果为m*n矩阵c(a(i,j)),c中除第i行外均为全0
         根据前向传播，grad_output也应为m*n矩阵g,则Σg(i,j)*c(a(i,j))为最终结果(乘以上游梯度后的最终梯度)
         由于m.n较大时建表过多可能影响性能，此处不再将算子梯度与前向梯度区分开
     '''
+
     def backward(self, grad_output):
         table_name = 'grad_' + str(self.id)
         assert grad_output != 1
-        self.cursor.execute(f"drop table if exists {table_name}")
-        self.cursor.execute(f"select * into {table_name} from {self.vars[0]}")
-
-        self.cursor.execute(f"select rows,cols from {grad_output};")
-        grad_output_shape = self.cursor.fetch()
-        self.cursor.execute(f"select data from {grad_output};")
-        grad_output_data = str_to_list(self.cursor.fetch()[0][0])
-        self.cursor.execute(f"select rows,cols from {self.vars[0]};")
-        softmax_shape = self.cursor.fetch()
-        assert softmax_shape == grad_output_shape
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        softmax_data = str_to_list(self.cursor.fetch()[0][0])
-
-        new_data = []
-        for i in range(softmax_shape[0][0]):
-            for r in range(softmax_shape[0][1]):
-                new_data.append(0)
-            for j in range(softmax_shape[0][1]):
-                for k in range(softmax_shape[0][1]):
-                    index = i * softmax_shape[0][1] + k
-                    if j == k:
-                        new_data[index] += softmax_data[index] * (1 - softmax_data[index]) * grad_output_data[i * grad_output_shape[0][1] + j]
-                    else:
-                        new_data[index] += -softmax_data[i * softmax_shape[0][1] + j] * softmax_data[index] * grad_output_data[i * grad_output_shape[0][1] + j]
-
-        self.cursor.execute(f"update {table_name} set data = array{new_data};")
+        self.cursor.execute(f"select qp4ai_back_softmax('{self.vars[0]}','{table_name}','{grad_output}');")
+        # self.cursor.execute(f"drop table if exists {table_name}")
+        # self.cursor.execute(f"select * into {table_name} from {self.vars[0]}")
+        #
+        # self.cursor.execute(f"select rows,cols from {grad_output};")
+        # grad_output_shape = self.cursor.fetch()
+        # self.cursor.execute(f"select data from {grad_output};")
+        # grad_output_data = str_to_list(self.cursor.fetch()[0][0])
+        # self.cursor.execute(f"select rows,cols from {self.vars[0]};")
+        # softmax_shape = self.cursor.fetch()
+        # assert softmax_shape == grad_output_shape
+        # self.cursor.execute(f"select data from {self.vars[0]};")
+        # softmax_data = str_to_list(self.cursor.fetch()[0][0])
+        #
+        # new_data = []
+        # for i in range(softmax_shape[0][0]):
+        #     for r in range(softmax_shape[0][1]):
+        #         new_data.append(0)
+        #     for j in range(softmax_shape[0][1]):
+        #         for k in range(softmax_shape[0][1]):
+        #             index = i * softmax_shape[0][1] + k
+        #             if j == k:
+        #                 new_data[index] += softmax_data[index] * (1 - softmax_data[index]) * grad_output_data[i * grad_output_shape[0][1] + j]
+        #             else:
+        #                 new_data[index] += -softmax_data[i * softmax_shape[0][1] + j] * softmax_data[index] * grad_output_data[i * grad_output_shape[0][1] + j]
+        #
+        # self.cursor.execute(f"update {table_name} set data = array{new_data};")
         return table_name
 
 
 class Sigmod(Node):
     def __init__(self, **kwargs):
-        super().__init__(54, **kwargs)
+        super().__init__(**kwargs)
 
 
 class Elu(Node):
     def __init__(self, **kwargs):
-        super().__init__(55, **kwargs)
+        super().__init__(**kwargs)
         self.alpha = None
 
     def set_alpha(self, alpha):
@@ -1770,7 +1605,7 @@ class Elu(Node):
 
 class Adam(Node):
     def __init__(self, **kwargs):
-        super().__init__(56, **kwargs)
+        super().__init__(**kwargs)
         self.learning_rate = None
 
     def set_learning_rate(self, learning_rate):
@@ -1779,12 +1614,12 @@ class Adam(Node):
 
 class MEAN(Node):
     def __init__(self, **kwargs):
-        super().__init__(57, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_mean('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_mean('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
         # self.conn.commit()
 
     def set_axis(self, axis):
@@ -1793,6 +1628,7 @@ class MEAN(Node):
     '''
         求导结果为各维度长度乘积的倒数
     '''
+
     def backward(self, grad_output=1):
         table_name = "grad_" + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
@@ -1800,21 +1636,22 @@ class MEAN(Node):
             s = table_name
         else:
             s = table_name_temp1
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape = self.cursor.fetch()[0]
-        if self.axis == 0:
-            val = 1 / shape[1]
-        elif self.axis == 1:
-            val = 1 / shape[0]
-        else:
-            val = 1 / (shape[0] * shape[1])
-        data = []
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                data.append(val)
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[1]}")
-        self.cursor.execute(f"update {s} set data = array{data}")
+        self.cursor.execute(f"select qp4ai_back_mean('{self.vars[1]}','{s}',{self.axis});")
+        # self.cursor.execute(f"select rows,cols from {self.vars[1]}")
+        # shape = self.cursor.fetch()[0]
+        # if self.axis == 0:
+        #     val = 1 / shape[1]
+        # elif self.axis == 1:
+        #     val = 1 / shape[0]
+        # else:
+        #     val = 1 / (shape[0] * shape[1])
+        # data = []
+        # for i in range(shape[0]):
+        #     for j in range(shape[1]):
+        #         data.append(val)
+        # self.cursor.execute(f"drop table if exists {s}")
+        # self.cursor.execute(f"select * into {s} from {self.vars[1]}")
+        # self.cursor.execute(f"update {s} set data = array{data}")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
         return table_name
@@ -1822,12 +1659,12 @@ class MEAN(Node):
 
 class MAX(Node):
     def __init__(self, **kwargs):
-        super().__init__(58, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_max('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_max('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1835,12 +1672,12 @@ class MAX(Node):
 
 class MIN(Node):
     def __init__(self, **kwargs):
-        super().__init__(59, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 2
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_min('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_min('{self.vars[1]}', {self.axis}, '{self.vars[0]}');")
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1848,12 +1685,12 @@ class MIN(Node):
 
 class Abs(Node):
     def __init__(self, **kwargs):
-        super().__init__(60, **kwargs)
+        super().__init__(**kwargs)
         self.axis = 0
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_abs('{self.vars[1]}', '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_abs('{self.vars[1]}', '{self.vars[0]}');")
 
     def set_axis(self, axis):
         self.axis = axis
@@ -1862,11 +1699,10 @@ class Abs(Node):
 class SplitDataset(Node):
     def __init__(self, **kwargs):
         # SplitDataset(data:variable, size:tensor)
-        super().__init__(61, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        # TODO：代码实现@樊宣伯, @路亚彬
         raise Exception('SplitDataset未实现')
 
 
@@ -1874,8 +1710,7 @@ class Parameters(Node):
     def __init__(self, **kwargs):
         # Parameters(set_name, var1, var2, ......)
         # 用来声明参数并对参数打包
-        super().__init__(62, **kwargs)
-        # TODO: 解析参数集合的名字, 把vari存入self.vars[i]
+        super().__init__(**kwargs)
         self.set_name = None
 
     @preprocessing
@@ -1887,8 +1722,7 @@ class SaveParameters(Node):
     def __init__(self, **kwargs):
         # SaveParameters(set_name, path)
         # 用来保存指定名称的参数集
-        super().__init__(63, **kwargs)
-        # TODO: 解析参数集合的名字和存储路径
+        super().__init__(**kwargs)
         self.set_name = None
         self.path = None
 
@@ -1899,7 +1733,6 @@ class SaveParameters(Node):
         # for para in paras:
         #     tmp[para] = self.executor.var_dict[para]
         # dump_tensor(tmp, self.path)
-        # TODO: @张恺欣， @路亚彬
         raise Exception('SaveParameters暂未实现')
 
 
@@ -1907,8 +1740,7 @@ class LoadParameters(Node):
     def __init__(self, **kwargs):
         # LoadParameters(set_name, path)
         # 用来保存指定名称的参数集
-        super().__init__(64, **kwargs)
-        # TODO: 解析参数集合的名字和存储路径
+        super().__init__(**kwargs)
         self.set_name = None
         self.path = None
 
@@ -1918,16 +1750,16 @@ class LoadParameters(Node):
         # tensors = load_tensor(self.path)
         # for para in paras:
         #     self.executor.var_dict[para] = tensors[para]
-        # TODO: @张恺欣， @路亚彬
         raise Exception('SaveParameters暂未实现')
 
 
 class AUC(Node):
     def __init__(self, **kwargs):
-        super().__init__(65, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
+        # TODO: 修改AUC
         self.cursor.execute(f"select data from {self.vars[1]}")
         test_y = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select data from {self.vars[2]}")
@@ -1947,10 +1779,11 @@ class AUC(Node):
 
 class MSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(66, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
+        # TODO: 修改MSE
         self.cursor.execute(f"select data from {self.vars[1]}")
         data_1 = str_to_list(self.cursor.fetch()[0][0])
         self.cursor.execute(f"select data from {self.vars[2]}")
@@ -1963,32 +1796,31 @@ class MSE(Node):
 
 class F1(Node):
     def __init__(self, **kwargs):
-        super().__init__(67, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]};")
-        self.cursor.execute(f"select db4ai_f1('{self.vars[1]}','{self.vars[2]}','{self.vars[0]}');")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]};")
+        self.cursor.execute(f"select qp4ai_f1('{self.vars[1]}','{self.vars[2]}','{self.vars[0]}');")
 
 
 class REVERSE(Node):
     def __init__(self, **kwargs):
-        super().__init__(68, **kwargs)
-        # TODO: dims
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_reverse('{self.vars[1]}', 1, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_reverse('{self.vars[1]}', 1, '{self.vars[0]}');")
 
 
 class ARGSORT(Node):
     def __init__(self, **kwargs):
-        super().__init__(69, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 2
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_argsort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_argsort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
 
     def set_axis(self, dim):
         self.dim = dim
@@ -1996,12 +1828,12 @@ class ARGSORT(Node):
 
 class SORT(Node):
     def __init__(self, **kwargs):
-        super().__init__(70, **kwargs)
+        super().__init__(**kwargs)
         self.dim = 2
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select db4ai_sort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
+        self.cursor.execute(f"select qp4ai_sort('{self.vars[1]}', {self.dim}, '{self.vars[0]}');")
 
     def set_dim(self, dim):
         self.dim = dim
@@ -2009,32 +1841,32 @@ class SORT(Node):
 
 class ACC(Node):
     def __init__(self, **kwargs):
-        super().__init__(71, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        self.cursor.execute(f"select db4ai_acc('{self.vars[1]}', '{self.vars[2]}', 1, '{self.vars[0]}')")
+        # self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        self.cursor.execute(f"select qp4ai_acc('{self.vars[1]}', '{self.vars[2]}', 1, '{self.vars[0]}')")
 
 
 class RECALL(Node):
     def __init__(self, **kwargs):
-        super().__init__(72, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
         pass
-        # self.cursor.execute(f"select db4ai_recall('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        # self.cursor.execute(f"select qp4ai_recall('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
 
 
 class PRECISION(Node):
     def __init__(self, **kwargs):
-        super().__init__(73, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
         pass
-        # self.cursor.execute(f"select db4ai_precision('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        # self.cursor.execute(f"select qp4ai_precision('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
 
 
 """
@@ -2044,7 +1876,7 @@ Backward计算叶节点梯度，存放于Node_grad表中
 
 class Backward(Node):
     def __init__(self, **kwargs):
-        super().__init__(74, **kwargs)
+        super().__init__(**kwargs)
         self.retain_graph = False
         if 'retain_graph' in kwargs.keys():
             self.retain_graph = kwargs['retain_graph']
@@ -2070,8 +1902,10 @@ class Backward(Node):
                 print(q)
                 node = tensor.grad_fn
                 table_name = 'grad_input_' + str(node.id)
-                self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
-                node_flag = self.cursor.fetch()[0][0] == 1
+                self.cursor.execute(f"select qp4ai_if_tensor_exists('{table_name}');")
+                node_flag = bool(int(self.cursor.fetch()[0][0]))
+                # self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
+                # node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:
                     tup = node.backward(table_name)
                 else:
@@ -2091,7 +1925,8 @@ class Backward(Node):
                     tensors.append(pre_tensor)
                 # 对父节点中Vars添加到fathers中
                 for pre_fa in node.fathers:
-                    if self.executor.var_dict[pre_fa.vars[0]] not in fathers and pre_fa.__class__.__name__ in ['Var', 'Val']:
+                    if self.executor.var_dict[pre_fa.vars[0]] not in fathers and pre_fa.__class__.__name__ in ['Var',
+                                                                                                               'Val']:
                         flag = 1
                         for father in fathers:
                             if pre_fa.vars == father.vars:
@@ -2128,96 +1963,59 @@ class Backward(Node):
                         else:
                             index += 1
                             continue
+                        self.cursor.execute(f"select qp4ai_if_tensor_exists('{fa_table_name}');")
+                        fa_flag = bool(int(self.cursor.fetch()[0][0]))
+                        # self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}'")
                         _index = index
                         while _index >= len(tup):
                             _index = _index - len(tup)
-                        self.cursor.execute(f"select count(*) from pg_class where relname = '{fa_table_name}';")
-                        if self.cursor.fetch()[0][0] == 0:
+                        if not fa_flag:
                             if tup[_index] == 1:
-                                self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
-                                                    f"trans integer,data double precision[])")
-                                self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
+                                self.cursor.execute(f"select qp4ai_ones(1,1,'{fa_table_name}');")
+                                # self.cursor.execute(f"create table {fa_table_name}(rows integer,cols integer, "
+                                #                     f"trans integer,data double precision[])")
+                                # self.cursor.execute(f"insert into {fa_table_name} values (1,1,0,array{[1.0]})")
                             else:
-                                self.cursor.execute(f"select rows,cols from {father.vars[0]}")
-                                shape = self.cursor.fetch()
-                                self.groupby(tup[_index],fa_table_name,shape[0][0],shape[0][1])
+                                self.cursor.execute(f"select qp4ai_select('{father.vars[0]}');")
+                                *shape, _ = parse_qp4ai_select(self.cursor.fetch())
+                                # self.cursor.execute(f"select rows,cols from {father.vars[0]}")
+                                # shape = self.cursor.fetch()
+                                self.groupby(tup[_index], fa_table_name, shape[0], shape[1])
                         else:
                             if father.__class__.__name__ is 'Var':
                                 old_fa_table_name = 'old_' + fa_table_name
-                                self.cursor.execute(f"drop table if exists {old_fa_table_name}")
-                                self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
-                                self.cursor.execute(f"select rows,cols from {fa_table_name}")
-                                shape = self.cursor.fetch()
+                                self.cursor.execute(f"select qp4ai_assignment('{fa_table_name}','{old_fa_table_name}');")
+                                # self.cursor.execute(f"drop table if exists {old_fa_table_name}")
+                                # self.cursor.execute(f"select * into {old_fa_table_name} from {fa_table_name}")
+                                self.cursor.execute(f"select qp4ai_select('{fa_table_name}');")
+                                *shape, _ = parse_qp4ai_select(self.cursor.fetch())
+                                # self.cursor.execute(f"select rows,cols from {fa_table_name}")
+                                # shape = self.cursor.fetch()
                                 # self.op_broadcast("add", old_fa_table_name, tup[_index], fa_table_name)
-                                group_by_table = 'group_by_'+tup[_index]
-                                self.groupby(tup[_index],group_by_table,shape[0][0],shape[0][1])
+                                group_by_table = 'group_by_' + tup[_index]
+                                self.groupby(tup[_index], group_by_table, shape[0], shape[1])
                                 self.op_broadcast("add", old_fa_table_name, group_by_table, fa_table_name)
-                                drop_table_list.extend([old_fa_table_name,group_by_table])
+                                drop_table_list.extend([old_fa_table_name, group_by_table])
                             else:
-                                self.cursor.execute(f"drop table if exists {fa_table_name}")
-                                self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
+                                self.cursor.execute(f"select qp4ai_assignment('{tup[_index]}','{fa_table_name}');")
+                                # self.cursor.execute(f"drop table if exists {fa_table_name}")
+                                # self.cursor.execute(f"select * into {fa_table_name} from {tup[_index]}")
                     index += 1
-        self.compare_with_torch()
         # c = Test()
         # c.test(self.cursor)
         for i in drop_table_list:
-            self.cursor.execute(f"drop table if exists {i}")
-        self.cursor.execute("select data from __0loss")
-        print(str_to_list(self.cursor.fetch()[0][0])[0])
+            self.cursor.execute(f"select qp4ai_erase_element('{i}');")
+            # self.cursor.execute(f"drop table if exists {i}")
 
         if not self.retain_graph:
             for i in self.executor.tensor_dict.keys():
                 self.executor.tensor_dict[i].clear_next()
             # self.conn.commit()
 
-    def change_table_to_tensor(self,table_name):
-        self.cursor.execute(f"select rows,cols from {table_name}")
-        shape = self.cursor.fetch()
-        self.cursor.execute(f"select data from {table_name}")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        tensor = []
-        for i in range(shape[0][0]):
-            l = []
-            for j in range(shape[0][1]):
-                l.append(float(data[i*shape[0][1] + j]))
-            tensor.append(l)
-        tensor = torch.tensor(tensor,requires_grad=True)
-        return tensor
-
-    def compare_with_torch(self):
-        x = self.change_table_to_tensor("x")
-        y = self.change_table_to_tensor("y")
-        w_0 = self.change_table_to_tensor("__0w_0")
-        b_0 = self.change_table_to_tensor("__0b_0")
-        w_1 = self.change_table_to_tensor("__0w_1")
-        b_1 = self.change_table_to_tensor("__0b_1")
-        w_2 = self.change_table_to_tensor("__0w_2")
-        b_2 = self.change_table_to_tensor("__0b_2")
-        w_3 = self.change_table_to_tensor("__0w_3")
-        b_3 = self.change_table_to_tensor("__0b_3")
-        output_0 = torch.relu(torch.matmul(x,w_0)+b_0)
-        output_1 = torch.relu(torch.matmul(output_0,w_1)+b_1)
-        output_2 = torch.relu(torch.matmul(output_1,w_2)+b_2)
-        output_3 = 1/(1+torch.exp(-1*(torch.matmul(output_2,w_3)+b_3)))
-        loss = -1 * torch.mean(y*torch.log(output_3)+(1-y)*torch.log(1-output_3))
-        loss.backward()
-        print(w_0.grad)
-        print(w_1.grad)
-        print(w_2.grad)
-        print(w_3.grad)
-        print(b_0.grad)
-        print(b_1.grad)
-        print(b_2.grad)
-        print(b_3.grad)
-
-
-
-
-
 
 class WLS(Node):
     def __init__(self, **kwargs):
-        super().__init__(75, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
@@ -2229,47 +2027,49 @@ class WLS(Node):
 
 class REPEAT(Node):
     def __init__(self, **kwargs):
-        super().__init__(76, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(
-            f"select db4ai_repeat('{self.vars[1]}', '{self.vars[4]}', '{self.vars[3]}', {self.vars[0]}');")
+            f"select qp4ai_repeat('{self.vars[1]}', '{self.vars[4]}', '{self.vars[3]}', {self.vars[0]}');")
 
     '''
         求导结果为扩充倍数乘积
     '''
+
     def backward(self, grad_output=1):
-        table_name = "grad_" + str(self.id)
-        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
-        if grad_output == 1:
-            s = table_name
-        else:
-            s = table_name_temp1
-        self.cursor.execute(f"select data from {self.vars[2]}")
-        vars_2 = str_to_list(self.cursor.fetch()[0][0])[0]
-        self.cursor.execute(f"select data from {self.vars[3]}")
-        vars_3 = str_to_list(self.cursor.fetch()[0][0])[0]
-        self.cursor.execute(f"select data from {self.vars[4]}")
-        vars_4 = str_to_list(self.cursor.fetch()[0][0])[0]
-        t = vars_2 * vars_3 * vars_4
-        self.cursor.execute(f"select rows,cols from {self.vars[1]}")
-        shape = self.cursor.fetch()
-        data = []
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                data.append(t)
-        self.cursor.execute(f"select * into {s} from {self.vars[1]}")
-        self.cursor.execute(f"update {s} set data = {data}")
-        # self.conn.commit()
-        if grad_output == 1:
-            self.op_broadcast("mul", s, grad_output, table_name)
-        return table_name
+        raise Exception("repeat_backward未实现")
+        # table_name = "grad_" + str(self.id)
+        # table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        # if grad_output == 1:
+        #     s = table_name
+        # else:
+        #     s = table_name_temp1
+        # self.cursor.execute(f"select data from {self.vars[2]}")
+        # vars_2 = str_to_list(self.cursor.fetch()[0][0])[0]
+        # self.cursor.execute(f"select data from {self.vars[3]}")
+        # vars_3 = str_to_list(self.cursor.fetch()[0][0])[0]
+        # self.cursor.execute(f"select data from {self.vars[4]}")
+        # vars_4 = str_to_list(self.cursor.fetch()[0][0])[0]
+        # t = vars_2 * vars_3 * vars_4
+        # self.cursor.execute(f"select rows,cols from {self.vars[1]}")
+        # shape = self.cursor.fetch()
+        # data = []
+        # for i in range(shape[0]):
+        #     for j in range(shape[1]):
+        #         data.append(t)
+        # self.cursor.execute(f"select * into {s} from {self.vars[1]}")
+        # self.cursor.execute(f"update {s} set data = {data}")
+        # # self.conn.commit()
+        # if grad_output == 1:
+        #     self.op_broadcast("mul", s, grad_output, table_name)
+        # return table_name
 
 
 class UNSQUEEZE(Node):
     def __init__(self, **kwargs):
-        super().__init__(77, **kwargs)
+        super().__init__(**kwargs)
         self.dim = None
 
     @preprocessing
@@ -2282,42 +2082,48 @@ class UNSQUEEZE(Node):
 
 class CleanGrad(Node):
     def __init__(self, **kwargs):
-        super().__init__(78, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {'grad_' + self.vars[0]}")
+        #
+        self.cursor.execute(f"select qp4ai_erase_element('grad_{self.vars[0]}');")
+        print(f'clean grad:grad_{self.vars[0]}')
+        # self.cursor.execute(f"drop table if exists {'grad_' + self.vars[0]}")
         # self.conn.commit()
 
 
 class Negative(Node):
     def __init__(self, **kwargs):
-        super().__init__(79, **kwargs)
+        super().__init__(**kwargs)
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]}")
-        self.cursor.execute(f"select data from {self.vars[1]}")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        update = []
-        for i in data:
-            update.append(-1 * i)
-        self.cursor.execute(f"update {self.vars[0]} set data = array{update}")
+        self.cursor.execute(f"select qp4ai_negative('{self.vars[0]}','{self.vars[1]}']);")
+        # self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
+        # self.cursor.execute(f"select data from {self.vars[1]}")
+        # data = str_to_list(self.cursor.fetch()[0][0])
+        # update = []
+        # for i in data:
+        #     update.append(-1 * i)
+        # self.cursor.execute(f"update {self.vars[1]} set data = array{update}")
         # self.conn.commit()
 
     '''
         求导值为-1，直接存储即可
     '''
-    def backward(self, grad_output=1):
+
+    def backward(self, grad_output):
         table_name = 'grad_' + str(self.id)
-        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        table_name_temp1 = 'grad_' + self.id + '_temp1'
         if grad_output == 1:
             s = table_name
-        if grad_output != 1:
+        else:
             s = table_name_temp1
-        self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
-        self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
+        self.cursor.execute(f"select qp4ai_back_negative('{s}')")
+
+        # self.cursor.execute(f"create table {s}(rows int, cols int,trans int,data double precision[])")
+        # self.cursor.execute(f"insert into {s} values (1,1,0,array{[-1]})")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
             # self.conn.commit()
@@ -2383,5 +2189,3 @@ def InstantiationClass(nodeId, nodeType, branches=None, with_grad=False, **other
     else:
         node = globals()[nodeType](id=nodeId, branches=branches, with_grad=with_grad, **otherField)
     return node
-
-

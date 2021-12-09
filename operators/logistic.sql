@@ -11,8 +11,12 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         select CleanGrad(w)
         select Backward(loss, w)
         SELECT GRADIENT(w) AS g
+        # select SaveTable(g, logistic_w_grad, print)
         update w-learning_rate * g AS w
+        # select SaveTable(w, logistic_w, print)
     }
+    select SaveTable(w, logistic_w, null)
+    select SaveTable(hx, logistic_hx, null)
     select SHAPE(test_x) as sx
     select sx[0] as record_num
     select 1/(1+POW(CONSTANT.E, -1 * MATMUL(test_x, w))) as pred
@@ -32,11 +36,11 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         }
         select i+1 as i
     }
-    select AUC(test_y, pred) as auc
+    # select AUC(test_y, pred) as auc
     select ACC(test_y, pred) as acc
-    select RECALL(test_y, pred) as recall
-    select PRECISION(test_y, pred) as prec
-    select MSE(test_y, pred) as mse
-    select F1(test_y, pred) as f1
+    # select RECALL(test_y, pred) as recall
+    # select PRECISION(test_y, pred) as prec
+    # select MSE(test_y, pred) as mse
+    # select F1(test_y, pred) as f1
 }
 # 测试通过
