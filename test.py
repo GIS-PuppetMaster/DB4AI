@@ -1,10 +1,5 @@
-from Executor import Executor
-from SecondLevelLanguageParser import Parser
+import numpy as np
 
-path = f'test.txt'
-with open(path, 'r', encoding='utf-8') as f:
-    create_test = f.readlines()
-testPar = Parser(create_test)
-result = testPar()
-executor = Executor(result)
-executor.run()
+a = np.array([[1,2],[3,4],[5,6]])
+b = np.array([[1,2,3],[4,5,6]])
+print(np.matmul(a,b))

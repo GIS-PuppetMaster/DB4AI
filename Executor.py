@@ -27,6 +27,7 @@ class Executor:
         self.graph = graph
         self.cursor = GDBC()
         self.cursor.connect()
+        self.cursor.execute('select qp4ai_erase_map();')
         # 有错误
         # self.graph = deepcopy(graph)
         # self.remove_extra_edges()

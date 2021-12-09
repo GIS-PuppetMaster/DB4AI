@@ -11,7 +11,9 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         select CleanGrad(w)
         select Backward(loss, w)
         SELECT GRADIENT(w) AS g
+        # select SaveTable(g, logistic_w_grad, print)
         update w-learning_rate * g AS w
+        # select SaveTable(w, logistic_w, print)
     }
     select SaveTable(w, logistic_w, null)
     select SaveTable(hx, logistic_hx, null)
