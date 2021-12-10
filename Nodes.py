@@ -1526,6 +1526,7 @@ class Relu(Node):
         self.cursor.execute(f"drop table if exists {self.vars[0]}")
         self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
         self.cursor.execute(f"select data from {self.vars[1]};")
+
         data = str_to_list(self.cursor.fetch()[0][0])
         for i in range(len(data)):
             if data[i] < 0:
@@ -1576,8 +1577,8 @@ class LeakyRelu(Node):
             s = table_name_temp1
         self.cursor.execute(f"drop table if exists {s}")
         self.cursor.execute(f"select * into {s} from {self.vars[0]};")
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
+        self.cursor.execute(f"select qp4ai_select('{name}');")
+        _, _, data = parse_qp4ai_select(self.cursor.fetch())
         for i in range(len(data)):
             if data[i] > 0:
                 data[i] = 1
