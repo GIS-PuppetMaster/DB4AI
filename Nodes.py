@@ -1220,15 +1220,15 @@ class EXP(Node):
     '''
 
     def backward(self, grad_output=1):
-        # TODO: back_exp
         table_name = 'grad_' + str(self.id)
         temp_table_name = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
         else:
             s = temp_table_name
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[0]}")
+        self.cursor.execute(f"select qp4ai_assignment('{self.vars[0]}','{s}');")
+        # self.cursor.execute(f"drop table if exists {s}")
+        # self.cursor.execute(f"select * into {s} from {self.vars[0]}")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
         return table_name
