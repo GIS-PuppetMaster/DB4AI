@@ -17,7 +17,8 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
         select LeakyRelu(MATMUL(output_0,w_1)+b_1) as output_1
         select LeakyRelu(MATMUL(output_1,w_2)+b_2) as output_2
         select 1/(1+EXP(-1 * (MATMUL(output_2,w_3)+b_3))) as output_3
-        select -MEAN(y*LOG(output_3)+(1-y)*LOG(1-output_3)) as loss
+        # select -MEAN(y*LOG(output_3)+(1-y)*LOG(1-output_3)) as loss
+        select MEAN(POW(y-output_3,2)) as loss
         select CleanGrad(w_0)
         select CleanGrad(b_0)
         select CleanGrad(w_1)
@@ -44,11 +45,13 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
     select SHAPE(test_x) as sx
     select sx[0] as record_num
     LOOP(record_num){
-        if(pred[i]>=0.5){
+        if(pred[i,0]>=pred[i,1]){
             select 1 as pred[i,0]
+            select 0 as pred[i,1]
         }
         else{
             select 1 as pred[i,1]
+            select 0 as pred[i,0]
         }
         select i+1 as i
     }

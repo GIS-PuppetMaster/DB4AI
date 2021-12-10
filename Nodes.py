@@ -590,9 +590,11 @@ class If(Node):
     def next_nodes(self):
         for edge in self.out_edges:
             para = {}
+            shape = {}
             for var_name, var_node in edge.need_var:
                 self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
-                _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                rows, cols, result = parse_qp4ai_select(self.cursor.fetch())
+                shape[var_name] = [rows, cols]
                 # self.cursor.execute(f"select data from {var_node.vars[0]}")
                 # result = str_to_list(self.cursor.fetch()[0][0])
                 if len(result) == 1:
@@ -605,7 +607,14 @@ class If(Node):
                         para[var_name] = list(result)
                     else:
                         para[var_name] = result
-            res = eval(edge.condition, para)
+            try:
+                if ',' in edge.condition and ':' not in edge.condition:
+                    group = re.findall(r'[a-zA-Z]+\[', edge.condition)
+                    for i in range(len(group)):
+                        edge.condition = edge.condition[:edge.condition.index(',')]+'*'+str(shape[group[i][:-1]][1])+'+'+edge.condition[edge.condition.index(',')+1:]
+                res = eval(edge.condition, para)
+            except TypeError:
+                print("TypeError")
             if edge.reverse:
                 res = not res
             if res:
