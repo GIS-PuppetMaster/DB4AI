@@ -2815,3 +2815,35 @@ qp4ai_back_softmax(PG_FUNCTION_ARGS){
     matrixMap[output_table_name] = *res;
     PG_RETURN_INT32(0);
 }
+
+PG_FUNCTION_INFO_V1(_Z10qp4ai_reluP20FunctionCallInfoData); // register function as V1
+Datum
+qp4ai_relu(PG_FUNCTION_ARGS){
+    // get param
+    string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    Matrix *mtrx = &matrixMap[input_table_name];
+    Matrix *res = (Matrix*)malloc(sizeof(Matrix));
+    my_matrix_init(res, mtrx->rows, mtrx->columns);
+    for (int i=0;i<mtrx->rows*mtrx->columns;i++){
+        res->data[i] = mtrx->data[i]>0?mtrx->data[i]:0;
+    }
+    matrixMap[output_table_name] = *res;
+    PG_RETURN_INT32(0);
+}
+
+PG_FUNCTION_INFO_V1(_Z15qp4ai_back_reluP20FunctionCallInfoData); // register function as V1
+Datum
+qp4ai_back_relu(PG_FUNCTION_ARGS){
+    // get param
+    string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    Matrix *mtrx = &matrixMap[input_table_name];
+    Matrix *res = (Matrix*)malloc(sizeof(Matrix));
+    my_matrix_init(res, mtrx->rows, mtrx->columns);
+    for (int i=0;i<mtrx->rows*mtrx->columns;i++){
+        res->data[i] = mtrx->data[i]>0?1:0;
+    }
+    matrixMap[output_table_name] = *res;
+    PG_RETURN_INT32(0);
+}

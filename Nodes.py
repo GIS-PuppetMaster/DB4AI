@@ -1521,15 +1521,15 @@ class Relu(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"select qp4ai_relu('{self.vars[1]}', '{self.vars[0]}');")
     '''参数待补充'''
 
     def backward(self, grad_output):
-        input_x, = self.saved_tensors
-        if input_x < 0:
-            grad_x = grad_output * 0
-        else:
-            grad_x = grad_output
-        return grad_x
+        # TODO
+        # self.cursor.execute(f"select qp4ai_back_relu('{}', '{}');")
+        return
 
 
 class Tanh(Node):
