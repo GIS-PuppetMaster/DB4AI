@@ -41,9 +41,9 @@ class GDBC(object):
         try:
             self.cursor.execute(sql)
             self.cursor.commit()
-            self.ans = self.cursor.fetchall()
-            if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
-                assert self.ans[0][0]==0
+            # self.ans = self.cursor.fetchall()
+            # if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
+            #     assert self.ans[0][0]==0
         except :
             raise Exception(f'error sql:{sql}')
             # self.ans = "no result"
@@ -68,6 +68,43 @@ if __name__ == '__main__':
     gdbc = GDBC()
     gdbc.connect()
     i = 0
+    gdbc.execute(f"drop table if exists real_multi_class_x")
+    gdbc.execute(f"drop table if exists real_multi_class_test_x")
+    gdbc.execute(f"drop table if exists real_multi_class_y")
+    gdbc.execute(f"drop table if exists real_multi_class_test_y")
+    gdbc.execute(f"create table real_multi_class_x(dim1 float,dim2 float,dim3 float,dim4 float,dim5 float,dim6 float)")
+    gdbc.execute(f"create table real_multi_class_test_x(dim1 float,dim2 float,dim3 float,dim4 float,dim5 float,dim6 float)")
+    gdbc.execute(f"create table real_multi_class_y(flag1 int,flag2 int,flag3 int,flag4 int)")
+    gdbc.execute(f"create table real_multi_class_test_y(flag1 int,flag2 int,flag3 int,flag4 int)")
+
+    with open('car.txt') as f:
+        texts = f.readlines()
+        buying = ['vhigh', 'high', 'med', 'low']
+        maint = ['vhigh', 'high', 'med', 'low']
+        doors = ['2', '3', '4', '5more']
+        persons = ['2', '4', 'more']
+        lug_boot =['small', 'med', 'big']
+        safety = ['low', 'med', 'high']
+        if_ac = ['acc', 'unacc','good','vgood']
+        for i in range(len(texts)):
+            print(i)
+            text = texts[i].strip().split(',')
+            if i % 10 == 0:
+                s_x = "real_multi_class_test_x"
+                s_y = "real_multi_class_test_y"
+            else:
+                s_x = "real_multi_class_x"
+                s_y = "real_multi_class_y"
+            gdbc.execute(f"insert into {s_x} values ({buying.index(text[0])*0.25}, {maint.index(text[1])*0.25}, {doors.index(text[2])*0.25}"
+                      f", {persons.index(text[3])*0.33}, {lug_boot.index(text[4])*0.33}, {safety.index(text[5])*0.33})")
+            if if_ac.index(text[6]) == 0:
+                gdbc.execute(f"insert into {s_y} values (1,0,0,0)")
+            if if_ac.index(text[6]) == 1:
+                gdbc.execute(f"insert into {s_y} values (0,1,0,0)")
+            if if_ac.index(text[6]) == 2:
+                gdbc.execute(f"insert into {s_y} values (0,0,1,0)")
+            if if_ac.index(text[6]) == 3:
+                gdbc.execute(f"insert into {s_y} values (0,0,0,1)")
     # gdbc.execute("drop table if exists real_x")
     # gdbc.execute("drop table if exists real_y")
     # gdbc.execute("drop table if exists real_test_x")
