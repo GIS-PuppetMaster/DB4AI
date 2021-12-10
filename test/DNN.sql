@@ -27,9 +27,9 @@ loop(100){
     }
     select i+1 as i
 }
-create tensor lr(1,) from 0.005
+create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
-create tensor iter_times(1,) from 1000
+create tensor iter_times(1,) from 100
 create tensor mse(1,)
 create tensor auc(1,)
 create tensor f1(1,)
@@ -42,4 +42,4 @@ loop(3){
     select 4-i as layer_units[i,...]
     select i+1 as i
 }
-select DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_times)
+select DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_times,class_num)
