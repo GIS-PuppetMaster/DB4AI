@@ -1,8 +1,34 @@
-import numpy as np
+from gdbc import GDBC
+g = GDBC()
+g.connect()
+g.execute(f"drop table if exists real_multi_class_x")
+g.execute(f"drop table if exists real_multi_class_test_x")
+g.execute(f"drop table if exists real_multi_class_y")
+g.execute(f"drop table if exists real_multi_class_test_y")
+g.execute(f"create table real_multi_class_x(dim1 float,dim2 float,dim3 float,dim4 float,dim5 float,dim6 float)")
+g.execute(f"create table real_multi_class_test_x(dim1 float,dim2 float,dim3 float,dim4 float,dim5 float,dim6 float)")
+g.execute(f"create table real_multi_class_y(flag int)")
+g.execute(f"create table real_multi_class_test_y(flag int)")
 
-x = np.array([0.267762, 0.803412, 0.344844, 0.648823, 0.456428, 0.474908, 0.39495, 0.644212, 0.970553, 0.251519, 0.567997, 0.033294, 0.868954, 0.505841, 0.287334, 0.905899, 0.496064, 0.542433, 0.796279, 0.364818, 0.116333, 0.208435, 0.644666, 0.035644, 0.940111, 0.825792, 0.929354, 0.424433, 0.766051, 0.418562, 0.235416, 0.033813, 0.221974, 0.58026, 0.682636, 0.678402, 0.055168, 0.077587, 0.322613, 0.025721])
-x= x.reshape((10,4))
-w = np.array([0.267762, 0.803412, 0.344844, 0.648823, 0.456428, 0.474908, 0.39495, 0.644212, 0.970553, 0.251519, 0.567997, 0.033294])
-w=w.reshape((4,3))
-print(np.matmul(x,w).flatten().tolist())
-print([0.892357, 1.172505, 0.830174, 0.748363, 1.203803, 0.787703, 0.655773, 1.0620954503328008e+248, 3.98450697373691e+252, 0.902208, 1.62866, 0.848916, 0.891019, 1.366312, 1.213647, 0.429963, 0.624146, 0.765973, 1.261321, 1.971989, 1.632485, 0.578174, 0.977361, 0.692556, 0.876161, 1.268276, 1.037237, 0.198997, 0.302176, 0.369841])
+with open('d:/Users/LU/Desktop/car.txt') as f:
+    texts = f.readlines()
+    buying = ['vhigh', 'high', 'med', 'low']
+    maint = ['vhigh', 'high', 'med', 'low']
+    doors = ['2', '3', '4', '5more']
+    persons = ['2', '4', 'more']
+    lug_boot =['small', 'med', 'big']
+    safety = ['low', 'med', 'high']
+    if_ac = ['acc', 'unacc']
+    for i in range(len(texts)):
+        text = texts[i].strip().split(',')
+        if i % 10 == 0:
+            s_x = "real_multi_class_test_x"
+            s_y = "real_multi_class_test_y"
+        else:
+            s_x = "real_multi_class_x"
+            s_y = "real_multi_class_y"
+        g.execute(f"insert into {s_x} values ({buying.index(text[0])*0.25}, {maint.index(text[1])*0.25}, {doors.index(text[2])*0.25}"
+                  f", {persons.index(text[3])*0.33}, {lug_boot.index(text[4])*0.33}, {safety.index(text[5])*0.33})")
+        g.execute(f"insert into {s_y} values ({if_ac.index(text[6])})")
+        print(text)
+    print(texts)
