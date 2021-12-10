@@ -144,7 +144,7 @@ class Executor:
                         return False
                     elif father.branches[-1] == current_node.selected_branch:
                         return False
-        # print(current_node)
+        print(current_node)
         current_node.run(visited=visited, executor=self)
         current_node.finished = True
         return True

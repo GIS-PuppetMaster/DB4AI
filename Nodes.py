@@ -71,8 +71,9 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
-        print(f'gc: {self.name}')
+        pass
+        # self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
+        # print(f'gc: {self.name}')
 
 
 def preprocessing(fun):
@@ -346,7 +347,7 @@ class Node:
                 for i in range(len(data)):
                     sum += data[i]
                 self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
-                self.cursor.execute(f"select qp4ai_update_data({'{sum}'}, '{table_name_2}');")
+                self.cursor.execute("select qp4ai_update_data('{"+str(sum)+"}'"+f", '{table_name_2}');")
                 # self.cursor.execute(f"drop table if exists {table_name_2}")
                 # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
                 #                     f"precision[] )")
@@ -719,7 +720,7 @@ class Assignment(Node):
                     print(old_data)
                     print(shape)
                 d = str(old_data).replace('[', '{').replace(']', '}')
-                self.cursor.execute(f"select qp4ai_update_data('{d}','{self.vars[0]}');")
+                self.cursor.execute("select qp4ai_update_data('{"+str(d)+"}'"+f",'{self.vars[0]}');")
                 # self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
