@@ -93,7 +93,7 @@ simple_operator = ('+', '-', '*', '/')
 none_operator = ('Ones', 'Zeros')
 single_operator = ('LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET', 'RANK', 'TRACE', 'RESHAPE',
                    'TRANSPOSE', 'SHAPE', 'EXP', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign', 'SaveTable',
-                   'SUM', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
+                   'SUM', 'Relu','LeakyRelu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT', 'SORT',
                    'REVERSE', 'GRADIENT', 'UNSQUEEZE', 'TensorFromSql')
 multiple_operator = ('MATMUL', 'DOT', 'INNER', 'OUTER', 'TENSORDOT', 'KRON', 'STACK', 'Adam', 'AUC', 'MSE',
                      'F1', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT', 'Backward', 'CleanGrad')
