@@ -10,8 +10,8 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
     create tensor b_1(1,lu_1) from zeros((1,lu_1)) with grad
     create tensor w_2(lu_1,lu_2) from random((lu_1,lu_2),(0,1)) with grad
     create tensor b_2(1,lu_2) from zeros((1,lu_2)) with grad
-    create tensor w_3(lu_2,1) from random((lu_2,1),(0,1)) with grad
-    create tensor b_3(1,1) from zeros((1,1)) with grad
+    create tensor w_3(lu_2,2) from random((lu_2,2),(0,1)) with grad
+    create tensor b_3(1,2) from zeros((1,2)) with grad
     LOOP(iter_times){
         select LeakyRelu(MATMUL(x,w_0)+b_0) as output_0
         select LeakyRelu(MATMUL(output_0,w_1)+b_1) as output_1
