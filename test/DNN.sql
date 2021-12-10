@@ -14,7 +14,7 @@ loop(1000){
     select i+1 as i
 }
 create tensor test_x(100,4) from random((100,4),(0,1))
-create tensor test_y(100,1) from zeros((100,1))
+create tensor test_y(100,2) from zeros((100,2))
 select Argmax(test_x, 1) as tmp
 select 0 as i
 loop(100){

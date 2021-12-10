@@ -41,9 +41,9 @@ class GDBC(object):
         try:
             self.cursor.execute(sql)
             self.cursor.commit()
-            # self.ans = self.cursor.fetchall()
-            # if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
-            #     assert self.ans[0][0]==0
+            self.ans = self.cursor.fetchall()
+            if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
+                assert self.ans[0][0]==0
         except :
             raise Exception(f'error sql:{sql}')
             # self.ans = "no result"
