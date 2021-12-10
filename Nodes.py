@@ -1263,7 +1263,7 @@ class Slice(Node):
                 _, _, temp = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select data from {s[idx]};")
                 # temp = str_to_list(self.cursor.fetch()[0][0])
-                s[idx] = [temp[0], temp[0]]
+                s[idx] = [int(temp[0]), int(temp[0])+1]
             elif isinstance(s[idx], slice):
                 start = s[idx].start
                 stop = s[idx].stop
@@ -1437,6 +1437,9 @@ class Ones(Node):
             for name in self.data_shape_var.keys():
                 self.cursor.execute(f"select qp4ai_select('{name}');")
                 _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                if isinstance(data, list):
+                    assert len(data) == 1
+                    data = data[0]
                 self.data_shape_var[name] = data
                 # self.cursor.execute(f"select data from {name};")
                 # self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
@@ -1472,6 +1475,9 @@ class Zeros(Node):
             for name in self.data_shape_var.keys():
                 self.cursor.execute(f"select qp4ai_select('{name}');")
                 _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                if isinstance(data, list):
+                    assert len(data) == 1
+                    data = data[0]
                 self.data_shape_var[name] = data
                 # self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
             # 转换

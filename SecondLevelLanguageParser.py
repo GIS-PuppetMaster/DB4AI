@@ -894,7 +894,7 @@ if __name__ == '__main__':
     from time import time
     # algorithm = 'DNN'
     s = time()
-    algorithm = 'logistic'
+    algorithm = 'Softmax'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()
@@ -905,7 +905,7 @@ if __name__ == '__main__':
         create_test = f.readlines()
     testPar = Parser(create_test)
     result = testPar()
-    result.Show()
+    # result.Show()
     executor = Executor(result)
     s = time()
     executor.run()
