@@ -17,7 +17,7 @@ from gdbc import GDBC
 operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
              'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
              'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-             'Slice', 'Relu','LeakyRelu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+             'Slice', 'Relu', 'LeakyRelu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
@@ -91,7 +91,7 @@ def preprocessing(fun):
             flag = 0
         else:
             flag = 1
-        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Slice','Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
+        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Slice', 'Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
@@ -347,7 +347,7 @@ class Node:
                 for i in range(len(data)):
                     sum += data[i]
                 self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
-                self.cursor.execute("select qp4ai_update_data('{"+str(sum)+"}'"+f", '{table_name_2}');")
+                self.cursor.execute("select qp4ai_update_data('{" + str(sum) + "}'" + f", '{table_name_2}');")
                 # self.cursor.execute(f"drop table if exists {table_name_2}")
                 # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
                 #                     f"precision[] )")
@@ -720,7 +720,7 @@ class Assignment(Node):
                     print(old_data)
                     print(shape)
                 d = str(old_data).replace('[', '{').replace(']', '}')
-                self.cursor.execute("select qp4ai_update_data('{"+str(d)+"}'"+f",'{self.vars[0]}');")
+                self.cursor.execute("select qp4ai_update_data('{" + str(d) + "}'" + f",'{self.vars[0]}');")
                 # self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
@@ -1263,7 +1263,7 @@ class Slice(Node):
                 _, _, temp = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select data from {s[idx]};")
                 # temp = str_to_list(self.cursor.fetch()[0][0])
-                s[idx] = [int(temp[0]), int(temp[0])+1]
+                s[idx] = [int(temp[0]), int(temp[0]) + 1]
             elif isinstance(s[idx], slice):
                 start = s[idx].start
                 stop = s[idx].stop
@@ -1524,6 +1524,7 @@ class Relu(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_relu('{self.vars[1]}', '{self.vars[0]}');")
+
     '''参数待补充'''
 
     def backward(self, grad_output):
@@ -1531,18 +1532,12 @@ class Relu(Node):
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
-        if grad_output != 1:
+        else:
             s = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(data)):
-            if data[i] > 0:
-                data[i] = 1
-        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        self.cursor.execute(f"select qp4ai_relu('{self.vars[0]}', '{s}');")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
+
 
 class LeakyRelu(Node):
     def __init__(self, **kwargs):
@@ -1550,35 +1545,20 @@ class LeakyRelu(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"drop table if exists {self.vars[0]}")
-        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
-        self.cursor.execute(f"select data from {self.vars[1]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(data)):
-            if data[i] < 0:
-                data[i] = 0.1 * data[i]
-        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        self.cursor.execute(f"select qp4ai_leakyrelu('{self.vars[1]}', '{self.vars[0]}');")
 
     def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
         table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
-        if grad_output != 1:
+        else:
             s = table_name_temp1
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
-        self.cursor.execute(f"select data from {self.vars[0]};")
-        data = str_to_list(self.cursor.fetch()[0][0])
-        for i in range(len(data)):
-            if data[i] > 0:
-                data[i] = 1
-            else:
-                data[i] = 0.1
-        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        self.cursor.execute(f"select qp4ai_leakyrelu('{self.vars[0]}', '{s}');")
         if grad_output != 1:
-            self.op_broadcast("mul", s, grad_output,table_name)
+            self.op_broadcast("mul", s, grad_output, table_name)
         return table_name
+
 
 class Tanh(Node):
     def __init__(self, **kwargs):
