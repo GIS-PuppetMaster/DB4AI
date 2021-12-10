@@ -71,8 +71,9 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
-        print(f'gc: {self.name}')
+        pass
+        # self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
+        # print(f'gc: {self.name}')
 
 
 def preprocessing(fun):
@@ -346,7 +347,7 @@ class Node:
                 for i in range(len(data)):
                     sum += data[i]
                 self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
-                self.cursor.execute(f"select qp4ai_update_data({'{sum}'}, '{table_name_2}');")
+                self.cursor.execute("select qp4ai_update_data('{"+str(sum)+"}'"+f", '{table_name_2}');")
                 # self.cursor.execute(f"drop table if exists {table_name_2}")
                 # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
                 #                     f"precision[] )")
@@ -719,7 +720,7 @@ class Assignment(Node):
                     print(old_data)
                     print(shape)
                 d = str(old_data).replace('[', '{').replace(']', '}')
-                self.cursor.execute(f"select qp4ai_update_data('{d}','{self.vars[0]}');")
+                self.cursor.execute("select qp4ai_update_data('{"+str(d)+"}'"+f",'{self.vars[0]}');")
                 # self.cursor.execute(f"update {self.vars[0]} set data = array{old_data};")
 
 
@@ -1219,15 +1220,15 @@ class EXP(Node):
     '''
 
     def backward(self, grad_output=1):
-        # TODO: back_exp
         table_name = 'grad_' + str(self.id)
         temp_table_name = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
         else:
             s = temp_table_name
-        self.cursor.execute(f"drop table if exists {s}")
-        self.cursor.execute(f"select * into {s} from {self.vars[0]}")
+        self.cursor.execute(f"select qp4ai_assignment('{self.vars[0]}','{s}');")
+        # self.cursor.execute(f"drop table if exists {s}")
+        # self.cursor.execute(f"select * into {s} from {self.vars[0]}")
         if grad_output != 1:
             self.op_broadcast("mul", s, grad_output, table_name)
         return table_name
@@ -1262,7 +1263,7 @@ class Slice(Node):
                 _, _, temp = parse_qp4ai_select(self.cursor.fetch())
                 # self.cursor.execute(f"select data from {s[idx]};")
                 # temp = str_to_list(self.cursor.fetch()[0][0])
-                s[idx] = [temp[0], temp[0]]
+                s[idx] = [int(temp[0]), int(temp[0])+1]
             elif isinstance(s[idx], slice):
                 start = s[idx].start
                 stop = s[idx].stop
@@ -1436,6 +1437,9 @@ class Ones(Node):
             for name in self.data_shape_var.keys():
                 self.cursor.execute(f"select qp4ai_select('{name}');")
                 _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                if isinstance(data, list):
+                    assert len(data) == 1
+                    data = data[0]
                 self.data_shape_var[name] = data
                 # self.cursor.execute(f"select data from {name};")
                 # self.data_shape_var[name] = str_to_list(self.cursor.fetch()[0][0])[0]
@@ -1471,6 +1475,9 @@ class Zeros(Node):
             for name in self.data_shape_var.keys():
                 self.cursor.execute(f"select qp4ai_select('{name}');")
                 _, _, data = parse_qp4ai_select(self.cursor.fetch())
+                if isinstance(data, list):
+                    assert len(data) == 1
+                    data = data[0]
                 self.data_shape_var[name] = data
                 # self.data_shape_var[name] = self.cursor.execute(f"select data from {name};")
             # 转换

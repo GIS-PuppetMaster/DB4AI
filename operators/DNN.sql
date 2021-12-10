@@ -64,11 +64,11 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
         }
         select i+1 as i
     }
-    select AUC(test_y, pred) as auc
+    # select AUC(test_y, pred) as auc
     select ACC(test_y, pred) as acc
-    select RECALL(test_y, pred) as recall
-    select PRECISION(test_y, pred) as prec
-    select MSE(test_y, pred) as mse
-    select F1(test_y, pred) as f1
+    # select RECALL(test_y, pred) as recall
+    # select PRECISION(test_y, pred) as prec
+    # select MSE(test_y, pred) as mse
+    # select F1(test_y, pred) as f1
 
 }

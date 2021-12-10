@@ -1368,6 +1368,9 @@ qp4ai_matmul(PG_FUNCTION_ARGS){
     }
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, outRows, outCols);
+    for (int i=0;i<outRows*outCols;i++){
+        res->data[i]=0;
+    }
     for (int i=0;i<outRows;i++){
         for (int j=0;j<outCols;j++){
             for(int k=0;k<col1;k++){
