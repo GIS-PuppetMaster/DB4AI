@@ -2134,7 +2134,7 @@ class Negative(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select qp4ai_negative('{self.vars[0]}','{self.vars[1]}']);")
+        self.cursor.execute(f"select qp4ai_negative('{self.vars[0]}','{self.vars[1]}');")
         # self.cursor.execute(f"select * into {self.vars[1]} from {self.vars[0]}")
         # self.cursor.execute(f"select data from {self.vars[1]}")
         # data = str_to_list(self.cursor.fetch()[0][0])
@@ -2148,9 +2148,9 @@ class Negative(Node):
         求导值为-1，直接存储即可
     '''
 
-    def backward(self, grad_output):
+    def backward(self, grad_output=1):
         table_name = 'grad_' + str(self.id)
-        table_name_temp1 = 'grad_' + self.id + '_temp1'
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
         if grad_output == 1:
             s = table_name
         else:
