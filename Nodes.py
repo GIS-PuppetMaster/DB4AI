@@ -17,7 +17,7 @@ from gdbc import GDBC
 operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR', 'SVD', 'NORM', 'COND', 'DET',
              'RANK', 'TRACE', 'RESHAPE', 'TRANSPOSE', 'SHAPE', 'EXP', 'MATMUL', 'DOT', 'INNER', 'OUTER', 'SUM',
              'TENSORDOT', 'KRON', 'STACK', 'GRADIENT', 'Deepcopy', 'Shallowcopy', 'Argmax', 'Argmin', 'Sign',
-             'Slice', 'Relu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
+             'Slice', 'Relu','LeakyRelu', 'Tanh', 'Softmax', 'Sigmod', 'Elu', 'Adam', 'MEAN', 'MAX', 'MIN', 'Abs', 'ARGSORT',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
@@ -91,7 +91,7 @@ def preprocessing(fun):
             flag = 0
         else:
             flag = 1
-        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
+        if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Slice','Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
@@ -1521,15 +1521,72 @@ class Relu(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    '''参数待补充'''
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
+        self.cursor.execute(f"select data from {self.vars[1]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] < 0:
+                data[i] = 0
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
 
-    def backward(self, grad_output):
-        input_x, = self.saved_tensors
-        if input_x < 0:
-            grad_x = grad_output * 0
-        else:
-            grad_x = grad_output
-        return grad_x
+    def backward(self, grad_output=1):
+        table_name = 'grad_' + str(self.id)
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        if grad_output == 1:
+            s = table_name
+        if grad_output != 1:
+            s = table_name_temp1
+        self.cursor.execute(f"drop table if exists {s}")
+        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
+        self.cursor.execute(f"select data from {self.vars[0]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] > 0:
+                data[i] = 1
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        if grad_output != 1:
+            self.op_broadcast("mul", s, grad_output,table_name)
+        return table_name
+
+
+class LeakyRelu(Node):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"drop table if exists {self.vars[0]}")
+        self.cursor.execute(f"select * into {self.vars[0]} from {self.vars[1]};")
+        self.cursor.execute(f"select data from {self.vars[1]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] < 0:
+                data[i] = 0.1 * data[i]
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+
+    def backward(self, grad_output=1):
+        table_name = 'grad_' + str(self.id)
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        if grad_output == 1:
+            s = table_name
+        if grad_output != 1:
+            s = table_name_temp1
+        self.cursor.execute(f"drop table if exists {s}")
+        self.cursor.execute(f"select * into {s} from {self.vars[0]};")
+        self.cursor.execute(f"select data from {self.vars[0]};")
+        data = str_to_list(self.cursor.fetch()[0][0])
+        for i in range(len(data)):
+            if data[i] > 0:
+                data[i] = 1
+            else:
+                data[i] = 0.1
+        self.cursor.execute(f"update {self.vars[0]} set data = array{data}")
+        if grad_output != 1:
+            self.op_broadcast("mul", s, grad_output,table_name)
+        return table_name
 
 
 class Tanh(Node):
