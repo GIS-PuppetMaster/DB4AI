@@ -15,6 +15,16 @@ operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR',
              'SORT', 'REVERSE', 'AUC', 'MSE', 'F1', 'Backward', 'ACC', 'RECALL', 'PRECISION', 'WLS', 'REPEAT',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
+
+def softmax( f ):
+    f = np.array(f)
+    # instead: first shift the values of f so that the highest number is 0:
+    f -= np.max(f) # f becomes [-666, -333, 0]
+    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
+def softmax_bad( f ):
+    f = np.array(f)
+    # instead: first shift the values of f so that the highest number is 0:
+    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
 global_cursor = GDBC()
 global_cursor.connect()
 
@@ -28,7 +38,7 @@ def get_data(name):
     else:
         try:
             res = eval('{' + ','.join(ans[0][0].split(',')[1:]))
-            return res['data']
+            return res['rows'], res['cols'], res['data']
         except:
             return ans
 
@@ -1375,7 +1385,7 @@ class SaveTable(Node):
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
         if self.print_flag:
-            self.cursor.execute(f"select qp4ai_select('{self.table_name}');")
+            self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
             _, _, data = parse_qp4ai_select(self.cursor.fetch())
             # self.cursor.execute(f"select * from {self.table_name};")
             print(f"{self.table_name}: {data[0]}")
@@ -1567,19 +1577,27 @@ class Tanh(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    '''参数待补充'''
+    @preprocessing
+    def run(self, **kwargs):
+        self.cursor.execute(f"select qp4ai_tanh('{self.vars[1]}', '{self.vars[0]}');")
 
-    def backward(self, grad_output):
-        input_x, = self.saved_tensors
-        grad_x = grad_output * (1 - torch.pow(
-            ((torch.exp(input_x) - torch.exp(-1 * input_x)) / (torch.exp(input_x) + torch.exp(-1 * input_x))), 2))
-        return grad_x
+    def backward(self, grad_output=1):
+        table_name = 'grad_' + str(self.id)
+        table_name_temp1 = 'grad_' + str(self.id) + '_temp1'
+        if grad_output == 1:
+            s = table_name
+        else:
+            s = table_name_temp1
+        self.cursor.execute(f"select qp4ai_back_tanh('{self.vars[0]}', '{s}');")
+        if grad_output != 1:
+            self.op_broadcast("mul", s, grad_output, table_name)
+        return table_name
 
 
 class Softmax(Node):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dim = 1
+        self.dim = -1
 
     def set_dim(self, dim):
         self.dim = dim
@@ -1936,12 +1954,11 @@ class Backward(Node):
             tensor = tensors.pop()
             # 计算算子梯度
             if tensor.grad_fn is not None and not isinstance(tensor.grad_fn, Var):
-                q = "tensor: " + str(tensor.grad_fn.id)
-                print(q)
                 node = tensor.grad_fn
                 table_name = 'grad_input_' + str(node.id)
                 self.cursor.execute(f"select qp4ai_if_tensor_exists('{table_name}');")
                 node_flag = bool(int(self.cursor.fetch()[0][0]))
+                print(f"tensor: {tensor.grad_fn.id}, node: {node}")
                 # self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
                 # node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:
@@ -2124,9 +2141,8 @@ class CleanGrad(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        #
         self.cursor.execute(f"select qp4ai_erase_element('grad_{self.vars[0]}');")
-        print(f'clean grad:grad_{self.vars[0]}')
+        # print(f'clean grad:grad_{self.vars[0]}')
         # self.cursor.execute(f"drop table if exists {'grad_' + self.vars[0]}")
         # self.conn.commit()
 
