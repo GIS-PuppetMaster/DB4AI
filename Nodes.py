@@ -1,15 +1,9 @@
 import math
 import re
-from array import array
-
-import numpy
 import numpy as np
-import psycopg2
 import torch
 from functools import wraps
 from copy import copy, deepcopy
-import sklearn
-import unittest
 from sklearn import metrics as sk_metrics
 import pickle as pk
 from gdbc import GDBC
@@ -592,7 +586,8 @@ class If(Node):
             para = {}
             for var_name, var_node in edge.need_var:
                 self.cursor.execute(f"select qp4ai_select('{var_node.vars[0]}');")
-                _, _, result = parse_qp4ai_select(self.cursor.fetch())
+                *shape, result = parse_qp4ai_select(self.cursor.fetch())
+                result = np.array(result).reshape(shape).tolist()
                 # self.cursor.execute(f"select data from {var_node.vars[0]}")
                 # result = str_to_list(self.cursor.fetch()[0][0])
                 if len(result) == 1:

@@ -2471,13 +2471,13 @@ qp4ai_back_mean(PG_FUNCTION_ARGS){
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
     double val;
     if (axis==0){
-        val = 1/i1->columns;
+        val = 1.0/i1->columns;
     }
     else if(axis==1){
-        val = 1/ i1->rows;
+        val = 1.0/ i1->rows;
     }
     else{
-        val = 1/ (i1->rows*i1->columns);
+        val = 1.0/ (i1->rows*i1->columns);
     }
     vector<double> data;
     for(int i=0;i<i1->rows;i++){

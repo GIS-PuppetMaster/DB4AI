@@ -7,9 +7,11 @@ loop(1000){
     select tmp[i] as t
     if(t>1){
          select 1 as y[i,0]
+         select 0 as y[i,1]
     }
     else{
         select 1 as y[i,1]
+        select 0 as y[i,0]
     }
     select i+1 as i
 }
@@ -21,15 +23,17 @@ loop(100){
     select tmp[i] as t
     if(t>1){
          select 1 as test_y[i,0]
+         select 0 as test_y[i,1]
     }
     else{
         select 1 as test_y[i,1]
+        select 0 as test_y[i,0]
     }
     select i+1 as i
 }
-create tensor lr(1,) from 0.01
+create tensor lr(1,) from 0.1
 create tensor class_num(1,) from 2
-create tensor iter_times(1,) from 100
+create tensor iter_times(1,) from 10
 create tensor mse(1,)
 create tensor auc(1,)
 create tensor f1(1,)
