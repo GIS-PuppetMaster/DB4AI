@@ -44,7 +44,7 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
     select SHAPE(test_x) as sx
     select sx[0] as record_num
     LOOP(record_num){
-        if(pred[i,0]>=0.5){
+        if(pred[i,0]>=pred[i,1]){
             select 1 as pred[i,0]
             select 0 as pred[i,1]
         }

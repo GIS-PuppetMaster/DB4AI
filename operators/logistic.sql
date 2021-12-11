@@ -36,11 +36,18 @@ operator logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, learning
         }
         select i+1 as i
     }
-    # select AUC(test_y, pred) as auc
+    select AUC(test_y, pred) as auc
+    # select SaveTable(auc, logistic_auc, print)
     select ACC(test_y, pred) as acc
-    # select RECALL(test_y, pred) as recall
-    # select PRECISION(test_y, pred) as prec
-    # select MSE(test_y, pred) as mse
-    # select F1(test_y, pred) as f1
+    select RECALL(test_y, pred) as recall
+    select PRECISION(test_y, pred) as prec
+    select MSE(test_y, pred) as mse
+    select F1(test_y, pred) as f1
+    select SaveTable(auc, logistic_auc, print)
+    select SaveTable(acc, logistic_acc, print)
+    select SaveTable(recall, logistic_recall, print)
+    select SaveTable(prec, logistic_prec, print)
+    select SaveTable(mse, logistic_mse, print)
+    select SaveTable(f1, logistic_f1, print)
 }
 # 测试通过
