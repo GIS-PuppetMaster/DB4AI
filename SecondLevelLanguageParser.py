@@ -892,9 +892,9 @@ class Parser:
 if __name__ == '__main__':
     time_sum = 0
     from time import time
-    algorithm = 'DNN'
+    # algorithm = 'logistic'
     s = time()
-    # algorithm = 'Softmax'
+    algorithm = 'Softmax'
     path = f'operators/{algorithm}.sql'
     with open(path, 'r', encoding='utf-8') as f:
         create_test = f.readlines()

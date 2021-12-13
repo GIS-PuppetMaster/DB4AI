@@ -711,6 +711,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if t == 0 and node.vars[t] is None:
                         continue
                     if not node.vars[t].startswith('_') and node.vars[t] not in formal_param:
+                        node.raw_vars[t] = ""+node.vars[t]
                         node.vars[t] = '__' + str(inner_count) + node.vars[t]
                 if hasattr(node, 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)

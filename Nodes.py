@@ -16,15 +16,6 @@ operators = {'Add', 'Sub', 'Mul', 'Div', 'LOG', 'POW', 'SQRT', 'CHOLESKY', 'QR',
              'UNSQUEEZE', 'CleanGrad', 'Negative', 'TensorFromSql'}
 op_dic = {"add": 0, "sub": 1, "mul": 2, "matmul": 4}
 
-def softmax( f ):
-    f = np.array(f)
-    # instead: first shift the values of f so that the highest number is 0:
-    f -= np.max(f) # f becomes [-666, -333, 0]
-    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
-def softmax_bad( f ):
-    f = np.array(f)
-    # instead: first shift the values of f so that the highest number is 0:
-    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
 global_cursor = GDBC()
 global_cursor.connect()
 
@@ -222,6 +213,7 @@ class Node:
         self.branches = kwargs['branches']
         self.branches_set = None
         self.vars = []
+        self.raw_vars = {}
         self.executor = None
         self.batch_counter = 0
         self._default_batch_size = 0
@@ -415,8 +407,10 @@ class TensorFromSql(Node):
 
     @preprocessing
     def run(self, **kwargs):
-        self.cursor.execute(f"select qp4ai_load('{self.vars[1]}','{self.vars[0]}')")
-
+        if 1 in self.raw_vars.keys():
+            self.cursor.execute(f"select qp4ai_load('{self.raw_vars[1]}','{self.vars[0]}')")
+        else:
+            self.cursor.execute(f"select qp4ai_load('{self.vars[1]}','{self.vars[0]}')")
 
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
@@ -1958,7 +1952,7 @@ class Backward(Node):
                 table_name = 'grad_input_' + str(node.id)
                 self.cursor.execute(f"select qp4ai_if_tensor_exists('{table_name}');")
                 node_flag = bool(int(self.cursor.fetch()[0][0]))
-                print(f"tensor: {tensor.grad_fn.id}, node: {node}")
+                # print(f"tensor: {tensor.grad_fn.id}, node: {node}")
                 # self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
                 # node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:

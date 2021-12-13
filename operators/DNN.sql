@@ -29,6 +29,12 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
         select w_2-lr*GRADIENT(w_2) as w_2
         select b_2-lr*GRADIENT(b_2) as b_2
     }
+    select SaveTable(w_0, w_0_dnn, null)
+    select SaveTable(b_0, b_0_dnn, null)
+    select SaveTable(w_1, w_1_dnn, null)
+    select SaveTable(b_1, b_1_dnn, null)
+    select SaveTable(w_2, w_2_dnn, null)
+    select SaveTable(b_2, b_2_dnn, null)
     select LeakyRelu(MATMUL(test_x,w_0)+b_0) as output_0
     select LeakyRelu(MATMUL(output_0,w_1)+b_1) as output_1
     select 1/(1+EXP(-1 * (MATMUL(output_1,w_2)+b_2))) as pred
@@ -50,6 +56,6 @@ operator DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_ti
     # select PRECISION(test_y, pred) as prec
     # select MSE(test_y, pred) as mse
     # select F1(test_y, pred) as f1
-    select SaveTable(acc, dnn_acc, print)
+    select SaveTable(acc, acc_dnn, print)
     create tensor a(1,1)
 }

@@ -14,8 +14,8 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
         SELECT GRADIENT(w) AS g
         update w-learning_rate * g AS w
     }
-    select SaveTable(w, softmax_w, null)
-    select SaveTable(b, softmax_b, null)
+    select SaveTable(w, w_softmax, null)
+    select SaveTable(b, b_softmax, null)
     select Softmax(MATMUL(test_x,w)+b, 1) as pred
     if(class_num>2){
         select Argmax(test_y,1) as test_y
@@ -27,5 +27,12 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
     # select PRECISION(test_y, pred) as prec
     # select MSE(test_y, pred) as mse
     # select F1(test_y, pred) as f1
+    # select SaveTable(auc, softmax_auc, print)
+    select SaveTable(acc, softmax_acc, print)
+    # select SaveTable(recall, softmax_recall, print)
+    # select SaveTable(prec, softmax_prec, print)
+    # select SaveTable(mse, softmax_mse, print)
+    # select SaveTable(f1, softmax_f1, print)
+    create tensor a(1,1)
 }
 # 测试通过

@@ -3,7 +3,10 @@ from time import time
 
 from Executor import Executor
 from SecondLevelLanguageParser import Parser
+from gdbc import GDBC
 
+global_cursor = GDBC()
+global_cursor.connect()
 
 # 提前划分训练集和测试集以及xy
 def get_sql_head(data_name):
@@ -23,8 +26,8 @@ def get_sql_head(data_name):
 
 
 def get_test_sql_head(data_name):
-    sql = f"select TensorFromSql({data_name}_x) as x\n" \
-          f"select TensorFromSql({data_name}_y) as y\n"
+    sql = f"select TensorFromSql({data_name}_x) as test_x\n" \
+          f"select TensorFromSql({data_name}_y) as test_y\n"
     return sql
 
 
@@ -34,8 +37,8 @@ if __name__ == '__main__':
     # select train(result_filename, classp, evaluation_indicator) from dataset
     # first_sql = input('please input ML training task\n')
     # first_sql = 'select AutoClassify(60, 10, \'acc\', \'end\', \'false\') from filename'
-    first_sql = "select train(\'logistic\') as model from real;"
-    # first_sql = "select test(\'logistic\', \'model\') from test_data;"
+    # first_sql = "select train(\'Softmax\') as model from real_multi_class;"
+    first_sql = "select test(\'Softmax\', \'model\') from real_multi_class_test;"
     # parse
     filename_reg = '[a-zA-Z]+[a-zA-Z0-9_]*'
     # auto_classify_reg = f'^(select|SELECT)[ \t]+AutoClassify([(].*[)])[ \t]+((as|AS)[ \t]+({filename_reg})[ \t]+)?((from|FROM)[ \t]+({filename_reg}))'
@@ -58,8 +61,8 @@ if __name__ == '__main__':
             sql = get_sql_head(data_name)
             sql += "create tensor lr(1,) from 0.01\n" \
                    "create tensor class_num(1,) from 2\n" \
-                   "create tensor ridge(1,) from 0.05\n" \
-                   "create tensor iter_times(1,) from 100\n" \
+                   "create tensor ridge(1,) from 0.005\n" \
+                   "create tensor iter_times(1,) from 1000\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
                    "create tensor f1(1,)\n" \
@@ -69,10 +72,10 @@ if __name__ == '__main__':
                    "select logistic(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y, ridge, lr, class_num, iter_times)"
         elif algorithm == 'Softmax':
             sql = get_sql_head(data_name)
-            sql += "create tensor lr(1,) from 0.01\n" \
-                   "create tensor class_num(1,) from 3\n" \
+            sql += "create tensor lr(1,) from 0.1\n" \
+                   "create tensor class_num(1,) from 4\n" \
                    "create tensor ridge(1,) from 0.01\n" \
-                   "create tensor iter_times(1,) from 500\n" \
+                   "create tensor iter_times(1,) from 1000\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
                    "create tensor f1(1,)\n" \
@@ -80,6 +83,24 @@ if __name__ == '__main__':
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
                    "select softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,x,y,class_num, ridge, lr, iter_times)"
+        elif algorithm == "DNN":
+            sql = get_sql_head(data_name)
+            sql += "create tensor lr(1,) from 0.1\n" \
+                   "create tensor class_num(1,) from 2\n" \
+                   "create tensor iter_times(1,) from 1000\n" \
+                   "create tensor mse(1,)\n" \
+                   "create tensor auc(1,)\n" \
+                   "create tensor f1(1,)\n" \
+                   "create tensor acc(1,)\n" \
+                   "create tensor recall(1,)\n" \
+                   "create tensor prec(1,)\n" \
+                   "create tensor layer_units(2,1) from zeros((2,1))\n" \
+                   "select 0 as i\n" \
+                   "loop(3){\n" \
+                   "    select 4 as layer_units[i,...]\n" \
+                   "    select i+1 as i\n" \
+                   "}\n" \
+                   "select DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_times,class_num)"
         else:
             raise Exception("unsupported algorithm")
         path = f'operators/{algorithm}.sql'
@@ -91,13 +112,12 @@ if __name__ == '__main__':
             print(sql[i])
             sql[i] = sql[i] + "\n"
         result = Parser(sql)()
-        result.Show()
+        # result.Show()
         executor = Executor(result)
         executor.run()
     elif test_match:
         groups = test_match.groups()
         parameters = eval(groups[1])
-        model_name = groups[4]  # can be None
         data_name = groups[3]
         algorithm = parameters[0]
         model = parameters[1]
@@ -112,29 +132,33 @@ if __name__ == '__main__':
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)\n" \
-                   "select SaveTable(auc, test_logistic_auc, print)\n" \
-                   "select SaveTable(acc, test_logistic_acc, print)\n" \
-                   "select SaveTable(recall, test_logistic_recall, print)\n" \
-                   "select SaveTable(prec, test_logistic_prec, print)\n" \
-                   "select SaveTable(mse, test_logistic_mse, print)\n" \
-                   "select SaveTable(f1, test_logistic_f1, print)"
-        elif algorithm == 'softmax':
+                   "select test_logistic(acc,auc,prec,recall,mse,f1, test_x,test_y, class_num)"
+        elif algorithm == 'Softmax':
             sql = get_test_sql_head(data_name)
-            sql += "create tensor class_num(1,) from 3\n" \
+            sql += "create tensor class_num(1,) from 4\n" \
                    "create tensor mse(1,)\n" \
                    "create tensor auc(1,)\n" \
                    "create tensor f1(1,)\n" \
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "select test_softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,class_num)\n" \
-                   "select SaveTable(auc, test_Softmax_auc, print)\n" \
-                   "select SaveTable(acc, test_Softmax_acc, print)\n" \
-                   "select SaveTable(recall, test_Softmax_recall, print)\n" \
-                   "select SaveTable(prec, test_Softmax_prec, print)\n" \
-                   "select SaveTable(mse, test_Softmax_mse, print)\n" \
-                   "select SaveTable(f1, test_Softmax_f1, print)"
+                   "select test_softmax_classification(acc,auc,prec,recall,mse,f1, test_x,test_y,class_num)\n"
+        elif algorithm == "DNN":
+            sql = get_test_sql_head(data_name)
+            sql += "create tensor class_num(1,) from 2\n"\
+                   "create tensor mse(1,)\n" \
+                   "create tensor auc(1,)\n" \
+                   "create tensor f1(1,)\n" \
+                   "create tensor acc(1,)\n" \
+                   "create tensor recall(1,)\n" \
+                   "create tensor prec(1,)\n" \
+                   "create tensor layer_units(2,1) from zeros((2,1))\n" \
+                   "select 0 as i\n" \
+                   "loop(3){\n" \
+                   "    select 4 as layer_units[i,...]\n" \
+                   "    select i+1 as i\n" \
+                   "}\n" \
+                   "select test_DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,layer_units,class_num)"
         else:
             raise Exception("unsupported algorithm")
         path = f'operators/test_{algorithm}.sql'
@@ -145,11 +169,14 @@ if __name__ == '__main__':
         for i in range(len(sql)):
             sql[i] = sql[i] + "\n"
         result = Parser(sql)()
-        result.show()
+        # result.Show()
         executor = Executor(result)
         executor.run()
     else:
-        raise Exception("error sql")
+        try:
+            global_cursor.execute(first_sql)
+        except:
+            raise Exception("sql error")
     # if auto_match:
     #     groups = auto_match.groups()
     #     parameters = eval(groups[1])
