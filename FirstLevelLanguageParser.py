@@ -32,19 +32,14 @@ def get_test_sql_head(data_name):
 
 
 if __name__ == '__main__':
-
-    # select AutoClassify(alg_selection_time:float, hpo_iteration_num:int, evaluation_indicator:[], classp, train_flag:bool) [as result_filename] from filename
-    # select train(result_filename, classp, evaluation_indicator) from dataset
-    # first_sql = input('please input ML training task\n')
-    # first_sql = 'select AutoClassify(60, 10, \'acc\', \'end\', \'false\') from filename'
-    # first_sql = "select train(\'Softmax\') as model from real_multi_class;"
-    first_sql = "select test(\'Softmax\', \'model\') from real_multi_class_test;"
+    algorithm = 'logistic'
+    # first_sql = f"select train(\'{algorithm}\') as model from real_multi_class;"
+    # first_sql = f"select test(\'{algorithm}\', \'model\') from real_multi_class_test;"
+    first_sql = "select * from real_x;"
     # parse
     filename_reg = '[a-zA-Z]+[a-zA-Z0-9_]*'
-    # auto_classify_reg = f'^(select|SELECT)[ \t]+AutoClassify([(].*[)])[ \t]+((as|AS)[ \t]+({filename_reg})[ \t]+)?((from|FROM)[ \t]+({filename_reg}))'
     train_match = f'^(select|SELECT)[ \t]+train([(].*[)])[ \t]+((as|AS)[ \t]+({filename_reg})[ \t]+)?(from|FROM)[ \t]*([ \t]*{filename_reg})[ \t]*;'
     test_match = f'^(select|SELECT)[ \t]+test([(].*[)])[ \t]+(from|FROM)[ \t]+([ \t]*{filename_reg}[ \t]*);'
-    # auto_match = re.match(auto_classify_reg, first_sql)
     train_match = re.match(train_match, first_sql)
     test_match = re.match(test_match, first_sql)
     print(train_match)
@@ -53,10 +48,6 @@ if __name__ == '__main__':
         algorithm = eval(groups[1])
         model_name = groups[4]  # can be None
         data_name = groups[6]
-        # algorithm = parameters[0]
-        # result_table = parameters[1]
-        # label_pos = parameters[2]
-        # metrics = parameters[3]
         if algorithm == 'logistic':
             sql = get_sql_head(data_name)
             sql += "create tensor lr(1,) from 0.01\n" \
@@ -121,8 +112,6 @@ if __name__ == '__main__':
         data_name = groups[3]
         algorithm = parameters[0]
         model = parameters[1]
-        # label_pos = parameters[2]
-        # metrics = parameters[3]
         if algorithm == 'logistic':
             sql = get_test_sql_head(data_name)
             sql += "create tensor class_num(1,) from 2\n" \
@@ -174,20 +163,7 @@ if __name__ == '__main__':
         executor.run()
     else:
         try:
-            global_cursor.execute(first_sql)
+            global_cursor.execute(first_sql, True)
+            print(global_cursor.fetch())
         except:
             raise Exception("sql error")
-    # if auto_match:
-    #     groups = auto_match.groups()
-    #     parameters = eval(groups[1])
-    #     alg_selection_time = float(parameters[0])
-    #     hpo_iteration_num = int(parameters[1])
-    #     evaluation_indicator = parameters[2]
-    #     classp = parameters[3]
-    #     train_flag = bool(parameters[4])
-    #     result_filename = None
-    #     if 'as' in groups or 'AS' in groups:
-    #         result_filename = groups[4]
-    #     dataset = groups[7]
-    #     alg_name, option, evaluation = ClassSelectionMain(dataset, alg_selection_time, hpo_iteration_num, evaluation_indicator, classp, train_flag)
-    #     a = 1
