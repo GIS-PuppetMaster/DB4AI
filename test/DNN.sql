@@ -1,11 +1,11 @@
-create tensor x(1000,4) from random((1000,4),(0,1))
-create tensor y(1000,2) from zeros((1000,2))
-select Argmax(x, 1) as tmp
+select TensorFromSql(real_x) as x
+select TensorFromSql(real_y) as tmp_y
+select TensorFromSql(real_test_x) as test_x
+select TensorFromSql(real_test_y) as tmp_test_y
+create tensor y(500,2) from zeros((500,2))
 create tensor i(1,) from 0
-create tensor t(1,) from 0
-loop(1000){
-    select tmp[i] as t
-    if(t>1){
+loop(500){
+    if(tmp_y[i]==1){
         select 1 as y[i,0]
     }
     else{
@@ -13,13 +13,10 @@ loop(1000){
     }
     select i+1 as i
 }
-create tensor test_x(100,4) from random((100,4),(0,1))
-create tensor test_y(100,2) from zeros((100,2))
-select Argmax(test_x, 1) as tmp
+create tensor test_y(69,2) from zeros((69,2))
 select 0 as i
-loop(100){
-    select tmp[i] as t
-    if(t>1){
+loop(69){
+    if(tmp_test_y[i]==1){
         select 1 as test_y[i,0]
     }
     else{
@@ -29,7 +26,7 @@ loop(100){
 }
 create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
-create tensor iter_times(1,) from 1000
+create tensor iter_times(1,) from 2000
 create tensor mse(1,)
 create tensor auc(1,)
 create tensor f1(1,)

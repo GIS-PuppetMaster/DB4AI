@@ -1,7 +1,7 @@
 import math
 import re
 from array import array
-
+from time import time
 import numpy
 import numpy as np
 import psycopg2
@@ -962,7 +962,10 @@ class MATMUL(Node):
 
     @preprocessing
     def run(self, **kwargs):
+        s = time()
         self.cursor.execute(f"select qp4ai_matmul('{self.vars[1]}', '{self.vars[2]}', '{self.vars[0]}');")
+        print("matmul:")
+        print(time()-s)
         # self.conn.commit()
 
     def backward(self, grad_output=1):
@@ -970,7 +973,10 @@ class MATMUL(Node):
         table_name_2 = 'grad_' + str(self.id) + '_2'
         if grad_output == 1:
             grad_output = "null"
+        s = time()
         self.cursor.execute(f"select qp4ai_back_matmul('{self.vars[1]}','{self.vars[2]}','{table_name_1}','{table_name_2}','{grad_output}');")
+        print("back_matmul:")
+        print(time()-s)
         # self.cursor.execute(f"drop table if exists {table_name_1}")
         # self.cursor.execute(f"drop table if exists {table_name_2}")
         # self.cursor.execute(f"select rows,cols from {self.vars[1]}")
