@@ -33,9 +33,9 @@ def get_test_sql_head(data_name):
 
 if __name__ == '__main__':
     algorithm = 'logistic'
-    # first_sql = f"select train(\'{algorithm}\') as model from real_multi_class;"
+    first_sql = f"select train(\'{algorithm}\') as model from real;"
     # first_sql = f"select test(\'{algorithm}\', \'model\') from real_multi_class_test;"
-    first_sql = "select * from real_x;"
+    # first_sql = "select * from real_x;"
     # parse
     filename_reg = '[a-zA-Z]+[a-zA-Z0-9_]*'
     train_match = f'^(select|SELECT)[ \t]+train([(].*[)])[ \t]+((as|AS)[ \t]+({filename_reg})[ \t]+)?(from|FROM)[ \t]*([ \t]*{filename_reg})[ \t]*;'
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         data_name = groups[6]
         if algorithm == 'logistic':
             sql = get_sql_head(data_name)
-            sql += "create tensor lr(1,) from 0.01\n" \
+            sql += "create tensor lr(1,) from 0.1\n" \
                    "create tensor class_num(1,) from 2\n" \
                    "create tensor ridge(1,) from 0.005\n" \
                    "create tensor iter_times(1,) from 1000\n" \
@@ -105,7 +105,9 @@ if __name__ == '__main__':
         result = Parser(sql)()
         # result.Show()
         executor = Executor(result)
+        s = time()
         executor.run()
+        print(f"time cost:{time()-s} s")
     elif test_match:
         groups = test_match.groups()
         parameters = eval(groups[1])
@@ -160,7 +162,9 @@ if __name__ == '__main__':
         result = Parser(sql)()
         # result.Show()
         executor = Executor(result)
+        s = time()
         executor.run()
+        print(f"time cost:{time() - s} s")
     else:
         try:
             global_cursor.execute(first_sql, True)
