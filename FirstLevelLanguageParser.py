@@ -31,9 +31,9 @@ def get_test_sql_head(data_name):
     return sql
 
 
-if __name__ == '__main__':
-    algorithm = 'logistic'
-    first_sql = f"select train(\'{algorithm}\') as model from real;"
+def run_task_language(first_sql):
+    # algorithm = 'logistic'
+    # first_sql = f"select train(\'{algorithm}\') as model from real;"
     # first_sql = f"select test(\'{algorithm}\', \'model\') from real_multi_class_test;"
     # first_sql = "select * from real_x;"
     # parse
@@ -46,7 +46,6 @@ if __name__ == '__main__':
     if train_match:
         groups = train_match.groups()
         algorithm = eval(groups[1])
-        model_name = groups[4]  # can be None
         data_name = groups[6]
         if algorithm == 'logistic':
             sql = get_sql_head(data_name)
@@ -94,10 +93,10 @@ if __name__ == '__main__':
                    "select DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_times,class_num)"
         else:
             raise Exception("unsupported algorithm")
-        path = f'operators/{algorithm}.sql'
-        with open(path, 'r', encoding='utf-8') as f:
-            create_test = f.readlines()
-        Parser(create_test)()
+        # path = f'operators/{algorithm}.sql'
+        # with open(path, 'r', encoding='utf-8') as f:
+        #     create_test = f.readlines()
+        # Parser(create_test)()
         sql = sql.split("\n")
         for i in range(len(sql)):
             print(sql[i])
@@ -107,7 +106,7 @@ if __name__ == '__main__':
         executor = Executor(result)
         s = time()
         executor.run()
-        print(f"time cost:{time()-s} s")
+        return f"time cost:{time()-s} s"
     elif test_match:
         groups = test_match.groups()
         parameters = eval(groups[1])
@@ -152,10 +151,10 @@ if __name__ == '__main__':
                    "select test_DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,layer_units,class_num)"
         else:
             raise Exception("unsupported algorithm")
-        path = f'operators/test_{algorithm}.sql'
-        with open(path, 'r', encoding='utf-8') as f:
-            create_test = f.readlines()
-        Parser(create_test)()
+        # path = f'operators/test_{algorithm}.sql'
+        # with open(path, 'r', encoding='utf-8') as f:
+        #     create_test = f.readlines()
+        # Parser(create_test)()
         sql = sql.split("\n")
         for i in range(len(sql)):
             sql[i] = sql[i] + "\n"
@@ -164,7 +163,7 @@ if __name__ == '__main__':
         executor = Executor(result)
         s = time()
         executor.run()
-        print(f"time cost:{time() - s} s")
+        return f"time cost:{time() - s} s"
     else:
         try:
             global_cursor.execute(first_sql, True)

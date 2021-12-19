@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 from Executor import Executor
+from time import time
 
 global inner_var_count
 
@@ -889,29 +890,9 @@ class Parser:
                     pickle.dump(data, f2)
 
 
-if __name__ == '__main__':
-    time_sum = 0
-    from time import time
-    # algorithm = 'logistic'
-    s = time()
-    algorithm = 'Softmax'
-    path = f'operators/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
+def run_describe_language(sql):
+    testPar = Parser(sql)
     result = testPar()
-    path = f'test/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    # result.Show()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    time_sum += (time() - s)
-    repeat = 1
-    print(time()-s)
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'

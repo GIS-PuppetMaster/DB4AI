@@ -1,12 +1,21 @@
-import numpy as np
-def softmax( f ):
-    # instead: first shift the values of f so that the highest number is 0:
-    f -= np.max(f) # f becomes [-666, -333, 0]
-    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
-def softmax_bad( f ):
-    # instead: first shift the values of f so that the highest number is 0:
-    return np.exp(f) / np.sum(np.exp(f))  # safe to do, gives the correct answer
+class Solution:
+    def search(self, nums, target: int) -> int:
+        self.nums = nums
+        self.target = target
+        return self.binarySearch(0, len(self.nums) - 1)
 
-a = np.array([3.673434, 4.458887, 3.501621, 4.17071, 5.199841, 2.185083, 4.473715, 5.208583, 4.472227, 2.878502, 5.465951, 2.092485, 2.829766, 3.347671, 5.005161, 3.632164, 2.937166, 3.304011, 3.44856, 3.314163, 4.203546, 2.043158, 3.141065, 3.204842, 3.405135, 4.141124, 3.779714, 4.654311, 3.866579, 3.873508, 3.751389, 2.81046, 2.594097, 3.194949, 4.569858, 3.34852, 5.330302, 3.376268, 3.38256, 3.297771, 3.63513, 3.345451, 3.160422, 2.646286, 4.159088, 2.920337, 5.345215, 1.731178, 1.349448, 3.819619, 1.966633, 4.119507, 2.547324, 3.851027, 2.377753, 4.166605, 4.256984, 2.803273, 3.176408, 2.265809, 3.234125, 5.339858, 2.213135, 1.566754, 4.302298, 3.829672, 2.298872, 3.286266, 4.456509, 3.757244, 4.139639, 3.140079, 2.383056, 2.39776, 2.737111, 5.162378, 3.864256, 4.785078, 3.448374, 2.730123, 4.051836, 3.249003, 3.258995, 2.323123, 4.115585, 3.914855, 2.931688, 3.429343, 3.037408, 3.701395, 2.058594, 3.912795, 2.521003, 5.07896, 1.823187, 4.086263, 3.374241, 2.720597, 3.813146, 3.047024])
-print(softmax(a))
-print(softmax_bad(a))
+    def binarySearch(self, left: int, right: int) -> int:
+        if left > right:
+            return -1
+        mid = (left + right) // 2
+        m = self.nums[mid]
+        if m == self.target:
+            return mid
+        if self.nums[0] <= self.target < m or m < self.nums[0] <= self.target or self.target < m < self.nums[0]:
+            return self.binarySearch(left, mid - 1)
+        if self.nums[0] <= m < self.target or self.target < self.nums[0] <= m or m < self.target < self.nums[0]:
+            return self.binarySearch(mid + 1, right)
+        return -1
+
+
+print(Solution().search([1,3,5], 1))
