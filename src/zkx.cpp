@@ -1954,6 +1954,85 @@ qp4ai_div(PG_FUNCTION_ARGS){
     matrixMap[output_table_name] = *res;
     PG_RETURN_INT32(0); // ����?
 }
+// mse
+// ??????????????????????
+// arg1 ?????
+// arg2 ?????
+// arg3 ?????
+PG_FUNCTION_INFO_V1(_Z9qp4ai_mseP20FunctionCallInfoData); // register function as V1
+Datum
+qp4ai_mse(PG_FUNCTION_ARGS){
+    // get para
+    string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
+    if(matrix_not_exists(input_table_name1) || matrix_not_exists(input_table_name2)){
+        PG_RETURN_INT32(-1);
+    }
+
+    Matrix *input_matrix1_p = get_matrix_p_by_name(input_table_name1);
+    Matrix *input_matrix2_p = get_matrix_p_by_name(input_table_name2);
+    Matrix *res = (Matrix*)malloc(sizeof(Matrix));
+    my_matrix_init(res, 1, 1);
+   // main logic
+    int size = input_matrix1_p->rows*input_matrix1_p->columns;
+    // ???????????
+    double mse_sum = 0;
+    for(int i=0;i<size;i++){
+        mse_sum += pow((input_matrix1_p->data[i] - input_matrix2_p->data[i]),2);
+    }
+    res->data[0] = mse_sum / size;
+    matrixMap[output_table_name] = *res;
+    PG_RETURN_INT32(0); // ����?
+}
+
+// auc
+// ??????????????????????
+// arg1 ????? ???????? 0 or 1
+// arg2 ????? ????????(0-1)
+// arg3 ????? 1*1
+PG_FUNCTION_INFO_V1(_Z9qp4ai_aucP20FunctionCallInfoData); // register function as V1
+Datum
+qp4ai_auc(PG_FUNCTION_ARGS){
+    // get para
+    string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
+    if(matrix_not_exists(input_table_name1) || matrix_not_exists(input_table_name2)){
+        PG_RETURN_INT32(-1);
+    }
+
+    Matrix *input_matrix1_p = get_matrix_p_by_name(input_table_name1);
+    Matrix *input_matrix2_p = get_matrix_p_by_name(input_table_name2);
+    Matrix *res = (Matrix*)malloc(sizeof(Matrix));
+    my_matrix_init(res, 1, 1);
+   // main logic
+    int size = input_matrix1_p->rows*input_matrix1_p->columns;
+    // auc ???????
+    vector<int> pos;
+    vector<int> neg;
+    for(int i=0; i<size; i++){
+        if(abs(input_matrix1_p->data[i]-1.00)<0.1){
+            pos.push_back(i);
+        }else{
+            neg.push_back(i);
+        }
+    }
+    double auc = 0;
+    for(int i=0; i<pos.size(); i++){
+        for(int j=0; j<neg.size(); j++){
+            if(input_matrix2_p->data[pos[i]] > input_matrix2_p->data[neg[j]]){
+                auc += 1.0;
+            }else if(input_matrix2_p->data[pos[i]] == input_matrix2_p->data[neg[j]]){
+                auc += 0.5;
+            }
+        }
+    }
+    res->data[0] = auc / ( pos.size() * neg.size() );
+    matrixMap[output_table_name] = *res;
+    PG_RETURN_INT32(0); // ����?
+}
+
 
 // ��������?����??
 PG_FUNCTION_INFO_V1(_Z9qp4ai_mulP20FunctionCallInfoData); // register function as V1
@@ -2400,7 +2479,7 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
     Matrix* o2 = (Matrix*)malloc(sizeof(Matrix));
     // ��?py��grad_output==1����??
-    if(grad_output=="null"){
+    if(strcmp(grad_output, "null")==0){
         vector<double> sum_data_1;
         for (int i=0;i<i2->rows;i++){
             double total = 0.0;
@@ -2775,6 +2854,9 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     //#endif
     PG_RETURN_INT32(0); // ?????
 }
+
+
+
 
 PG_FUNCTION_INFO_V1(_Z17qp4ai_update_dataP20FunctionCallInfoData);
 Datum
