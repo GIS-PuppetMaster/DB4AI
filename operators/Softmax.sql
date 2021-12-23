@@ -8,7 +8,7 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
     create tensor pred(feature_num, class_num) with pred
     LOOP(iter_times){
         select Softmax(MATMUL(x,w)+b, 1) as pred with grad
-        select 0-MEAN(y*LOG(pred)) as loss with grad
+        select -MEAN(y*LOG(pred)) as loss with grad
         select CleanGrad(w)
         select Backward(loss, w)
         SELECT GRADIENT(w) AS g
@@ -27,5 +27,7 @@ operator softmax_classification(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,cla
     # select PRECISION(test_y, pred) as prec
     # select MSE(test_y, pred) as mse
     # select F1(test_y, pred) as f1
+    select SaveTable(acc, softmax_acc, print)
+    create tensor a(1,1)
 }
 # 测试通过

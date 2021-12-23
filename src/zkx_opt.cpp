@@ -2401,6 +2401,7 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
     Matrix* o2 = (Matrix*)malloc(sizeof(Matrix));
     // ��?py��grad_output==1����??
     if(grad_output=="null"){
+        my_matrix_init(o1, i1->rows, i1->columns);
         vector<double> sum_data_1;
         for (int i=0;i<i2->rows;i++){
             double total = 0.0;
@@ -2409,18 +2410,18 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
             }
             sum_data_1.push_back(total);
         }
-        vector<double> new_data_1;
+        // vector<double> new_data_1;
         for (int i=0;i<i1->rows;i++){
             for (int j=0;j<i1->columns;j++){
-                new_data_1.push_back(sum_data_1[j]);
+                o1->data[i*i1->columns+j] = sum_data_1[j];
+                // new_data_1.push_back(sum_data_1[j]);
             }
         }
-        my_matrix_init(o1, i1->rows, i1->columns);
-        for (int i=0;i<o1->rows*o1->columns;i++){
-            o1->data[i] = new_data_1[i];
-        }
+        // for (int i=0;i<o1->rows*o1->columns;i++){
+        //     o1->data[i] = new_data_1[i];
+        // }
         // copy(new_data_1.begin(), new_data_1.end(), o1->data);
-
+        my_matrix_init(o2, i2->rows, i2->columns);
         vector<double> sum_data_2;
         for (int i=0;i<i1->columns;i++){
             double total = 0.0;
@@ -2429,49 +2430,51 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
             }
             sum_data_2.push_back(total);
         }
-        vector<double> new_data_2;
+        // vector<double> new_data_2;
         for (int i=0;i<i2->rows;i++){
             for (int j=0;j<i2->columns;j++){
-                new_data_2.push_back(sum_data_2[i]);
+                o2->data[i*i2->columns+j] = sum_data_2[i];
+                // new_data_2.push_back(sum_data_2[i]);
             }
         }
-        my_matrix_init(o2, i2->rows, i2->columns);
-        for (int i=0;i<o2->rows*o2->columns;i++){
-            o2->data[i] = new_data_2[i];
-        }
+        // for (int i=0;i<o2->rows*o2->columns;i++){
+        //     o2->data[i] = new_data_2[i];
+        // }
         // copy(new_data_2.begin(), new_data_2.end(), o2->data);
     }
     else{
         Matrix* i0 = get_matrix_p_by_name(grad_output);
-        vector<double> new_data_1;
+        my_matrix_init(o1, i1->rows, i1->columns);
+        // vector<double> new_data_1;
         for (int i=0;i<i0->rows;i++){
             for (int j=0;j<i2->rows;j++){
                 double sum = 0.0;
                 for (int k=0;k<i0->columns;k++){
                     sum += i0->data[i*i0->columns+k] * i2->data[j*i2->columns+k];
                 }
-                new_data_1.push_back(sum);
+                o1->data[i*i2->rows+j] = sum;
+                //new_data_1.push_back(sum);
             }
         }
-        my_matrix_init(o1, i1->rows, i1->columns);
-        for (int i=0;i<o1->rows*o1->columns;i++){
-            o1->data[i] = new_data_1[i];
-        }
+        // for (int i=0;i<o1->rows*o1->columns;i++){
+        //     o1->data[i] = new_data_1[i];
+        // }
         // copy(new_data_1.begin(), new_data_1.end(), o1->data);
-        vector<double> new_data_2;
+        my_matrix_init(o2, i2->rows, i2->columns);
+        // vector<double> new_data_2;
         for (int i=0;i<i1->columns;i++){
             for (int j=0;j<i0->columns;j++){
                 double sum = 0.0;
                 for (int k=0;k<i1->rows;k++){
                     sum += i1->data[k*i1->columns+i]*i0->data[k*i2->columns+j];
                 }
-                new_data_2.push_back(sum);
+                o2->data[i*i0->columns+j]=sum;
+                // new_data_2.push_back(sum);
             }
         }
-        my_matrix_init(o2, i2->rows, i2->columns);
-        for (int i=0;i<o2->rows*o2->columns;i++){
-            o2->data[i] = new_data_2[i];
-        }
+        // for (int i=0;i<o2->rows*o2->columns;i++){
+        //     o2->data[i] = new_data_2[i];
+        // }
         //copy(new_data_2.begin(), new_data_2.end(), o2->data);
     }
     matrixMap[output_table_name1] = *o1;

@@ -33,7 +33,7 @@ loop(100){
     }
     select i+1 as i
 }
-create tensor lr(1,) from 0.01
+create tensor lr(1,) from 0.1
 create tensor class_num(1,) from 3
 create tensor ridge(1,) from 0.01
 create tensor iter_times(1,) from 500

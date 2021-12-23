@@ -781,3 +781,15 @@ qp4ai_back_leakyrelu(input_table_name TEXT, output_table_name TEXT)
 RETURNS INT
 AS 'zkx','_Z20qp4ai_back_leakyreluP20FunctionCallInfoData' -- 前者手动改为绝对路径 后者手动改成.so中的符号名
 LANGUAGE C STRICT;
+
+CREATE OR REPLACE FUNCTION
+qp4ai_tanh(input_table_name TEXT, output_table_name TEXT)
+RETURNS INT
+AS 'zkx','_Z10qp4ai_tanhP20FunctionCallInfoData' -- 前者手动改为绝对路径 后者手动改成.so中的符号名
+LANGUAGE C STRICT;
+
+CREATE OR REPLACE FUNCTION
+qp4ai_back_tanh(input_table_name TEXT, output_table_name TEXT)
+RETURNS INT
+AS 'zkx','_Z15qp4ai_back_tanhP20FunctionCallInfoData' -- 前者手动改为绝对路径 后者手动改成.so中的符号名
+LANGUAGE C STRICT;

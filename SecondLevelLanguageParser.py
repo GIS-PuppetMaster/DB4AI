@@ -892,25 +892,33 @@ class Parser:
 if __name__ == '__main__':
     time_sum = 0
     from time import time
-    algorithm = 'DNN'
     s = time()
-    path = f'operators/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    path = f'test/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    result.Show()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    time_sum += (time() - s)
-    repeat = 1
-    print(time()-s)
+    algorithm = 'logistic'
+    repeat = 10
+    for _ in range(repeat):
+        path = f'operators/{algorithm}.sql'
+        with open(path, 'r', encoding='utf-8') as f:
+            create_test = f.readlines()
+        testPar = Parser(create_test)
+        result = testPar()
+        path = f'test/{algorithm}.sql'
+        with open(path, 'r', encoding='utf-8') as f:
+            create_test = f.readlines()
+        testPar = Parser(create_test)
+        result = testPar()
+        # result.Show()
+        executor = Executor(result)
+        s = time()
+        executor.run()
+        t = time() - s
+        time_sum += t
+        print(t)
+    print(time_sum/repeat)
+#     executor = Executor(result)
+#     s = time()
+#     executor.run()
+#     time_sum += (time() - s)
+# print(f'time:{time_sum / repeat} s')
     #
     # path = f'test/{algorithm}.sql'
     # # path = 'test.txt'

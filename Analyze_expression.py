@@ -896,6 +896,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if match_obj:
                         for obj in match_obj.groups():
                             a = nd.InstantiationClass(x, 'Var', branches, vars=obj, with_grad=False)
+                            x += 1
                             G.InsertNode(a)
                             G.InsertEdge(a, current_graph.keynode)
                             vallist.append([obj,a])
