@@ -1952,7 +1952,7 @@ class Backward(Node):
                 table_name = 'grad_input_' + str(node.id)
                 self.cursor.execute(f"select qp4ai_if_tensor_exists('{table_name}');")
                 node_flag = bool(int(self.cursor.fetch()[0][0]))
-                # print(f"tensor: {tensor.grad_fn.id}, node: {node}")
+                print(f"tensor: {tensor.grad_fn.id}, node: {node}")
                 # self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
                 # node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:

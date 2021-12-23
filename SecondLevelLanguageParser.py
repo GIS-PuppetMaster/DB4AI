@@ -893,33 +893,26 @@ class Parser:
 def run_describe_language(sql):
     testPar = Parser(sql)
     result = testPar()
-    #
-    # path = f'test/{algorithm}.sql'
-    # # path = 'test.txt'
-    # with open(path, 'r', encoding='utf-8') as f:
-    #     create_test = f.readlines()
-    # testPar = Parser(create_test)
-    # result = testPar()
-    # # lp = LineProfiler()
-    # # lp.add_function()
-    # repeat = 1
-    # time_sum = 0
-    # for _ in range(repeat):
-    #     executor = Executor(result)
-    #     s = time()
-    #     executor.run()
-    #     time_sum += (time() - s)
-    # print(f'time:{time_sum / repeat} s')
-    # acc = executor.var_dict['acc']
-    # print(f'acc:{acc}')
-    # auc = executor.var_dict['auc']
-    # print(f'auc:{auc}')
-    # prec = executor.var_dict['prec']
-    # print(f'prec:{prec}')
-    # recall = executor.var_dict['recall']
-    # print(f'recall:{recall}')
-    # mse = executor.var_dict['mse']
-    # print(f'mse:{mse}')
-    # f1 = executor.var_dict['f1']
-    # print(f'f1:{f1}')
-    # print(executor.var_dict['__0pred'])
+
+if __name__ == '__main__':
+    algorithm = 'logistic'
+    path = f'operators/{algorithm}.sql'
+    with open(path, 'r', encoding='utf-8') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    result = testPar()
+    path = f'test/{algorithm}.sql'
+    with open(path, 'r', encoding='utf-8') as f:
+        create_test = f.readlines()
+    testPar = Parser(create_test)
+    result = testPar()
+    # lp = LineProfiler()
+    # lp.add_function()
+    repeat = 1
+    time_sum = 0
+    for _ in range(repeat):
+        executor = Executor(result)
+        s = time()
+        executor.run()
+        time_sum += (time() - s)
+    print(f'time:{time_sum / repeat} s')

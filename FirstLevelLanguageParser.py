@@ -84,7 +84,7 @@ def run_task_language(first_sql):
                    "create tensor acc(1,)\n" \
                    "create tensor recall(1,)\n" \
                    "create tensor prec(1,)\n" \
-                   "create tensor layer_units(2,1) from zeros((2,1))\n" \
+                   "create tensor layer_units(3,1) from zeros((3,1))\n" \
                    "select 0 as i\n" \
                    "loop(3){\n" \
                    "    select 4 as layer_units[i,...]\n" \
