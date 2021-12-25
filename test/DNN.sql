@@ -2,9 +2,9 @@ select TensorFromSql(real_x) as x
 select TensorFromSql(real_y) as y
 select TensorFromSql(real_test_x) as test_x
 select TensorFromSql(real_test_y) as test_y
-create tensor lr(1,) from 0.005
+create tensor lr(1,) from 0.01
 create tensor class_num(1,) from 2
-create tensor iter_times(1,) from 1000
+create tensor iter_times(1,) from 500
 create tensor mse(1,)
 create tensor auc(1,)
 create tensor f1(1,)

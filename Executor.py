@@ -1,3 +1,4 @@
+import gdbc
 from Nodes import LoopEnd
 from Nodes import *
 from utils import *
@@ -144,10 +145,11 @@ class Executor:
                         return False
                     elif father.branches[-1] == current_node.selected_branch:
                         return False
-        print(current_node)
+        # print(current_node)
         current_node.run(visited=visited, executor=self)
         current_node.finished = True
         return True
 
     def run(self):
         self.execute()
+        print("sql:" + str(gdbc.execute_time))

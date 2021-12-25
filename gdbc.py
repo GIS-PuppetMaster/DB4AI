@@ -1,8 +1,10 @@
 import math
+from time import time
 
 import numpy as np
 import pyodbc
 import torch
+execute_time = 0
 
 
 class GDBC(object):
@@ -10,6 +12,7 @@ class GDBC(object):
         self.conn = None
         self.cursor = None
         self.ans = None
+
 
     """
         与数据库的连接，返回ok或任何其它信息。
@@ -39,8 +42,12 @@ class GDBC(object):
     def execute(self, sql: str):
         #  执行sql
         try:
+            global execute_time
+            t = time()
             self.cursor.execute(sql)
-            self.cursor.commit()
+            # self.cursor.commit()
+            execute_time += time()-t
+            # print("execute_time:"+str(execute_time))
             self.ans = self.cursor.fetchall()
             if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
                 assert self.ans[0][0]==0
@@ -50,6 +57,9 @@ class GDBC(object):
     """
         取数据，返回。
     """
+
+    def commit(self):
+        self.cursor.commit()
 
     def fetch(self):
         return self.ans

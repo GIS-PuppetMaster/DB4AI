@@ -892,28 +892,43 @@ class Parser:
 if __name__ == '__main__':
     time_sum = 0
     from time import time
-    s = time()
-    algorithm = 'logistic'
-    repeat = 10
+    algorithm = 'DNN'
+    repeat = 1
+    generate_time = 0
+    analyze_time = 0
+    execute_time = 0
     for _ in range(repeat):
+        s = time()
+
+        t0 = time()
         path = f'operators/{algorithm}.sql'
         with open(path, 'r', encoding='utf-8') as f:
             create_test = f.readlines()
         testPar = Parser(create_test)
         result = testPar()
+        generate_time += time() - t0
+
+        t1 = time()
         path = f'test/{algorithm}.sql'
         with open(path, 'r', encoding='utf-8') as f:
             create_test = f.readlines()
         testPar = Parser(create_test)
         result = testPar()
-        # result.Show()
+        result.Show()
+        analyze_time += time()-t1
+
+        t2 = time()
         executor = Executor(result)
-        s = time()
         executor.run()
+        execute_time += time()-t2
+
         t = time() - s
         time_sum += t
-        print(t)
-    print(time_sum/repeat)
+        # print(t)
+    print("avgtime:" + str(time_sum/repeat))
+    print("generate_time:" + str(generate_time/repeat))
+    print("analyze_time:" + str(analyze_time/repeat))
+    print("execute_time:" + str(execute_time/repeat))
 #     executor = Executor(result)
 #     s = time()
 #     executor.run()
