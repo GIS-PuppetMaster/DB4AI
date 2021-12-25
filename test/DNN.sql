@@ -14,7 +14,7 @@ create tensor prec(1,)
 create tensor layer_units(3,1) from zeros((3,1))
 select 0 as i
 loop(3){
-    select 4 as layer_units[i,...]
+    select 64 as layer_units[i,...]
     select i+1 as i
 }
 select DNN(acc,auc,prec,recall,mse,f1,test_x,test_y,x,y,lr,layer_units,iter_times,class_num)

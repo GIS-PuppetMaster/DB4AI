@@ -6,7 +6,10 @@ import Analyze_expression as A_e
 import json
 import os
 import pickle
+
+import gdbc
 from Executor import Executor
+from time import time
 
 global inner_var_count
 
@@ -89,7 +92,7 @@ class Parser:
                     node.with_grad = True
                 for father in node.pre_nodes():
                     if father.with_grad and not node.with_grad:
-                        if node.__class__.__name__ in ('Assignment','Var') or node.__class__.__name__ in Nd.operators:
+                        if node.__class__.__name__ in ('Assignment', 'Var') or node.__class__.__name__ in Nd.operators:
                             node.with_grad = True
                             flag = 1
 
@@ -707,7 +710,7 @@ class Parser:
                     if as_obj:
                         as_replace[as_obj.group(2)] = as_obj.group(1)
             exp_right = match_obj2.group(2)
-            table_name =""
+            table_name = ""
             TFS_obj = re.match('TensorFromSql[(](.+)[)]', exp_right)
             if TFS_obj:
                 table_name = TFS_obj.group(1)
@@ -889,56 +892,84 @@ class Parser:
                     pickle.dump(data, f2)
 
 
+def run_describe_language(sql):
+    testPar = Parser(sql)
+    result = testPar()
+
+
 if __name__ == '__main__':
     time_sum = 0
     from time import time
-    # algorithm = 'logistic'
-    s = time()
-    algorithm = 'Softmax'
-    path = f'operators/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    path = f'test/{algorithm}.sql'
-    with open(path, 'r', encoding='utf-8') as f:
-        create_test = f.readlines()
-    testPar = Parser(create_test)
-    result = testPar()
-    # result.Show()
-    executor = Executor(result)
-    s = time()
-    executor.run()
-    time_sum += (time() - s)
+
+    algorithm = 'logistic'
     repeat = 1
-    print(time()-s)
-    #
-    # path = f'test/{algorithm}.sql'
-    # # path = 'test.txt'
-    # with open(path, 'r', encoding='utf-8') as f:
-    #     create_test = f.readlines()
-    # testPar = Parser(create_test)
-    # result = testPar()
-    # # lp = LineProfiler()
-    # # lp.add_function()
-    # repeat = 1
-    # time_sum = 0
-    # for _ in range(repeat):
-    #     executor = Executor(result)
-    #     s = time()
-    #     executor.run()
-    #     time_sum += (time() - s)
-    # print(f'time:{time_sum / repeat} s')
-    # acc = executor.var_dict['acc']
-    # print(f'acc:{acc}')
-    # auc = executor.var_dict['auc']
-    # print(f'auc:{auc}')
-    # prec = executor.var_dict['prec']
-    # print(f'prec:{prec}')
-    # recall = executor.var_dict['recall']
-    # print(f'recall:{recall}')
-    # mse = executor.var_dict['mse']
-    # print(f'mse:{mse}')
-    # f1 = executor.var_dict['f1']
-    # print(f'f1:{f1}')
-    # print(executor.var_dict['__0pred'])
+    generate_time = 0
+    analyze_time = 0
+    execute_time = 0
+    for _ in range(repeat):
+        s = time()
+
+        t0 = time()
+        path = f'operators/{algorithm}.sql'
+        with open(path, 'r', encoding='utf-8') as f:
+            create_test = f.readlines()
+        testPar = Parser(create_test)
+        result = testPar()
+        generate_time += time() - t0
+
+        t1 = time()
+        path = f'test/{algorithm}.sql'
+        with open(path, 'r', encoding='utf-8') as f:
+            create_test = f.readlines()
+        testPar = Parser(create_test)
+        result = testPar()
+        result.Show()
+        analyze_time += time() - t1
+
+        t2 = time()
+        executor = Executor(result)
+        executor.run()
+        execute_time += time() - t2
+
+        t = time() - s
+        time_sum += t
+        # print(t)
+    print("avgtime:" + str(time_sum / repeat))
+    print("generate_time:" + str(generate_time / repeat))
+    print("analyze_time:" + str(analyze_time / repeat))
+    print("execute_time:" + str(execute_time / repeat))
+#     executor = Executor(result)
+#     s = time()
+#     executor.run()
+#     time_sum += (time() - s)
+# print(f'time:{time_sum / repeat} s')
+#
+# path = f'test/{algorithm}.sql'
+# # path = 'test.txt'
+# with open(path, 'r', encoding='utf-8') as f:
+#     create_test = f.readlines()
+# testPar = Parser(create_test)
+# result = testPar()
+# # lp = LineProfiler()
+# # lp.add_function()
+# repeat = 1
+# time_sum = 0
+# for _ in range(repeat):
+#     executor = Executor(result)
+#     s = time()
+#     executor.run()
+#     time_sum += (time() - s)
+# print(f'time:{time_sum / repeat} s')
+# acc = executor.var_dict['acc']
+# print(f'acc:{acc}')
+# auc = executor.var_dict['auc']
+# print(f'auc:{auc}')
+# prec = executor.var_dict['prec']
+# print(f'prec:{prec}')
+# recall = executor.var_dict['recall']
+# print(f'recall:{recall}')
+# mse = executor.var_dict['mse']
+# print(f'mse:{mse}')
+# f1 = executor.var_dict['f1']
+# print(f'f1:{f1}')
+# print(executor.var_dict['__0pred'])

@@ -1,3 +1,4 @@
+import json
 import math
 import re
 import numpy as np
@@ -66,9 +67,8 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        # pass
         self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
-        print(f'gc: {self.name}')
+        # print(f'gc: {self.name}')
 
 
 def preprocessing(fun):
@@ -90,16 +90,18 @@ def preprocessing(fun):
         if node.__class__.__name__ in operators and node.__class__.__name__ not in ['Slice', 'Backward', 'CleanGrad', 'TensorFromSql'] and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
-            node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-            node.executor.tensor_dict[node.vars[0]].set_next(list(filter(None, list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
-            node.executor.tensor_dict[node.vars[0]].set_grad_fn(node)
+            tensor = Tensor(node.vars[0], node.cursor)
+            tensor.set_next(list(filter(None, list(map(lambda x: node.executor.tensor_dict[x.vars[0]] if x.vars[0] in node.executor.tensor_dict else None, node.pre_nodes())))))
+            tensor.set_grad_fn(node)
+            node.executor.tensor_dict[node.vars[0]] = tensor
         elif node.__class__.__name__ == 'Assignment' and flag == 1:
             if node.vars[0] in node.executor.tensor_dict:
                 del node.executor.tensor_dict[node.vars[0]]
             if node.vars[1] in node.executor.tensor_dict:
-                node.executor.tensor_dict[node.vars[0]] = Tensor(node.vars[0], node.cursor)
-                node.executor.tensor_dict[node.vars[0]].set_next(node.executor.tensor_dict[node.vars[1]].get_next())
-                node.executor.tensor_dict[node.vars[0]].set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
+                tensor = Tensor(node.vars[0], node.cursor)
+                tensor.set_next(node.executor.tensor_dict[node.vars[1]].get_next())
+                tensor.set_grad_fn(node.executor.tensor_dict[node.vars[1]].get_grad_fn())
+                node.executor.tensor_dict[node.vars[0]] = tensor
         if len(node.vars) != 0 and flag == 1:
             node.executor.var_dict[node.vars[0]] = node
 
@@ -120,7 +122,8 @@ def dump_tensor(tensors: dict, path: str):
 
 def parse_qp4ai_select(res):
     assert res[0][0] != 'Matrix not found.' and res != 'no result'
-    res = eval('{' + ','.join(res[0][0].split(',')[1:]))
+    res = json.loads('{' + ','.join(res[0][0].split(',')[1:]).replace(',]', ']'))
+    # res = eval('{' + ','.join(res[0][0].split(',')[1:]))
     # 返回rows,cols,data
     return res['rows'], res['cols'], res['data']
 
@@ -329,10 +332,6 @@ class Node:
     def groupby(self, table_name_1, table_name_2, rows, cols):
         self.cursor.execute(f"select qp4ai_select('{table_name_1}');")
         *shape, data = parse_qp4ai_select(self.cursor.fetch())
-        # self.cursor.execute(f"select rows,cols from {table_name_1}")
-        # shape = self.cursor.fetch()[0]
-        # self.cursor.execute(f"select data from {table_name_1}")
-        # data = str_to_list(self.cursor.fetch()[0][0])
         if shape[0] != rows or shape[1] != cols:
             if rows == 1 and cols != 1:
                 self.cursor.execute(f"select qp4ai_sum('{table_name_1}', 0, '{table_name_2}');")
@@ -345,14 +344,8 @@ class Node:
                     sum += data[i]
                 self.cursor.execute(f"select qp4ai_zeros({rows},{cols},'{table_name_2}');")
                 self.cursor.execute("select qp4ai_update_data('{" + str(sum) + "}'" + f", '{table_name_2}');")
-                # self.cursor.execute(f"drop table if exists {table_name_2}")
-                # self.cursor.execute(f"create table {table_name_2}(rows int, cols int,trans int,data double "
-                #                     f"precision[] )")
-                # self.cursor.execute(
-                #     f"insert into {table_name_2} values({rows}, {cols}, 0, array{[sum]})")
         else:
             self.cursor.execute(f"select qp4ai_assignment('{table_name_1}','{table_name_2}');")
-            # self.cursor.execute(f"select * into {table_name_2} from {table_name_1}")
 
 
 # 通过继承实现的其它节点类
@@ -412,6 +405,7 @@ class TensorFromSql(Node):
             self.cursor.execute(f"select qp4ai_load('{self.raw_vars[1]}','{self.vars[0]}')")
         else:
             self.cursor.execute(f"select qp4ai_load('{self.vars[1]}','{self.vars[0]}')")
+
 
 class Sql(Node):
     def __init__(self, t_info, var, **kwargs):
@@ -610,7 +604,7 @@ class If(Node):
                 if ',' in edge.condition and ':' not in edge.condition:
                     group = re.findall(r'[a-zA-Z]+\[', edge.condition)
                     for i in range(len(group)):
-                        edge.condition = edge.condition[:edge.condition.index(',')]+'*'+str(shape[group[i][:-1]][1])+'+'+edge.condition[edge.condition.index(',')+1:]
+                        edge.condition = edge.condition[:edge.condition.index(',')] + '*' + str(shape[group[i][:-1]][1]) + '+' + edge.condition[edge.condition.index(',') + 1:]
                 res = eval(edge.condition, para)
             except TypeError:
                 print("TypeError")
@@ -1380,7 +1374,6 @@ class SaveTable(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
-        self.cursor.commit()
         if self.print_flag:
             self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
             _, _, data = parse_qp4ai_select(self.cursor.fetch())

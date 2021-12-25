@@ -2,20 +2,20 @@ from functools import wraps
 from queue import Queue
 import numpy as np
 from copy import copy, deepcopy
-
+from queue import Queue
 
 def bfs(all_sons):
     def bfs_(fun):
         @wraps(fun)
         def decorated(executor):
-            queue = []
+            queue = Queue()
             visited = set()
             root = executor.graph.nodes[0]
-            queue.append(root)
+            queue.put(root)
             visited.add(root)
             info = {}
-            while not len(queue) == 0:
-                current_node = queue.pop(0)
+            while not queue.empty():
+                current_node = queue.get()
                 success = fun(executor, current_node, visited=visited, info=info)
                 if not success:
                     visited.remove(current_node)
@@ -26,7 +26,7 @@ def bfs(all_sons):
                         next_nodes = current_node.next_nodes()
                     for node in next_nodes:
                         if node not in visited:
-                            queue.append(node)
+                            queue.put(node)
                             visited.add(node)
         return decorated
 

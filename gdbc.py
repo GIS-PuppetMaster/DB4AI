@@ -6,13 +6,12 @@ import pyodbc
 import torch
 execute_time = 0
 
-
 class GDBC(object):
     def __init__(self):
         self.conn = None
         self.cursor = None
+        self.cursor_for_fetch = None
         self.ans = None
-
 
     """
         与数据库的连接，返回ok或任何其它信息。
@@ -22,6 +21,7 @@ class GDBC(object):
         # 建立连接
         self.conn = pyodbc.connect('DRIVER={GaussMPP};SERVER=127.0.0.1;DATABASE=omm;UID=omm;PWD=Gauss@123')
         self.cursor = self.conn.cursor()
+        self.cursor_for_fetch = self.conn.cursor()
 
     """
         关闭与数据库的连接。
@@ -31,6 +31,7 @@ class GDBC(object):
         #  关闭连接
         self.cursor.commit()
         self.cursor.close()
+        self.cursor_for_fetch.close()
         self.conn.close()
         print("Successfully closed!")
         return True
@@ -42,24 +43,28 @@ class GDBC(object):
     def execute(self, sql: str, raw_sql=False):
         #  执行sql
         try:
-            global execute_time
-            t = time()
-            self.cursor.execute(sql)
             # self.cursor.commit()
-            execute_time += time()-t
-            # print("execute_time:"+str(execute_time))
-            self.ans = self.cursor.fetchall()
-            if not raw_sql and 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
-                assert self.ans[0][0]==0
-        except :
+            global execute_time
+            if raw_sql or "qp4ai_select" in sql or "qp4ai_if_tensor_exists" in sql:
+                t = time()
+                self.cursor_for_fetch.execute(sql)
+                execute_time += time() - t
+                self.ans = self.cursor_for_fetch.fetchall()
+            else:
+                t = time()
+                self.cursor.execute(sql)
+                execute_time += time() - t
+                if "qp4ai_print_matrix" in sql:
+                    self.cursor.commit()
+            # if not raw_sql and 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
+            #     assert self.ans[0][0] == 0
+        except:
             raise Exception(f'error sql:{sql}')
             # self.ans = "no result"
+
     """
         取数据，返回。
     """
-
-    def commit(self):
-        self.cursor.commit()
 
     def fetch(self):
         return self.ans
@@ -93,9 +98,9 @@ if __name__ == '__main__':
         maint = ['vhigh', 'high', 'med', 'low']
         doors = ['2', '3', '4', '5more']
         persons = ['2', '4', 'more']
-        lug_boot =['small', 'med', 'big']
+        lug_boot = ['small', 'med', 'big']
         safety = ['low', 'med', 'high']
-        if_ac = ['acc', 'unacc','good','vgood']
+        if_ac = ['acc', 'unacc', 'good', 'vgood']
         for i in range(len(texts)):
             print(i)
             text = texts[i].strip().split(',')
@@ -105,8 +110,8 @@ if __name__ == '__main__':
             else:
                 s_x = "real_multi_class_x"
                 s_y = "real_multi_class_y"
-            gdbc.execute(f"insert into {s_x} values ({buying.index(text[0])*0.25}, {maint.index(text[1])*0.25}, {doors.index(text[2])*0.25}"
-                      f", {persons.index(text[3])*0.33}, {lug_boot.index(text[4])*0.33}, {safety.index(text[5])*0.33})")
+            gdbc.execute(f"insert into {s_x} values ({buying.index(text[0]) * 0.25}, {maint.index(text[1]) * 0.25}, {doors.index(text[2]) * 0.25}"
+                         f", {persons.index(text[3]) * 0.33}, {lug_boot.index(text[4]) * 0.33}, {safety.index(text[5]) * 0.33})")
             if if_ac.index(text[6]) == 0:
                 gdbc.execute(f"insert into {s_y} values (1,0,0,0)")
             if if_ac.index(text[6]) == 1:
@@ -178,16 +183,16 @@ if __name__ == '__main__':
     #         elif total[i][1] == 'M':
     #             gdbc.execute(f"insert into real_test_y values(0.0)")
     # gdbc.close()
-    g = np.array([[1.,2,2],[3,4,3]])
+    g = np.array([[1., 2, 2], [3, 4, 3]])
     print(g)
-    a = torch.ones([2,3],requires_grad=True)
+    a = torch.ones([2, 3], requires_grad=True)
     a = torch.tensor(g, requires_grad=True)
     print(a)
-    b = torch.ones([3,4],requires_grad=True)
+    b = torch.ones([3, 4], requires_grad=True)
     print(b)
-    c = torch.ones([1,7],requires_grad=True)
+    c = torch.ones([1, 7], requires_grad=True)
     print(c)
-    d = torch.mean(torch.exp(1-torch.pow(torch.matmul(a,b) + c,2)))
+    d = torch.mean(torch.exp(1 - torch.pow(torch.matmul(a, b) + c, 2)))
     d.backward()
     print(c.grad)
     # e = torch.ones([2,4],requires_grad=True)
