@@ -66,14 +66,15 @@ class Table:
         self.cursor = cursor
 
     def __del__(self):
-        pass
-        # self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
-        # print(f'gc: {self.name}')
+        # pass
+        self.cursor.execute(f"select qp4ai_erase_element('{self.name}');")
+        print(f'gc: {self.name}')
 
 
 def preprocessing(fun):
     @wraps(fun)
     def decorated(node, **kwargs):
+        # 区分大小写
         for i in range(len(node.vars)):
             if i == 0 and node.vars[i] is None:
                 continue
@@ -686,8 +687,6 @@ class Assignment(Node):
             print(self.vars[0])
             pass
         else:
-            if self.id == 40:
-                print(self.id)
             assert flag_right is True
             if self.slice is None:
                 self.cursor.execute(f"select qp4ai_assignment('{self.vars[1]}','{self.vars[0]}');")
@@ -1381,11 +1380,11 @@ class SaveTable(Node):
     @preprocessing
     def run(self, **kwargs):
         self.cursor.execute(f"select qp4ai_print_matrix('{self.vars[1]}', '{self.table_name}');")
+        self.cursor.commit()
         if self.print_flag:
             self.cursor.execute(f"select qp4ai_select('{self.vars[1]}');")
             _, _, data = parse_qp4ai_select(self.cursor.fetch())
-            # self.cursor.execute(f"select * from {self.table_name};")
-            print(f"{self.table_name}: {data[0]}")
+            # print(f"{self.table_name}: {data[0]}")
 
     def set_name(self, table_name):
         self.table_name = table_name
@@ -1937,7 +1936,7 @@ class Backward(Node):
     @preprocessing
     def run(self, **kwargs):
 
-        #
+
         """
         初始化
         """

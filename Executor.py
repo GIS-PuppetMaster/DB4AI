@@ -1,3 +1,4 @@
+import gdbc
 from Nodes import LoopEnd
 from Nodes import *
 from utils import *
@@ -151,3 +152,4 @@ class Executor:
 
     def run(self):
         self.execute()
+        print("sql:" + str(gdbc.execute_time))
