@@ -152,4 +152,7 @@ class Executor:
 
     def run(self):
         self.execute()
+        self.cursor.execute(f"select qp4ai_select('_time_cost_');")
+        _, _, data = parse_qp4ai_select(self.cursor.fetch())
+        print("_time_cost_:" + str(data[0]))
         print("sql:" + str(gdbc.execute_time))
