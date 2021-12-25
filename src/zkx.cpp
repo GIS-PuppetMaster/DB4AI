@@ -304,7 +304,7 @@ outer_printCount(PG_FUNCTION_ARGS){
     SPI_exec(sql, 0);
     SPI_finish();
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(matrixMap.size());
 }
 
@@ -323,7 +323,7 @@ qp4ai_matrixMap_size(PG_FUNCTION_ARGS){
     }
     size += sizeof(matrixMap);
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(size);
 }
 
@@ -359,7 +359,7 @@ qp4ai_sub(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     // #ifdef DEBUG
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
@@ -424,7 +424,7 @@ qp4ai_sum(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -468,7 +468,7 @@ qp4ai_sqrt(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -542,7 +542,7 @@ qp4ai_sort(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -600,7 +600,7 @@ qp4ai_argmin(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -660,7 +660,7 @@ qp4ai_argmax(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -695,7 +695,7 @@ qp4ai_full(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -725,7 +725,7 @@ qp4ai_log(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -785,7 +785,7 @@ qp4ai_max(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -845,7 +845,7 @@ qp4ai_min(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -920,7 +920,7 @@ qp4ai_mean(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -953,7 +953,7 @@ qp4ai_shape(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1002,7 +1002,7 @@ qp4ai_slice(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1043,7 +1043,7 @@ qp4ai_trace(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1081,7 +1081,7 @@ qp4ai_pow_table(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1114,7 +1114,7 @@ qp4ai_pow(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1162,7 +1162,7 @@ qp4ai_repeat(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 PG_FUNCTION_INFO_V1(_Z12qp4ai_randomP20FunctionCallInfoData); // register function as V1
@@ -1248,7 +1248,7 @@ qp4ai_random(PG_FUNCTION_ARGS){
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1331,7 +1331,7 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1432,7 +1432,7 @@ qp4ai_tensordot(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1503,7 +1503,7 @@ qp4ai_matmul(PG_FUNCTION_ARGS){
     SPI_finish();  // ???????????
     */
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -1555,7 +1555,7 @@ qp4ai_dot(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1649,7 +1649,7 @@ qp4ai_argsort(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1703,7 +1703,7 @@ qp4ai_acc(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1784,7 +1784,7 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1907,7 +1907,7 @@ qp4ai_f1(PG_FUNCTION_ARGS){
     // printMSG(res);
     // #endif
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1925,7 +1925,7 @@ qp4ai_ones(PG_FUNCTION_ARGS){ // ??????(????) ????????
     matrix_ones(matrix);
     matrixMap[output_table_name] = *matrix;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ???????????
     /////////////////////////////////////////////////////////////////////////
 }
@@ -1938,7 +1938,7 @@ qp4ai_erase_map(PG_FUNCTION_ARGS){
     long int start_time = get_time_stamp();
     matrixMap.erase(matrixMap.begin(),matrixMap.end());
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
     /////////////////////////////////////////////////////////////////////////
 }
@@ -1951,7 +1951,7 @@ qp4ai_erase_element(PG_FUNCTION_ARGS){
     char* table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     matrixMap.erase(table_name);
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -1962,7 +1962,7 @@ qp4ai_init_map(PG_FUNCTION_ARGS){
     long int start_time = get_time_stamp();
     initTest();
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -2003,7 +2003,7 @@ qp4ai_select(PG_FUNCTION_ARGS){
     // char result[128] = "result saved to table 'smy_output'";
 
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_TEXT_P(cstring_to_text(result.c_str())); // 潩潩?
 }
 // ???????????????
@@ -2033,7 +2033,7 @@ qp4ai_add(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2081,7 +2081,7 @@ qp4ai_div(PG_FUNCTION_ARGS){
 
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 // mse
@@ -2115,7 +2115,7 @@ qp4ai_mse(PG_FUNCTION_ARGS){
     res->data[0] = mse_sum / size;
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2165,7 +2165,7 @@ qp4ai_auc(PG_FUNCTION_ARGS){
     res->data[0] = auc / ( pos.size() * neg.size() );
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2197,7 +2197,7 @@ qp4ai_mul(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2223,7 +2223,7 @@ qp4ai_exp(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2249,7 +2249,7 @@ qp4ai_abs(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2269,7 +2269,7 @@ qp4ai_zeros(PG_FUNCTION_ARGS){
     matrix_zeroes(res);
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2296,7 +2296,7 @@ qp4ai_reshape(PG_FUNCTION_ARGS){
     res->columns = cols;
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2333,7 +2333,7 @@ qp4ai_shuffle(PG_FUNCTION_ARGS){ // ??????(????) ????????
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -2383,7 +2383,7 @@ qp4ai_load(PG_FUNCTION_ARGS){ // ??????(????) ????????
     matrixMap[output_table_name] = *res;
     SPI_finish();
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -2400,7 +2400,7 @@ qp4ai_back_sub(PG_FUNCTION_ARGS){
     res->data[0] = -1.0;
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2469,7 +2469,7 @@ qp4ai_back_div(PG_FUNCTION_ARGS){
         matrixMap[output_table_name2] = *o2;
     }
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2487,7 +2487,7 @@ qp4ai_back_negative(PG_FUNCTION_ARGS){
     res->data[0] = -1.0;
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2515,7 +2515,7 @@ qp4ai_back_log(PG_FUNCTION_ARGS){
     // ??????????
     matrixMap[output_table_name] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2574,7 +2574,7 @@ qp4ai_back_mul(PG_FUNCTION_ARGS){
     matrixMap[output_table_name1] = *o1;
     matrixMap[output_table_name2] = *o2;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2611,7 +2611,7 @@ qp4ai_back_pow(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2635,7 +2635,7 @@ qp4ai_back_sqrt(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2735,7 +2735,7 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
     matrixMap[output_table_name1] = *o1;
     matrixMap[output_table_name2] = *o2;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2773,7 +2773,7 @@ qp4ai_back_mean(PG_FUNCTION_ARGS){
     // copy(data.begin(), data.end(), o1->data);
     matrixMap[output_table_name] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2819,7 +2819,7 @@ qp4ai_print_matrix(PG_FUNCTION_ARGS){
     //    table_name,input_table_name, datainfo);
     SPI_finish();
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -2834,7 +2834,7 @@ qp4ai_val(PG_FUNCTION_ARGS){
     o1->data[0]=val;
     matrixMap[output_table_name] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2853,7 +2853,7 @@ qp4ai_assignment(PG_FUNCTION_ARGS){
     }
     matrixMap[mtrx_name1] = *o1;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2868,7 +2868,7 @@ qp4ai_if_tensor_exists(PG_FUNCTION_ARGS){
         res = true;
     }
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_BOOL(res);
 }
 
@@ -3051,7 +3051,7 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     //#endif
 
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -3071,7 +3071,7 @@ qp4ai_update_data(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *mtrx;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3092,7 +3092,7 @@ qp4ai_negative(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3132,7 +3132,7 @@ qp4ai_back_softmax(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3151,7 +3151,7 @@ qp4ai_relu(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3170,7 +3170,7 @@ qp4ai_back_relu(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3189,7 +3189,7 @@ qp4ai_leakyrelu(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3208,7 +3208,7 @@ qp4ai_back_leakyrelu(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3232,7 +3232,7 @@ qp4ai_tanh(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
 
@@ -3253,6 +3253,6 @@ qp4ai_back_tanh(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    time_cost_accumulate(time_cost)
+    time_cost_accumulate(time_cost);
     PG_RETURN_INT32(0);
 }
