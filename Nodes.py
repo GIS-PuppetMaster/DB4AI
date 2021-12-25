@@ -686,6 +686,8 @@ class Assignment(Node):
             print(self.vars[0])
             pass
         else:
+            if self.id == 40:
+                print(self.id)
             assert flag_right is True
             if self.slice is None:
                 self.cursor.execute(f"select qp4ai_assignment('{self.vars[1]}','{self.vars[0]}');")
@@ -724,6 +726,7 @@ class Assignment(Node):
                         # s[1]="None"
                         old_data[s[0]] = new_data
                 except IndexError:
+                    print(IndexError)
                     print(old_data)
                     print(shape)
                 d = str(old_data).replace('[', '{').replace(']', '}')
@@ -1952,7 +1955,7 @@ class Backward(Node):
                 table_name = 'grad_input_' + str(node.id)
                 self.cursor.execute(f"select qp4ai_if_tensor_exists('{table_name}');")
                 node_flag = bool(int(self.cursor.fetch()[0][0]))
-                print(f"tensor: {tensor.grad_fn.id}, node: {node}")
+                # print(f"tensor: {tensor.grad_fn.id}, node: {node}")
                 # self.cursor.execute(f"select count(*) from pg_class where relname = '{table_name}';")
                 # node_flag = self.cursor.fetch()[0][0] == 1
                 if node_flag:
