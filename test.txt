@@ -1,4 +1,3 @@
-create tensor a(3,3) from ones((3,3)) with grad
-select a[1,2] as c
-select Abs(a) as b
-
+select qp4ai_ones(30000,2000,'a');
+select qp4ai_sub('a','a','a');
+select qp4ai_select('_time_cost_');

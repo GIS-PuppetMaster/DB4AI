@@ -938,7 +938,6 @@ if __name__ == '__main__':
     print("generate_time:" + str(generate_time / repeat))
     print("analyze_time:" + str(analyze_time / repeat))
     print("execute_time:" + str(execute_time / repeat))
-    print("operator_time:" + str(gdbc.execute_time / repeat))
 #     executor = Executor(result)
 #     s = time()
 #     executor.run()
