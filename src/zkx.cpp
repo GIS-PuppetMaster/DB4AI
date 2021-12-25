@@ -81,6 +81,22 @@ inline void my_matrix_init_clone(Matrix *matrix, const Matrix *src)
     securec_check(rc, "", "");
 }
 
+inline void time_cost_accumulate(long time_cost)
+{
+    Matrix *tc;
+    if (matrixMap.count("_time_cost_")>0)
+    {
+        tc = &matrixMap["_time_cost_"];
+        tc->data[0] += ((double) time_cost)/1000;
+    }
+    else
+    {
+        tc = (Matrix*)malloc(sizeof(Matrix));
+        my_matrix_init(tc, 1, 1);
+        tc->data[0] = ((double) time_cost)/1000;
+    }
+    matrixMap["_time_cost_"] = *tc;
+}
 
 void logger(char* message){
     char mess[MAX_SQL_LEN];
@@ -272,6 +288,7 @@ void printCount(){
 PG_FUNCTION_INFO_V1(_Z16outer_printCountP20FunctionCallInfoData);
 Datum
 outer_printCount(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     SPI_connect();
     char sql_drop_table_if_exists[MAX_SQL_LEN];
     const char* table_name = "map_count";
@@ -286,6 +303,8 @@ outer_printCount(PG_FUNCTION_ARGS){
         table_name,1,1,matrixMap.size());
     SPI_exec(sql, 0);
     SPI_finish();
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(matrixMap.size());
 }
 
@@ -294,6 +313,7 @@ outer_printCount(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z20qp4ai_matrixMap_sizeP20FunctionCallInfoData);
 Datum
 qp4ai_matrixMap_size(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     map<string, Matrix> ::iterator iter;
     int size = 0;
     for (iter = matrixMap.begin();iter!=matrixMap.end();iter++){
@@ -302,6 +322,8 @@ qp4ai_matrixMap_size(PG_FUNCTION_ARGS){
         size+=temp.columns*temp.rows*sizeof(double);
     }
     size += sizeof(matrixMap);
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(size);
 }
 
@@ -337,19 +359,7 @@ qp4ai_sub(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name] = *res;
     long int time_cost = get_time_stamp()-start_time;
-    Matrix *tc;
-    if (matrixMap.count("_time_cost_")>0)
-    {
-        tc = &matrixMap["_time_cost_"];
-        tc->data[0] += ((double) time_cost)/1000;
-    }
-    else
-    {
-        tc = (Matrix*)malloc(sizeof(Matrix));
-        my_matrix_init(tc, 1, 1);
-        tc->data[0] = ((double) time_cost)/1000;
-    }
-    matrixMap["_time_cost_"] = *tc;
+    time_cost_accumulate(time_cost)
     // #ifdef DEBUG
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
@@ -367,6 +377,7 @@ qp4ai_sum(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     //get para
+    long int start_time = get_time_stamp();
     printCount();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
@@ -412,6 +423,8 @@ qp4ai_sum(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -425,6 +438,7 @@ qp4ai_sqrt(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     //get para
+    long int start_time = get_time_stamp();
     printCount();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -453,6 +467,8 @@ qp4ai_sqrt(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -466,6 +482,7 @@ qp4ai_sort(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -524,6 +541,8 @@ qp4ai_sort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -537,6 +556,7 @@ qp4ai_argmin(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -579,6 +599,8 @@ qp4ai_argmin(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -592,6 +614,7 @@ qp4ai_argmax(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -636,6 +659,8 @@ qp4ai_argmax(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -649,6 +674,7 @@ qp4ai_full(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     float8 full_value = PG_GETARG_FLOAT8(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -668,6 +694,8 @@ qp4ai_full(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -677,6 +705,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_logP20FunctionCallInfoData); // register function a
 // ?????0???? -1????????????
 Datum
 qp4ai_log(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
 
@@ -695,6 +724,8 @@ qp4ai_log(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -708,6 +739,7 @@ qp4ai_max(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -752,6 +784,8 @@ qp4ai_max(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -765,6 +799,7 @@ qp4ai_min(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -809,6 +844,8 @@ qp4ai_min(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -822,6 +859,7 @@ qp4ai_mean(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -881,6 +919,8 @@ qp4ai_mean(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -894,6 +934,7 @@ qp4ai_shape(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     //check input_table
@@ -911,6 +952,8 @@ qp4ai_shape(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -924,6 +967,7 @@ qp4ai_slice(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim1_start = PG_GETARG_INT32(1);
     int32 dim1_end = PG_GETARG_INT32(2);
@@ -957,6 +1001,8 @@ qp4ai_slice(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -970,6 +1016,7 @@ qp4ai_trace(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     //check input_table
@@ -995,6 +1042,8 @@ qp4ai_trace(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1008,6 +1057,7 @@ qp4ai_pow_table(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string pow_buttom = text_to_cstring(PG_GETARG_TEXT_PP(1));
     // float8 pow_buttom = PG_GETARG_FLOAT8(1);
@@ -1030,6 +1080,8 @@ qp4ai_pow_table(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1040,6 +1092,7 @@ qp4ai_pow(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     float8 pow_exp = PG_GETARG_FLOAT8(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1060,6 +1113,8 @@ qp4ai_pow(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1073,6 +1128,7 @@ qp4ai_repeat(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim1 = PG_GETARG_INT32(1);
     int32 dim2 = PG_GETARG_INT32(2);
@@ -1105,6 +1161,8 @@ qp4ai_repeat(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 PG_FUNCTION_INFO_V1(_Z12qp4ai_randomP20FunctionCallInfoData); // register function as V1
@@ -1117,6 +1175,7 @@ qp4ai_random(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     int32 dim1 = PG_GETARG_INT32(0);
 
     int32 dim2 = PG_GETARG_INT32(1);
@@ -1188,6 +1247,8 @@ qp4ai_random(PG_FUNCTION_ARGS){
     // printMSG(res);
     // //printMSG(matrixMap["mtrx2"]);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1201,6 +1262,7 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1268,6 +1330,8 @@ qp4ai_softmax(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1281,6 +1345,7 @@ qp4ai_tensordot(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     int32 dim = PG_GETARG_INT32(2);
@@ -1366,6 +1431,8 @@ qp4ai_tensordot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1381,6 +1448,7 @@ qp4ai_matmul(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // ???????
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1434,6 +1502,8 @@ qp4ai_matmul(PG_FUNCTION_ARGS){
     // #endif
     SPI_finish();  // ???????????
     */
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -1447,6 +1517,7 @@ qp4ai_dot(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1483,6 +1554,8 @@ qp4ai_dot(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1496,6 +1569,7 @@ qp4ai_argsort(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1574,6 +1648,8 @@ qp4ai_argsort(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1587,6 +1663,7 @@ qp4ai_acc(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     int32 norm = PG_GETARG_INT32(2);
@@ -1625,6 +1702,8 @@ qp4ai_acc(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1641,6 +1720,7 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 dim = PG_GETARG_INT32(1);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1703,6 +1783,8 @@ qp4ai_reverse(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1718,6 +1800,7 @@ qp4ai_f1(PG_FUNCTION_ARGS){
     // initTest();
     // #endif
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1823,6 +1906,8 @@ qp4ai_f1(PG_FUNCTION_ARGS){
     // #ifdef DEBUG
     // printMSG(res);
     // #endif
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1831,6 +1916,7 @@ PG_FUNCTION_INFO_V1(_Z10qp4ai_onesP20FunctionCallInfoData); // ??????V1??
 Datum // ????Postgres?????????????????????Datum
 qp4ai_ones(PG_FUNCTION_ARGS){ // ??????(????) ????????
     // ???????
+    long int start_time = get_time_stamp();
     int32 rows = PG_GETARG_INT32(0);
     int32 cols = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -1838,6 +1924,8 @@ qp4ai_ones(PG_FUNCTION_ARGS){ // ??????(????) ????????
     my_matrix_init(matrix, rows, cols);
     matrix_ones(matrix);
     matrixMap[output_table_name] = *matrix;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ???????????
     /////////////////////////////////////////////////////////////////////////
 }
@@ -1847,7 +1935,10 @@ PG_FUNCTION_INFO_V1(_Z15qp4ai_erase_mapP20FunctionCallInfoData); // ??????V1??
 Datum
 qp4ai_erase_map(PG_FUNCTION_ARGS){
     //matrixMap.clear();
+    long int start_time = get_time_stamp();
     matrixMap.erase(matrixMap.begin(),matrixMap.end());
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
     /////////////////////////////////////////////////////////////////////////
 }
@@ -1856,8 +1947,11 @@ qp4ai_erase_map(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z19qp4ai_erase_elementP20FunctionCallInfoData); // ??????V1??
 Datum
 qp4ai_erase_element(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     char* table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     matrixMap.erase(table_name);
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1865,7 +1959,10 @@ qp4ai_erase_element(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z14qp4ai_init_mapP20FunctionCallInfoData); // ??????V1??
 Datum
 qp4ai_init_map(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     initTest();
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -1880,7 +1977,8 @@ qp4ai_init_map(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z12qp4ai_selectP20FunctionCallInfoData);
 Datum
 qp4ai_select(PG_FUNCTION_ARGS){
-   char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    long int start_time = get_time_stamp();
+    char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
 
     if(matrix_not_exists(input_table_name)){
         PG_RETURN_TEXT_P(cstring_to_text("Matrix not found."));
@@ -1903,12 +2001,16 @@ qp4ai_select(PG_FUNCTION_ARGS){
     // strcat(result,"]}");
     // printMSG(input_matrix_p);
     // char result[128] = "result saved to table 'smy_output'";
+
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_TEXT_P(cstring_to_text(result.c_str())); // 潩潩?
 }
 // ???????????????
 PG_FUNCTION_INFO_V1(_Z9qp4ai_addP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_add(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -1930,6 +2032,8 @@ qp4ai_add(PG_FUNCTION_ARGS){
         res->data[i] = mtrx1->data[i]+mtrx2->data[i];
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -1937,6 +2041,7 @@ qp4ai_add(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z9qp4ai_divP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_div(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get para
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -1975,6 +2080,8 @@ qp4ai_div(PG_FUNCTION_ARGS){
    // main logic
 
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 // mse
@@ -1986,6 +2093,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_mseP20FunctionCallInfoData); // register function a
 Datum
 qp4ai_mse(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2006,6 +2114,8 @@ qp4ai_mse(PG_FUNCTION_ARGS){
     }
     res->data[0] = mse_sum / size;
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2018,6 +2128,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_aucP20FunctionCallInfoData); // register function a
 Datum
 qp4ai_auc(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2053,6 +2164,8 @@ qp4ai_auc(PG_FUNCTION_ARGS){
     }
     res->data[0] = auc / ( pos.size() * neg.size() );
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2062,6 +2175,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_mulP20FunctionCallInfoData); // register function a
 Datum
 qp4ai_mul(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2082,6 +2196,8 @@ qp4ai_mul(PG_FUNCTION_ARGS){
         res->data[i] = mtrx1->data[i]*mtrx2->data[i];
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2090,6 +2206,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_expP20FunctionCallInfoData); // register function a
 Datum
 qp4ai_exp(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     if(matrix_not_exists(input_table_name)){
@@ -2105,6 +2222,8 @@ qp4ai_exp(PG_FUNCTION_ARGS){
         res->data[i] = exp(input_matrix_p->data[i]);
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2113,6 +2232,7 @@ PG_FUNCTION_INFO_V1(_Z9qp4ai_absP20FunctionCallInfoData); // register function a
 Datum
 qp4ai_abs(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     if(matrix_not_exists(input_table_name)){
@@ -2128,6 +2248,8 @@ qp4ai_abs(PG_FUNCTION_ARGS){
         res->data[i] = abs(input_matrix_p->data[i]);
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2136,6 +2258,7 @@ PG_FUNCTION_INFO_V1(_Z11qp4ai_zerosP20FunctionCallInfoData); // register functio
 Datum
 qp4ai_zeros(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     int32 rows = PG_GETARG_INT32(0);
     int32 cols = PG_GETARG_INT32(1);
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2145,6 +2268,8 @@ qp4ai_zeros(PG_FUNCTION_ARGS){
    // main logic
     matrix_zeroes(res);
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2154,6 +2279,7 @@ PG_FUNCTION_INFO_V1(_Z13qp4ai_reshapeP20FunctionCallInfoData); // register funct
 Datum
 qp4ai_reshape(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int32 rows = PG_GETARG_INT32(1);
     int32 cols = PG_GETARG_INT32(2);
@@ -2169,6 +2295,8 @@ qp4ai_reshape(PG_FUNCTION_ARGS){
     res->rows = rows;
     res->columns = cols;
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2178,6 +2306,7 @@ PG_FUNCTION_INFO_V1(_Z13qp4ai_shuffleP20FunctionCallInfoData);
 Datum // ????Postgres?????????????????????Datum
 qp4ai_shuffle(PG_FUNCTION_ARGS){ // ??????(????) ????????
     // ???????
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     /////////////////////////////////////////////////////////////////////////
@@ -2203,6 +2332,8 @@ qp4ai_shuffle(PG_FUNCTION_ARGS){ // ??????(????) ????????
         }
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -2212,6 +2343,7 @@ PG_FUNCTION_INFO_V1(_Z10qp4ai_loadP20FunctionCallInfoData);
 Datum // ????Postgres?????????????????????Datum
 qp4ai_load(PG_FUNCTION_ARGS){ // ??????(????) ????????
     // ???????
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0)); // ??????????????????
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1)); // ????????????
     // ????????
@@ -2250,6 +2382,8 @@ qp4ai_load(PG_FUNCTION_ARGS){ // ??????(????) ????????
     }
     matrixMap[output_table_name] = *res;
     SPI_finish();
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ???????????
 }
 
@@ -2258,12 +2392,15 @@ PG_FUNCTION_INFO_V1(_Z14qp4ai_back_subP20FunctionCallInfoData); // register func
 Datum
 qp4ai_back_sub(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, 1, 1);
    // main logic
     res->data[0] = -1.0;
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2273,6 +2410,7 @@ PG_FUNCTION_INFO_V1(_Z14qp4ai_back_divP20FunctionCallInfoData); // register func
 Datum
 qp4ai_back_div(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     char* output_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2330,6 +2468,8 @@ qp4ai_back_div(PG_FUNCTION_ARGS){
         matrixMap[output_table_name1] = *o1;
         matrixMap[output_table_name2] = *o2;
     }
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2339,12 +2479,15 @@ PG_FUNCTION_INFO_V1(_Z19qp4ai_back_negativeP20FunctionCallInfoData); // register
 Datum
 qp4ai_back_negative(PG_FUNCTION_ARGS){
     // get para
+    long int start_time = get_time_stamp();
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     Matrix *res = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(res, 1, 1);
    // main logic
     res->data[0] = -1.0;
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2353,6 +2496,7 @@ PG_FUNCTION_INFO_V1(_Z14qp4ai_back_logP20FunctionCallInfoData); // register func
 Datum
 qp4ai_back_log(PG_FUNCTION_ARGS){
     // get param
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
 
@@ -2370,6 +2514,8 @@ qp4ai_back_log(PG_FUNCTION_ARGS){
     }
     // ??????????
     matrixMap[output_table_name] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2379,6 +2525,7 @@ Datum
 qp4ai_back_mul(PG_FUNCTION_ARGS){
     // get param
     // self.vars[1]
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     // self.vars[2]
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2426,6 +2573,8 @@ qp4ai_back_mul(PG_FUNCTION_ARGS){
     // ??????????
     matrixMap[output_table_name1] = *o1;
     matrixMap[output_table_name2] = *o2;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2434,6 +2583,7 @@ PG_FUNCTION_INFO_V1(_Z14qp4ai_back_powP20FunctionCallInfoData); // register func
 Datum
 qp4ai_back_pow(PG_FUNCTION_ARGS){
     // self.vars[0]
+    long int start_time = get_time_stamp();
     char* input_table_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
      // self.vars[1]
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2460,6 +2610,8 @@ qp4ai_back_pow(PG_FUNCTION_ARGS){
         }
     }
     matrixMap[output_table_name] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2468,6 +2620,7 @@ PG_FUNCTION_INFO_V1(_Z15qp4ai_back_sqrtP20FunctionCallInfoData); // register fun
 Datum
 qp4ai_back_sqrt(PG_FUNCTION_ARGS){
     // self.vars[0]
+    long int start_time = get_time_stamp();
     char* input_table_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     // ??????????
@@ -2481,6 +2634,8 @@ qp4ai_back_sqrt(PG_FUNCTION_ARGS){
         }
     }
     matrixMap[output_table_name] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2489,6 +2644,7 @@ PG_FUNCTION_INFO_V1(_Z17qp4ai_back_matmulP20FunctionCallInfoData); // register f
 Datum
 qp4ai_back_matmul(PG_FUNCTION_ARGS){
     // self.vars[1]
+    long int start_time = get_time_stamp();
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     // self.vars[2]
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2578,6 +2734,8 @@ qp4ai_back_matmul(PG_FUNCTION_ARGS){
     }
     matrixMap[output_table_name1] = *o1;
     matrixMap[output_table_name2] = *o2;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2586,6 +2744,7 @@ PG_FUNCTION_INFO_V1(_Z15qp4ai_back_meanP20FunctionCallInfoData); // register fun
 Datum
 qp4ai_back_mean(PG_FUNCTION_ARGS){
     // self.vars[1]
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     int axis = PG_GETARG_INT32(2);
@@ -2613,12 +2772,15 @@ qp4ai_back_mean(PG_FUNCTION_ARGS){
     }
     // copy(data.begin(), data.end(), o1->data);
     matrixMap[output_table_name] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
 PG_FUNCTION_INFO_V1(_Z18qp4ai_print_matrixP20FunctionCallInfoData);
 Datum
 qp4ai_print_matrix(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     char* input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* mtrx = get_matrix_p_by_name(input_table_name);
@@ -2656,24 +2818,30 @@ qp4ai_print_matrix(PG_FUNCTION_ARGS){
     //sprintf(sql, "  INSERT INTO %s values('%s', '%s');",
     //    table_name,input_table_name, datainfo);
     SPI_finish();
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z9qp4ai_valP20FunctionCallInfoData);
 Datum
 qp4ai_val(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     float8 val = PG_GETARG_FLOAT8(0);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* o1 = (Matrix*)malloc(sizeof(Matrix));
     my_matrix_init(o1, 1, 1);
     o1->data[0]=val;
     matrixMap[output_table_name] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
 PG_FUNCTION_INFO_V1(_Z16qp4ai_assignmentP20FunctionCallInfoData);
 Datum
 qp4ai_assignment(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     char* mtrx_name0 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* mtrx_name1 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     Matrix* mtrx0 = get_matrix_p_by_name(mtrx_name0);
@@ -2684,18 +2852,23 @@ qp4ai_assignment(PG_FUNCTION_ARGS){
         o1->data[i]=mtrx0->data[i];
     }
     matrixMap[mtrx_name1] = *o1;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
 PG_FUNCTION_INFO_V1(_Z22qp4ai_if_tensor_existsP20FunctionCallInfoData);
 Datum
 qp4ai_if_tensor_exists(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     char* mtrx_name1 = text_to_cstring(PG_GETARG_TEXT_PP(0));
     int c = matrixMap.count(mtrx_name1);
     bool res= false;
     if(c>=1){
         res = true;
     }
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_BOOL(res);
 }
 
@@ -2754,6 +2927,7 @@ PG_FUNCTION_INFO_V1(_Z18qp4ai_op_broadcastP20FunctionCallInfoData);
 Datum
 qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     // ???????
+    long int start_time = get_time_stamp();
     int32 op = PG_GETARG_INT32(0);
     char* input_table_name1 = text_to_cstring(PG_GETARG_TEXT_PP(1));
     char* input_table_name2 = text_to_cstring(PG_GETARG_TEXT_PP(2));
@@ -2875,6 +3049,9 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
     //printMSG(res);
     //printMSG(matrixMap["mtrx2"]);
     //#endif
+
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0); // ?????
 }
 
@@ -2884,6 +3061,7 @@ qp4ai_op_broadcast(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z17qp4ai_update_dataP20FunctionCallInfoData);
 Datum
 qp4ai_update_data(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     ArrayType* arr = PG_GETARG_ARRAYTYPE_P(0);
     float8* data = (float8 *) ARR_DATA_PTR(arr);
     char* output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2892,12 +3070,15 @@ qp4ai_update_data(PG_FUNCTION_ARGS){
         mtrx->data[i] = data[i];
     }
     matrixMap[output_table_name] = *mtrx;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z14qp4ai_negativeP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_negative(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     // vars[0]
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -2910,12 +3091,15 @@ qp4ai_negative(PG_FUNCTION_ARGS){
         res->data[i] = -res->data[i];
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z18qp4ai_back_softmaxP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_back_softmax(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     // vars[0], softmax
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -2947,12 +3131,15 @@ qp4ai_back_softmax(PG_FUNCTION_ARGS){
         }
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z10qp4ai_reluP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_relu(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2963,12 +3150,15 @@ qp4ai_relu(PG_FUNCTION_ARGS){
         res->data[i] = mtrx->data[i]>0?mtrx->data[i]:0;
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z15qp4ai_back_reluP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_back_relu(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2979,12 +3169,15 @@ qp4ai_back_relu(PG_FUNCTION_ARGS){
         res->data[i] = mtrx->data[i]>0?1:0;
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z15qp4ai_leakyreluP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_leakyrelu(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -2995,12 +3188,15 @@ qp4ai_leakyrelu(PG_FUNCTION_ARGS){
         res->data[i] = mtrx->data[i]>0?mtrx->data[i]:0.1*mtrx->data[i];
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z20qp4ai_back_leakyreluP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_back_leakyrelu(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -3011,6 +3207,8 @@ qp4ai_back_leakyrelu(PG_FUNCTION_ARGS){
         res->data[i] = mtrx->data[i]>0?1:0.1;
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
@@ -3018,6 +3216,7 @@ qp4ai_back_leakyrelu(PG_FUNCTION_ARGS){
 PG_FUNCTION_INFO_V1(_Z10qp4ai_tanhP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_tanh(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
     string output_table_name = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -3032,12 +3231,15 @@ qp4ai_tanh(PG_FUNCTION_ARGS){
         res->data[i] = (arr1[i]-arr2[i])/(arr1[i]+arr2[i]);
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
 
 PG_FUNCTION_INFO_V1(_Z15qp4ai_back_tanhP20FunctionCallInfoData); // register function as V1
 Datum
 qp4ai_back_tanh(PG_FUNCTION_ARGS){
+    long int start_time = get_time_stamp();
     // get param
     // tanh(x)
     string input_table_name = text_to_cstring(PG_GETARG_TEXT_PP(0));
@@ -3050,5 +3252,7 @@ qp4ai_back_tanh(PG_FUNCTION_ARGS){
         res->data[i] = 1 - pow(mtrx->data[i],2);
     }
     matrixMap[output_table_name] = *res;
+    long int time_cost = get_time_stamp()-start_time;
+    time_cost_accumulate(time_cost)
     PG_RETURN_INT32(0);
 }
