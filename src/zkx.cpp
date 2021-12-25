@@ -2525,25 +2525,34 @@ qp4ai_print_matrix(PG_FUNCTION_ARGS){
     sprintf(sql_drop_table_if_exists, "DROP TABLE IF EXISTS %s;", table_name);
     SPI_exec(sql_drop_table_if_exists, 0);
     // const char* table_name = "output_result";
-    char sql[MAX_SQL_LEN];
-    sprintf(sql, " CREATE TABLE %s (tensor_name TEXT, data float8[]);", table_name);
-    SPI_exec(sql, 0);
-    int size = mtrx->rows*mtrx->columns;
-    string datainfo = "{";
-    for (int i = 0; i < size; i++)
-    {
-        datainfo = datainfo + to_string(mtrx->data[i]);
-        if (i<size-1){
-            datainfo = datainfo + ",";
+    string sql="CREATE TABLE " +(string)table_name+ " (";
+    for (int i=0;i<mtrx->columns;i++){
+        sql += "col_"+to_string(i)+" float8";
+        if (i!=mtrx->columns-1){
+            sql+=",";
         }
     }
-    datainfo = datainfo + "}";
+    sql+=");";
+    // sprintf(sql, " data float8[]);", table_name);
+    SPI_exec(sql.c_str(), 0);
+    int size = mtrx->rows*mtrx->columns;
     string table_name_ = table_name;
-    string input_table_name_ = input_table_name;
-    string sql2 = "INSERT INTO " +table_name_+ " values('"+input_table_name_+"', '"+datainfo+"');";
+    for (int i = 0; i < mtrx->rows; i++)
+    {
+        string datainfo = "";
+        for(int j=0;j<mtrx->columns;j++){
+            datainfo = datainfo + to_string(mtrx->data[i*mtrx->columns+j]);
+            if (j<mtrx->columns-1){
+                datainfo = datainfo + ",";
+            }
+        }
+        string sql2 = "INSERT INTO " +table_name_+ " values("+datainfo+");";
+        SPI_exec(sql2.c_str(), 0);
+    }
+    // datainfo = datainfo + "";
+
     //sprintf(sql, "  INSERT INTO %s values('%s', '%s');",
     //    table_name,input_table_name, datainfo);
-    SPI_exec(sql2.c_str(), 0);
     SPI_finish();
     PG_RETURN_INT32(0);
 }

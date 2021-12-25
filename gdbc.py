@@ -39,7 +39,7 @@ class GDBC(object):
         执行sql。
     """
 
-    def execute(self, sql: str):
+    def execute(self, sql: str, raw_sql=False):
         #  执行sql
         try:
             global execute_time
@@ -49,7 +49,7 @@ class GDBC(object):
             execute_time += time()-t
             # print("execute_time:"+str(execute_time))
             self.ans = self.cursor.fetchall()
-            if 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
+            if not raw_sql and 'if_tensor_exists' not in sql and 'qp4ai_select' not in sql:
                 assert self.ans[0][0]==0
         except :
             raise Exception(f'error sql:{sql}')

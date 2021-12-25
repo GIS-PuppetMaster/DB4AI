@@ -711,6 +711,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if t == 0 and node.vars[t] is None:
                         continue
                     if not node.vars[t].startswith('_') and node.vars[t] not in formal_param:
+                        node.raw_vars[t] = ""+node.vars[t]
                         node.vars[t] = '__' + str(inner_count) + node.vars[t]
                 if hasattr(node, 'data_shape'):
                     pattern = re.compile(r'[(](.*?)[)]', re.S)
@@ -896,7 +897,7 @@ def analyze_expression(expression, x, inner_count, branches: list, replace=None)
                     if match_obj:
                         for obj in match_obj.groups():
                             a = nd.InstantiationClass(x, 'Var', branches, vars=obj, with_grad=False)
-                            x += 1
+                            x+=1
                             G.InsertNode(a)
                             G.InsertEdge(a, current_graph.keynode)
                             vallist.append([obj,a])
